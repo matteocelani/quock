@@ -1,0 +1,16 @@
+# smoke.yaml — minimal cold-launch verification.
+#
+# Scope: cold launch → the app boots and lands on the Login screen with the
+# OAuth entry point visible. Stops BEFORE the Safari handoff so the flow stays
+# hermetic and runs without a bound Ollama account.
+#
+# Required testID: `login-continue` on the "Continue with Ollama" button
+# (declared in app/login.tsx).
+appId: com.matteocelani.quock
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Sign in to your Ollama account"
+- assertVisible: "Continue with Ollama"
+- assertVisible:
+    id: "login-continue"

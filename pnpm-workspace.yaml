@@ -1,0 +1,15 @@
+# pnpm 11 no longer reads `node-linker` / `shamefully-hoist` from .npmrc — they live here now.
+# Metro/Expo use Node's classic resolver, which can't follow pnpm's symlinked .pnpm/ layout,
+# so we force a flat (npm-like) node_modules. (.npmrc keeps the same two keys for pnpm 10.)
+nodeLinker: hoisted
+shamefullyHoist: true
+
+# Let the native resolver binding run its install script — otherwise pnpm 11 blocks it with
+# ERR_PNPM_IGNORED_BUILDS and `pnpm install` won't exit clean.
+allowBuilds:
+  unrs-resolver: true
+
+# RN dev-middleware wants ws@7 (no `WebSocketServer` export), @expo/cli wants ws@8; with both, hoisting picks
+# one non-deterministically and Metro crashes. Pin ws@7 → 8.21.0 so the dev server is deterministic everywhere.
+overrides:
+  ws@7: 8.21.0
