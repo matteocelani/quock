@@ -15,11 +15,6 @@ A community-built mobile client for [Ollama Cloud](https://ollama.com). Chat wit
 
 ---
 
-> [!IMPORTANT]
-> **Quock is an unofficial, community-built client.** It is not affiliated with, endorsed by, or sponsored by Ollama, Inc. — "Ollama" and the Ollama logo are trademarks of their respective owner.
->
-> It's a free, open-source app released under the [MIT license](./LICENSE): it signs you into your own Ollama account, relays the messages you send to Ollama Cloud, and keeps your conversation history on your device and nowhere else.
-
 ## What is Quock?
 
 **Quock is a mobile app for using [Ollama Cloud](https://ollama.com) on your phone** — a native chat client for iPhone and Android. Sign in once with your `ollama.com` account, pick any cloud-hosted model — Gemma, Qwen, Llama, GPT-OSS, DeepSeek, and more — and start typing. Answers stream back word by word.
