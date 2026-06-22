@@ -1,0 +1,12 @@
+# Groups the auto-generated GitHub Release notes by PR label.
+# Unlabeled PRs fall under "Other"; the title prefix (feat:/fix:) is shown either way.
+changelog:
+  categories:
+    - title: ✨ Features
+      labels: [feat, feature, enhancement]
+    - title: 🐛 Fixes
+      labels: [fix, bug]
+    - title: 🔧 Maintenance
+      labels: [chore, ci, docs, refactor, test, deps]
+    - title: Other
+      labels: ["*"]
