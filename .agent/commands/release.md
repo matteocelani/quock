@@ -72,10 +72,9 @@ Tags use the `vX.Y.Z` form (e.g. `v0.1.0`). One tag per published release, on th
 
 1. Mark the draft PR ready: `gh pr ready <number>`.
 2. Human merges `release/X.Y.Z` → `main`.
-3. Tag the merge commit on `main`: `git tag vX.Y.Z && git push origin vX.Y.Z`.
-4. Open a GitHub Release on that tag with the changelog (Conventional Commits make this easy).
-5. Sync `develop` from `main` (PR `main → develop` if any release fixes were never cherry-picked).
-6. Delete the local + remote `release/X.Y.Z` branch.
+3. The **Release workflow** (`.github/workflows/release.yml`) fires on that merge: it auto-creates the `vX.Y.Z` tag and a GitHub Release with notes generated from the merged PRs — no manual tag, no hand-written changelog.
+4. Sync `develop` from `main` (PR `main → develop` if any release fixes were never cherry-picked).
+5. Delete the local + remote `release/X.Y.Z` branch.
 
 ### If a review fails or the release is abandoned
 
