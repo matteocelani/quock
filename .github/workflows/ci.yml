@@ -1,0 +1,73 @@
+name: ci
+
+# Standalone repo (post-rebrand from the ollama monorepo): runs on every PR
+# and every push to the long-lived branches. No path filter — the whole tree
+# is the mobile app.
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  lint-typecheck:
+    name: lint + typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        # No version here — action-setup reads it from package.json's `packageManager` pin.
+        uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+  test:
+    name: jest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        # No version here — action-setup reads it from package.json's `packageManager` pin.
+        uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `--runInBand` keeps SQLite in-memory tests deterministic by avoiding
+      # parallel worker contention. `--coverage` enforces the thresholds in
+      # `jest.config.js` — Jest exits non-zero when any threshold is not met.
+      - name: Test
+        run: pnpm test --coverage --runInBand
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+          if-no-files-found: ignore

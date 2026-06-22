@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "Quock",
+    "slug": "quock",
+    "scheme": "quock",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.matteocelani.quock",
+      "icon": {
+        "light": "./assets/images/icon-light.png",
+        "dark": "./assets/images/icon-dark.png",
+        "tinted": "./assets/images/icon-tinted.png"
+      },
+      "infoPlist": {
+        "UIBackgroundModes": [],
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Take photos to attach them to your conversations.",
+        "NSPhotoLibraryUsageDescription": "Attach images from your library to your conversations."
+      }
+    },
+    "android": {
+      "package": "com.matteocelani.quock",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "monochromeImage": "./assets/images/adaptive-icon-monochrome.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach images from your library to your conversations.",
+          "cameraPermission": "Take photos to attach them to your conversations."
+        }
+      ],
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#F2F2F7",
+          "dark": {
+            "image": "./assets/images/splash-icon-dark.png",
+            "backgroundColor": "#000000"
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
