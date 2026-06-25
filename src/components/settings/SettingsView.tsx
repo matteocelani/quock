@@ -8,6 +8,7 @@ import {
   ChevronRight,
   ExternalLink,
   FileText,
+  HardDrive,
   Info,
   LifeBuoy,
   Palette,
@@ -32,6 +33,10 @@ import {
 import { iconSize, size } from "@/lib/design/tokens";
 import { useChats } from "@/modules/chat/hooks/useChats";
 import { useClearAllChats } from "@/modules/chat/hooks/useClearAllChats";
+import {
+  useClearDeviceData,
+  useDeviceStorageBytes,
+} from "@/modules/chat/hooks/useDeviceStorage";
 import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { formatModelName } from "@/modules/models/lib/formatModelName";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
@@ -81,13 +86,17 @@ export function SettingsView({
   const haptics = useSettingsStore((s) => s.hapticsEnabled);
   const setHapticsEnabled = useSettingsStore((s) => s.setHapticsEnabled);
   const [confirmClear, setConfirmClear] = useState<boolean>(false);
+  const [confirmClearDevice, setConfirmClearDevice] = useState<boolean>(false);
   const { clearAll } = useClearAllChats();
+  const { clearDeviceData } = useClearDeviceData();
   // Same `useChats` cache as the sidebar list — figure stays in sync after delete/rename without an extra query.
   const chatsQuery = useChats();
   const totalChatBytes = useMemo(
     () => (chatsQuery.data ?? []).reduce((sum, c) => sum + c.sizeBytes, 0),
     [chatsQuery.data],
   );
+  // Device-wide total (all accounts) for the "clear all data" confirm + row.
+  const deviceBytes = useDeviceStorageBytes().data ?? 0;
   const selected = useSelectedModel();
   const toast = useToast();
   const handleThemeChange = useCallback(
@@ -120,6 +129,21 @@ export function SettingsView({
       }
     })();
   }, [clearAll, toast]);
+  const handleClearDevice = useCallback((): void => {
+    setConfirmClearDevice(true);
+  }, []);
+  const confirmClearDeviceNow = useCallback((): void => {
+    setConfirmClearDevice(false);
+    void (async (): Promise<void> => {
+      try {
+        await clearDeviceData();
+        toast({ title: "All device data cleared", tone: "success" });
+      } catch (err) {
+        console.error("SettingsView: failed to clear device data", err);
+        toast({ title: "Could not clear device data", tone: "error" });
+      }
+    })();
+  }, [clearDeviceData, toast]);
   const openPrivacy = useCallback((): void => {
     WebBrowser.openBrowserAsync(LEGAL_URLS.privacy).catch((err: unknown) => {
       console.error("SettingsView: failed to open privacy", err);
@@ -196,6 +220,14 @@ export function SettingsView({
             destructive
             trailingMeta={totalChatBytes > 0 ? formatBytes(totalChatBytes) : undefined}
             onPress={handleClearChats}
+          />
+          <ListRow
+            icon={HardDrive}
+            label="Clear all data on this device"
+            subtitle="Every account signed in here"
+            destructive
+            trailingMeta={deviceBytes > 0 ? formatBytes(deviceBytes) : undefined}
+            onPress={handleClearDevice}
             showDivider={false}
           />
         </SettingsGroup>
@@ -262,13 +294,26 @@ export function SettingsView({
         title="Clear all chats?"
         message={
           totalChatBytes > 0
-            ? `This will permanently remove every chat from this device and free up ${formatBytes(totalChatBytes)}.`
-            : "This will permanently remove every chat from this device."
+            ? `This will permanently remove all your chats on this device and free up ${formatBytes(totalChatBytes)}.`
+            : "This will permanently remove all your chats on this device."
         }
         destructive
         confirmLabel="Clear"
         onConfirm={confirmClearNow}
         onCancel={(): void => setConfirmClear(false)}
+      />
+      <ConfirmDialog
+        visible={confirmClearDevice}
+        title="Clear all data on this device?"
+        message={
+          deviceBytes > 0
+            ? `This removes chats for EVERY account signed in on this device and frees up ${formatBytes(deviceBytes)}. Other accounts' chats will be gone too.`
+            : "This removes chats for EVERY account signed in on this device. Other accounts' chats will be gone too."
+        }
+        destructive
+        confirmLabel="Clear all"
+        onConfirm={confirmClearDeviceNow}
+        onCancel={(): void => setConfirmClearDevice(false)}
       />
     </>
   );

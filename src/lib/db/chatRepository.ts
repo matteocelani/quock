@@ -111,6 +111,32 @@ export class ChatRepository {
     );
     return row?.total ?? 0;
   }
+  // Device-wide total across EVERY account's chats — shown on the "clear all data" confirm so the user sees how much a full wipe frees. Unscoped on purpose (getTotalSize above is the per-account figure).
+  async getDeviceTotalSize(): Promise<number> {
+    const row = await this.db.getFirstAsync<{ total: number | null }>(
+      `
+      SELECT
+        (
+          SELECT COALESCE(SUM(LENGTH(content)) + SUM(COALESCE(LENGTH(thinking), 0)), 0)
+          FROM messages
+        )
+        +
+        (
+          SELECT COALESCE(SUM(LENGTH(data)), 0)
+          FROM attachments
+        )       AS total
+      `,
+    );
+    return row?.total ?? 0;
+  }
+  // Wipes EVERY account's chats on this device (storage reclaim / handoff), bypassing the per-account scope. Child-first deletes in a transaction so it reclaims fully regardless of the runtime foreign-keys pragma.
+  async clearAllDevice(): Promise<void> {
+    await this.db.withTransactionAsync(async () => {
+      await this.db.execAsync("DELETE FROM attachments");
+      await this.db.execAsync("DELETE FROM messages");
+      await this.db.execAsync("DELETE FROM chats");
+    });
+  }
   async get(id: ChatId): Promise<DbChat | null> {
     const userId = this.getUserId();
     const row = await this.db.getFirstAsync<ChatRow>(
