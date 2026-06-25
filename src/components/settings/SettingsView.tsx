@@ -2,13 +2,7 @@
 
 import * as Application from "expo-application";
 import * as WebBrowser from "expo-web-browser";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { ScrollView, Text, View } from "react-native";
 import {
   ChevronRight,
@@ -36,15 +30,10 @@ import {
   type ThemeMode,
 } from "@/lib/theme/ThemeContext";
 import { iconSize, size } from "@/lib/design/tokens";
-import { useChats } from "@/modules/chat/hooks/useChats";
-import { useClearAllChats } from "@/modules/chat/hooks/useClearAllChats";
-import {
-  useClearDeviceData,
-  useDeviceStorageBytes,
-} from "@/modules/chat/hooks/useDeviceStorage";
 import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { formatModelName } from "@/modules/models/lib/formatModelName";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
+import { useClearChats } from "@/modules/settings/hooks";
 import { useToast } from "@/lib/hooks/useToast";
 import { useSettingsStore } from "@/lib/stores/settings.store";
 
@@ -94,17 +83,15 @@ export function SettingsView({
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
   const haptics = useSettingsStore((s) => s.hapticsEnabled);
   const setHapticsEnabled = useSettingsStore((s) => s.setHapticsEnabled);
-  const [isChooserOpen, setIsChooserOpen] = useState<boolean>(false);
-  const { clearAll } = useClearAllChats();
-  const { clearDeviceData } = useClearDeviceData();
-  // Same `useChats` cache as the sidebar list — figure stays in sync after delete/rename without an extra query.
-  const chatsQuery = useChats();
-  const totalChatBytes = useMemo(
-    () => (chatsQuery.data ?? []).reduce((sum, c) => sum + c.sizeBytes, 0),
-    [chatsQuery.data],
-  );
-  // Device-wide total (all accounts) for the "clear all data" confirm + row.
-  const deviceBytes = useDeviceStorageBytes().data ?? 0;
+  const {
+    isChooserOpen,
+    openChooser,
+    closeChooser,
+    clearMine,
+    clearDevice,
+    totalChatBytes,
+    deviceBytes,
+  } = useClearChats();
   const selected = useSelectedModel();
   const toast = useToast();
   const handleThemeChange = useCallback(
@@ -119,48 +106,6 @@ export function SettingsView({
     },
     [setHapticsEnabled],
   );
-  const handleClearChats = useCallback((): void => {
-    setIsChooserOpen(true);
-  }, []);
-  const closeChooser = useCallback((): void => {
-    setIsChooserOpen(false);
-  }, []);
-  // clearAll/clearDeviceData (react-query mutations) + toast get a fresh identity each render. Behind refs so the
-  // chooser node published to AccountSheet keeps a stable identity — otherwise the publish effect loops forever.
-  const clearAllRef = useRef(clearAll);
-  const clearDeviceDataRef = useRef(clearDeviceData);
-  const toastRef = useRef(toast);
-  clearAllRef.current = clearAll;
-  clearDeviceDataRef.current = clearDeviceData;
-  toastRef.current = toast;
-  // The chooser IS the confirmation, so a choice deletes straight away — no second dialog.
-  const clearMine = useCallback((): void => {
-    setIsChooserOpen(false);
-    void (async (): Promise<void> => {
-      try {
-        await clearAllRef.current();
-        toastRef.current({ title: "My chats cleared", tone: "success" });
-      } catch (err) {
-        console.error("SettingsView: failed to clear chats", err);
-        toastRef.current({ title: "Could not clear chats", tone: "error" });
-      }
-    })();
-  }, []);
-  const clearDevice = useCallback((): void => {
-    setIsChooserOpen(false);
-    void (async (): Promise<void> => {
-      try {
-        await clearDeviceDataRef.current();
-        toastRef.current({
-          title: "All chats cleared on this device",
-          tone: "success",
-        });
-      } catch (err) {
-        console.error("SettingsView: failed to clear device data", err);
-        toastRef.current({ title: "Could not clear chats", tone: "error" });
-      }
-    })();
-  }, []);
   const clearOverlay = useMemo(
     () => (
       <ClearChatsChooser
@@ -192,19 +137,19 @@ export function SettingsView({
   );
   const openPrivacy = useCallback((): void => {
     WebBrowser.openBrowserAsync(LEGAL_URLS.privacy).catch((err: unknown) => {
-      console.error("SettingsView: failed to open privacy", err);
+      console.warn("SettingsView: failed to open privacy", err);
       toast({ title: "Could not open link", tone: "error" });
     });
   }, [toast]);
   const openTerms = useCallback((): void => {
     WebBrowser.openBrowserAsync(LEGAL_URLS.terms).catch((err: unknown) => {
-      console.error("SettingsView: failed to open terms", err);
+      console.warn("SettingsView: failed to open terms", err);
       toast({ title: "Could not open link", tone: "error" });
     });
   }, [toast]);
   const openSupport = useCallback((): void => {
     WebBrowser.openBrowserAsync(LEGAL_URLS.support).catch((err: unknown) => {
-      console.error("SettingsView: failed to open support", err);
+      console.warn("SettingsView: failed to open support", err);
       toast({ title: "Could not open link", tone: "error" });
     });
   }, [toast]);
@@ -267,7 +212,7 @@ export function SettingsView({
             trailingMeta={
               totalChatBytes > 0 ? formatBytes(totalChatBytes) : "Empty"
             }
-            onPress={handleClearChats}
+            onPress={openChooser}
             showDivider={false}
           />
         </SettingsGroup>

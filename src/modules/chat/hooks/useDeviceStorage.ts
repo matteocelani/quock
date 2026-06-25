@@ -11,7 +11,7 @@ import React from "react";
 import { useDb } from "@/lib/contexts/DbContext";
 import { queryKeys } from "@/lib/hooks/queryKeys";
 
-export function useDeviceStorageBytes(): UseQueryResult<number, Error> {
+export function useGetDeviceStorageBytes(): UseQueryResult<number, Error> {
   const { chats } = useDb();
   return useQuery<number, Error>({
     queryKey: queryKeys.deviceStorage(),
@@ -19,12 +19,12 @@ export function useDeviceStorageBytes(): UseQueryResult<number, Error> {
   });
 }
 
-export interface UseClearDeviceDataResult {
+export interface UseDeleteDeviceDataResult {
   clearDeviceData: () => Promise<void>;
   isPending: boolean;
 }
 
-export function useClearDeviceData(): UseClearDeviceDataResult {
+export function useDeleteDeviceData(): UseDeleteDeviceDataResult {
   const queryClient = useQueryClient();
   const { chats } = useDb();
   const mutation = useMutation({
@@ -40,7 +40,7 @@ export function useClearDeviceData(): UseClearDeviceDataResult {
     (): Promise<void> => mutation.mutateAsync(),
     [mutation],
   );
-  return React.useMemo<UseClearDeviceDataResult>(
+  return React.useMemo<UseDeleteDeviceDataResult>(
     () => ({ clearDeviceData, isPending: mutation.isPending }),
     [clearDeviceData, mutation.isPending],
   );
