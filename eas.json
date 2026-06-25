@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 16.0.0"
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -15,10 +16,21 @@
       "channel": "preview"
     },
     "production": {
-      "channel": "production"
+      "channel": "production",
+      "autoIncrement": true
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "",
+        "ascApiKeyPath": "./credentials/asc-api-key.p8",
+        "ascApiKeyId": "",
+        "ascApiKeyIssuerId": ""
+      },
+      "android": {
+        "serviceAccountKeyPath": "./credentials/play-service-account.json"
+      }
+    }
   }
 }
