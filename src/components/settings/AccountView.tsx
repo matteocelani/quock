@@ -72,28 +72,27 @@ export function AccountView({
         </View>
       </View>
       <View className="flex-1">
-        <View className="py-1.5">
-          <Section>
-            <ListRow
-              icon={SettingsIcon}
-              label="Settings"
-              onPress={onOpenSettings}
-              testID="account-settings"
-              trailing={
-                <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
-              }
-            />
-            <ListRow
-              icon={CreditCard}
-              label="Manage subscription"
-              onPress={onManageSubscription}
-              trailing={
-                <ExternalLink size={iconSize.md} color={colors.mutedForeground} />
-              }
-              showDivider={false}
-            />
-          </Section>
-        </View>
+        {/* No gap above the first row — a press highlight would otherwise flash the white card between the profile divider and the row. */}
+        <Section>
+          <ListRow
+            icon={SettingsIcon}
+            label="Settings"
+            onPress={onOpenSettings}
+            testID="account-settings"
+            trailing={
+              <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
+            }
+          />
+          <ListRow
+            icon={CreditCard}
+            label="Manage subscription"
+            onPress={onManageSubscription}
+            trailing={
+              <ExternalLink size={iconSize.md} color={colors.mutedForeground} />
+            }
+            showDivider={false}
+          />
+        </Section>
         <View className="flex-1" />
         <View className="px-4.5 pt-3 pb-6">
           <Button

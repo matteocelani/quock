@@ -95,6 +95,20 @@ function SystemChrome(): React.ReactElement {
   return <StatusBar style={resolved === "dark" ? "light" : "dark"} />;
 }
 
+// Reads the signed-in account id inside AuthProvider and hands it to DbProvider, so the chat repository scopes every query to the current account — one device's accounts never see each other's local chats.
+function ScopedDbProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}): React.ReactElement {
+  const { user } = useAuthContext();
+  return (
+    <DbProvider userId={user?.id ?? ""} fallback={<SplashLogo />}>
+      {children}
+    </DbProvider>
+  );
+}
+
 export default function RootLayout(): React.ReactElement {
   // Order matters: Auth above Db (signed-in state ready before SQLite), Theme inside Db so its CSS vars wrap the app; the SplashLogo fallback resolves theme on its own while Db opens.
   return (
@@ -104,7 +118,7 @@ export default function RootLayout(): React.ReactElement {
           <QueryClientProvider client={queryClient}>
             <ApiProvider>
               <AuthProvider>
-                <DbProvider fallback={<SplashLogo />}>
+                <ScopedDbProvider>
                   <ThemeProvider>
                     <AuthRouteGuard />
                     <Slot />
@@ -113,7 +127,7 @@ export default function RootLayout(): React.ReactElement {
                     {/* Blocks the app on first launch until the user consents to messages leaving for Ollama Cloud (Apple 5.1.2(i)). */}
                     <AiConsentGate />
                   </ThemeProvider>
-                </DbProvider>
+                </ScopedDbProvider>
               </AuthProvider>
             </ApiProvider>
           </QueryClientProvider>

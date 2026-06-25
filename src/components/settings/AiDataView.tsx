@@ -7,7 +7,7 @@ import { OLLAMA_LINKS } from "@/lib/api/config";
 import { Button } from "@/components/ui/Button";
 import { useSettingsStore } from "@/lib/stores/settings.store";
 import { useUIStore } from "@/lib/stores/ui.store";
-import { useClearAllChats } from "@/modules/chat/hooks/useClearAllChats";
+import { useDeleteDeviceData } from "@/modules/chat/hooks/useDeviceStorage";
 import { useSignOut } from "@/modules/auth/hooks/useAuth";
 
 // Top-edge breathing space below the sheet header; generous bottom inset before the sheet edge.
@@ -18,7 +18,7 @@ export function AiDataView(): React.ReactElement {
   const acceptedAt = useSettingsStore((s) => s.aiConsentAcceptedAt);
   const revokeAiConsent = useSettingsStore((s) => s.revokeAiConsent);
   const closeAccount = useUIStore((s) => s.closeAccount);
-  const { clearAll } = useClearAllChats();
+  const { clearDeviceData } = useDeleteDeviceData();
   const { signOut } = useSignOut();
   const openCloudDocs = useCallback((): void => {
     WebBrowser.openBrowserAsync(OLLAMA_LINKS.cloudDocs).catch((err: unknown) => {
@@ -31,9 +31,9 @@ export function AiDataView(): React.ReactElement {
     closeAccount();
     void (async (): Promise<void> => {
       try {
-        await clearAll();
+        await clearDeviceData();
       } catch (err) {
-        console.warn("AiDataView: clear chats failed on revoke", err);
+        console.warn("AiDataView: clear device data failed on revoke", err);
       }
       try {
         await signOut();
@@ -41,7 +41,7 @@ export function AiDataView(): React.ReactElement {
         console.warn("AiDataView: sign out failed on revoke", err);
       }
     })();
-  }, [revokeAiConsent, closeAccount, clearAll, signOut]);
+  }, [revokeAiConsent, closeAccount, clearDeviceData, signOut]);
   const agreedOn =
     acceptedAt !== null
       ? new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(

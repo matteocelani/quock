@@ -112,6 +112,18 @@ export function AuthProvider({
     };
     return setOnAuthExpired(handler);
   }, [setOnAuthExpired, clearLocalAuth, showToast]);
+  // Clear the chat caches on every account boundary — sign-out, 401 expiry, OR a switch to a different account.
+  // The DB is already user-scoped; this drops React Query's chat entries so the next account never sees the previous one's. Skips the first resolve (nothing to clear yet).
+  const prevUserIdRef = React.useRef<string | undefined>(undefined);
+  React.useEffect(() => {
+    const currentId = user?.id;
+    if (prevUserIdRef.current === currentId) return;
+    if (prevUserIdRef.current !== undefined) {
+      queryClient.removeQueries({ queryKey: queryKeys.chats() });
+      queryClient.removeQueries({ queryKey: queryKeys.chatRoot() });
+    }
+    prevUserIdRef.current = currentId;
+  }, [user?.id, queryClient]);
   const value = React.useMemo<AuthContextValue>(
     () => ({ user, status, refresh: probeUser, signOut }),
     [user, status, probeUser, signOut],
