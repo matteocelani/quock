@@ -1,7 +1,7 @@
 // Bottom-anchored action sheet to pick + confirm what to clear (this account's chats vs all on the device); it
 // IS the confirmation, so a tap deletes — rendered in Sheet's `overlays` slot so it centers against the display.
 
-import React from "react";
+import React, { useState } from "react";
 import { Pressable as RNPressable, StyleSheet, Text, View } from "react-native";
 import Animated, {
   FadeIn,
@@ -16,6 +16,7 @@ import {
   User,
   type LucideIcon,
 } from "lucide-react-native";
+import { Pressable } from "@/components/ui/Pressable";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { baseAnimationDurationMs } from "@/lib/design/motion";
 import {
@@ -52,61 +53,70 @@ function ChoiceRow({
   testID,
 }: ChoiceRowProps): React.ReactElement {
   const colors = useThemeColors();
+  // The design-system Pressable scales the row on press. Keep the press tint on a full-width layer BEHIND that scaling
+  // content — a tint that scaled with it would pull in from the card edges and flash the white card on the sides.
+  const [pressed, setPressed] = useState(false);
   return (
-    <RNPressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${label}, ${sizeLabel(bytes)}. ${hint}`}
-      testID={testID}
-      style={({ pressed }): object | undefined =>
-        pressed ? { backgroundColor: colors.muted } : undefined
+    <View
+      style={
+        showDivider
+          ? {
+              borderBottomWidth: StyleSheet.hairlineWidth,
+              borderBottomColor: colors.border,
+            }
+          : undefined
       }
     >
-      <View
-        className="flex-row items-center gap-3.5 px-4.5 py-3.5"
-        style={
-          showDivider
-            ? {
-                borderBottomWidth: StyleSheet.hairlineWidth,
-                borderBottomColor: colors.border,
-              }
-            : undefined
-        }
-      >
+      {pressed ? (
         <View
-          className="items-center justify-center rounded-xl bg-destructive-soft"
-          style={{ width: 36, height: 36 }}
-        >
-          <Icon
-            size={iconSize.xl}
-            color={colors.destructive}
-            strokeWidth={strokeWidth.regular}
-          />
-        </View>
-        <View className="flex-1">
-          <View className="flex-row items-center gap-2">
+          pointerEvents="none"
+          className="absolute inset-0"
+          style={{ backgroundColor: colors.muted }}
+        />
+      ) : null}
+      <Pressable
+        onPress={onPress}
+        onPressIn={(): void => setPressed(true)}
+        onPressOut={(): void => setPressed(false)}
+        accessibilityLabel={`${label}, ${sizeLabel(bytes)}. ${hint}`}
+        testID={testID}
+      >
+        <View className="flex-row items-center gap-3.5 px-4.5 py-3.5">
+          <View
+            className="items-center justify-center rounded-xl bg-destructive-soft"
+            style={{ width: 36, height: 36 }}
+          >
+            <Icon
+              size={iconSize.xl}
+              color={colors.destructive}
+              strokeWidth={strokeWidth.regular}
+            />
+          </View>
+          <View className="flex-1">
+            <View className="flex-row items-center gap-2">
+              <Text
+                className="flex-1 font-sans font-medium text-base text-destructive"
+                numberOfLines={1}
+              >
+                {label}
+              </Text>
+              <Text
+                className="font-mono text-muted-foreground text-xs"
+                numberOfLines={1}
+              >
+                {sizeLabel(bytes)}
+              </Text>
+            </View>
             <Text
-              className="flex-1 font-sans font-medium text-base text-destructive"
+              className="mt-0.5 font-sans text-muted-foreground text-xs"
               numberOfLines={1}
             >
-              {label}
-            </Text>
-            <Text
-              className="font-mono text-muted-foreground text-xs"
-              numberOfLines={1}
-            >
-              {sizeLabel(bytes)}
+              {hint}
             </Text>
           </View>
-          <Text
-            className="mt-0.5 font-sans text-muted-foreground text-xs"
-            numberOfLines={1}
-          >
-            {hint}
-          </Text>
         </View>
-      </View>
-    </RNPressable>
+      </Pressable>
+    </View>
   );
 }
 
