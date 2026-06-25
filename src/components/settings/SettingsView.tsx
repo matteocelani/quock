@@ -2,13 +2,18 @@
 
 import * as Application from "expo-application";
 import * as WebBrowser from "expo-web-browser";
-import React, { useCallback, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ScrollView, Text, View } from "react-native";
 import {
   ChevronRight,
   ExternalLink,
   FileText,
-  HardDrive,
   Info,
   LifeBuoy,
   Palette,
@@ -18,7 +23,7 @@ import {
 } from "lucide-react-native";
 import OllamaSvg from "@/assets/icons/Ollama.svg";
 import { LEGAL_URLS } from "@/lib/api/config";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ClearChatsChooser } from "@/components/settings/ClearChatsChooser";
 import { ListRow } from "@/components/ui/ListRow";
 import {
   SegmentedControl,
@@ -75,18 +80,21 @@ function SettingsGroup({
 export interface SettingsViewProps {
   onChangeModel?: () => void;
   onOpenOllama: () => void;
+  // Publishes the centered overlay (the clear-chats chooser) up to AccountSheet so it renders in the Sheet's
+  // `overlays` slot — full-display centering, not inside the 90%-height settings card. Null clears it.
+  onRenderOverlays?: (overlays: React.ReactNode) => void;
 }
 
 export function SettingsView({
   onChangeModel,
   onOpenOllama,
+  onRenderOverlays,
 }: SettingsViewProps): React.ReactElement {
   const colors = useThemeColors();
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
   const haptics = useSettingsStore((s) => s.hapticsEnabled);
   const setHapticsEnabled = useSettingsStore((s) => s.setHapticsEnabled);
-  const [confirmClear, setConfirmClear] = useState<boolean>(false);
-  const [confirmClearDevice, setConfirmClearDevice] = useState<boolean>(false);
+  const [chooserOpen, setChooserOpen] = useState<boolean>(false);
   const { clearAll } = useClearAllChats();
   const { clearDeviceData } = useClearDeviceData();
   // Same `useChats` cache as the sidebar list — figure stays in sync after delete/rename without an extra query.
@@ -112,38 +120,76 @@ export function SettingsView({
     [setHapticsEnabled],
   );
   const handleClearChats = useCallback((): void => {
-    setConfirmClear(true);
+    setChooserOpen(true);
   }, []);
-  const confirmClearNow = useCallback((): void => {
-    setConfirmClear(false);
+  const closeChooser = useCallback((): void => {
+    setChooserOpen(false);
+  }, []);
+  // clearAll/clearDeviceData (react-query mutations) + toast get a fresh identity each render. Behind refs so the
+  // chooser node published to AccountSheet keeps a stable identity — otherwise the publish effect loops forever.
+  const clearAllRef = useRef(clearAll);
+  const clearDeviceDataRef = useRef(clearDeviceData);
+  const toastRef = useRef(toast);
+  clearAllRef.current = clearAll;
+  clearDeviceDataRef.current = clearDeviceData;
+  toastRef.current = toast;
+  // The chooser IS the confirmation, so a choice deletes straight away — no second dialog.
+  const clearMine = useCallback((): void => {
+    setChooserOpen(false);
     void (async (): Promise<void> => {
       try {
-        await clearAll();
-        toast({ title: "All chats cleared", tone: "success" });
+        await clearAllRef.current();
+        toastRef.current({ title: "My chats cleared", tone: "success" });
       } catch (err) {
         console.error("SettingsView: failed to clear chats", err);
-        toast({
-          title: "Could not clear chats",
-          tone: "error",
-        });
+        toastRef.current({ title: "Could not clear chats", tone: "error" });
       }
     })();
-  }, [clearAll, toast]);
-  const handleClearDevice = useCallback((): void => {
-    setConfirmClearDevice(true);
   }, []);
-  const confirmClearDeviceNow = useCallback((): void => {
-    setConfirmClearDevice(false);
+  const clearDevice = useCallback((): void => {
+    setChooserOpen(false);
     void (async (): Promise<void> => {
       try {
-        await clearDeviceData();
-        toast({ title: "All device data cleared", tone: "success" });
+        await clearDeviceDataRef.current();
+        toastRef.current({
+          title: "All chats cleared on this device",
+          tone: "success",
+        });
       } catch (err) {
         console.error("SettingsView: failed to clear device data", err);
-        toast({ title: "Could not clear device data", tone: "error" });
+        toastRef.current({ title: "Could not clear chats", tone: "error" });
       }
     })();
-  }, [clearDeviceData, toast]);
+  }, []);
+  const clearOverlay = useMemo(
+    () => (
+      <ClearChatsChooser
+        visible={chooserOpen}
+        mineBytes={totalChatBytes}
+        deviceBytes={deviceBytes}
+        onChooseMine={clearMine}
+        onChooseDevice={clearDevice}
+        onCancel={closeChooser}
+      />
+    ),
+    [
+      chooserOpen,
+      totalChatBytes,
+      deviceBytes,
+      clearMine,
+      clearDevice,
+      closeChooser,
+    ],
+  );
+  useEffect(() => {
+    onRenderOverlays?.(clearOverlay);
+  }, [onRenderOverlays, clearOverlay]);
+  useEffect(
+    () => (): void => {
+      onRenderOverlays?.(null);
+    },
+    [onRenderOverlays],
+  );
   const openPrivacy = useCallback((): void => {
     WebBrowser.openBrowserAsync(LEGAL_URLS.privacy).catch((err: unknown) => {
       console.error("SettingsView: failed to open privacy", err);
@@ -174,7 +220,10 @@ export function SettingsView({
     <>
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingTop: SCROLL_PAD_TOP, paddingBottom: SCROLL_PAD_BOTTOM }}
+        contentContainerStyle={{
+          paddingTop: SCROLL_PAD_TOP,
+          paddingBottom: SCROLL_PAD_BOTTOM,
+        }}
         showsVerticalScrollIndicator={false}
         bounces
         decelerationRate="normal"
@@ -218,16 +267,10 @@ export function SettingsView({
             icon={Trash2}
             label="Clear all chats"
             destructive
-            trailingMeta={totalChatBytes > 0 ? formatBytes(totalChatBytes) : undefined}
+            trailingMeta={
+              totalChatBytes > 0 ? formatBytes(totalChatBytes) : "Empty"
+            }
             onPress={handleClearChats}
-          />
-          <ListRow
-            icon={HardDrive}
-            label="Clear all data on this device"
-            subtitle="Every account signed in here"
-            destructive
-            trailingMeta={deviceBytes > 0 ? formatBytes(deviceBytes) : undefined}
-            onPress={handleClearDevice}
             showDivider={false}
           />
         </SettingsGroup>
@@ -289,32 +332,6 @@ export function SettingsView({
           />
         </SettingsGroup>
       </ScrollView>
-      <ConfirmDialog
-        visible={confirmClear}
-        title="Clear all chats?"
-        message={
-          totalChatBytes > 0
-            ? `This will permanently remove all your chats on this device and free up ${formatBytes(totalChatBytes)}.`
-            : "This will permanently remove all your chats on this device."
-        }
-        destructive
-        confirmLabel="Clear"
-        onConfirm={confirmClearNow}
-        onCancel={(): void => setConfirmClear(false)}
-      />
-      <ConfirmDialog
-        visible={confirmClearDevice}
-        title="Clear all data on this device?"
-        message={
-          deviceBytes > 0
-            ? `This removes chats for EVERY account signed in on this device and frees up ${formatBytes(deviceBytes)}. Other accounts' chats will be gone too.`
-            : "This removes chats for EVERY account signed in on this device. Other accounts' chats will be gone too."
-        }
-        destructive
-        confirmLabel="Clear all"
-        onConfirm={confirmClearDeviceNow}
-        onCancel={(): void => setConfirmClearDevice(false)}
-      />
     </>
   );
 }

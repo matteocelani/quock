@@ -71,6 +71,10 @@ export function AccountSheet({
 }: AccountSheetProps): React.ReactElement {
   const colors = useThemeColors();
   const [view, setView] = useState<AccountSheetView>("account");
+  // The settings pane publishes its centered overlay (clear-chats chooser) here so it renders in the Sheet's
+  // full-display `overlays` slot, not inside the card. Gated on the settings view so it never paints over other panes.
+  const [settingsOverlays, setSettingsOverlays] =
+    useState<React.ReactNode>(null);
   const { user } = useAuth();
   const { signOut } = useSignOut();
   const toast = useToast();
@@ -201,7 +205,12 @@ export function AccountSheet({
     [colors.foreground],
   );
   return (
-    <Sheet visible={visible} onClose={onClose} snapPoints={[...snapPoints]}>
+    <Sheet
+      visible={visible}
+      onClose={onClose}
+      snapPoints={[...snapPoints]}
+      overlays={view === "settings" ? settingsOverlays : null}
+    >
       {view === "settings" ? (
         <SheetHeader title="Settings" left={renderBackChevron("account")} />
       ) : null}
@@ -234,6 +243,7 @@ export function AccountSheet({
             <SettingsView
               onChangeModel={onChangeModel}
               onOpenOllama={(): void => setView("ollama")}
+              onRenderOverlays={setSettingsOverlays}
             />
           </DrillFrame>
         ) : (
