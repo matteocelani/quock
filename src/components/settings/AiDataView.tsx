@@ -11,7 +11,6 @@ import { useUIStore } from "@/lib/stores/ui.store";
 import { useDeleteDeviceData } from "@/modules/chat/hooks/useDeviceStorage";
 import { useSignOut } from "@/modules/auth/hooks/useAuth";
 
-// Top-edge breathing space below the sheet header; generous bottom inset before the sheet edge.
 const SCROLL_PAD_TOP = 8;
 const SCROLL_PAD_BOTTOM = 40;
 
