@@ -5,6 +5,8 @@ import type { ChatId } from "@/lib/types/ids";
 export const queryKeys = {
   user: () => ["user"] as const,
   chats: () => ["chats"] as const,
+  // Device-wide chat storage total (all accounts), for the "clear all data on this device" confirm.
+  deviceStorage: () => ["deviceStorage"] as const,
   chat: (id: ChatId) => ["chat", id] as const,
   // Pinned model NAME for a chat, kept separate from the heavy `chat(id)` entry so the
   // model badge + composer subscribe to it without re-rendering on every streamed token.

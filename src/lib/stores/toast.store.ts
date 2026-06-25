@@ -43,7 +43,16 @@ export const useToastStore = create<ToastState>((set, get) => ({
     if (options.description !== undefined) {
       item.description = options.description;
     }
-    set({ items: [...get().items, item] });
+    // Latest-wins: supersede any live toast (and cancel its timer) so the viewport can never regress to an older,
+    // still-pending one when this one dismisses, and stale items never pile up holding timers.
+    for (const prev of get().items) {
+      const prevTimer = timers.get(prev.id);
+      if (prevTimer) {
+        clearTimeout(prevTimer);
+        timers.delete(prev.id);
+      }
+    }
+    set({ items: [item] });
     const timer = setTimeout(() => {
       get().dismiss(id);
     }, item.duration);

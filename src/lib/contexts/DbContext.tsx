@@ -26,11 +26,16 @@ export interface DbProviderProps {
   fallback?: React.ReactNode;
   // Optional error renderer; defaults to null so consumers can rethrow via `useDb()` instead.
   errorFallback?: (error: Error) => React.ReactNode;
+  // Signed-in Ollama account id ("" when signed out); scopes every chat query so one device's accounts never see each other's local chats.
+  userId: string;
 }
 
-function buildRepositories(db: SQLiteDatabase): DbContextValue {
+function buildRepositories(
+  db: SQLiteDatabase,
+  getUserId: () => string,
+): DbContextValue {
   return {
-    chats: new ChatRepository(db),
+    chats: new ChatRepository(db, getUserId),
     messages: new MessageRepository(db),
     attachments: new AttachmentRepository(db),
   };
@@ -40,7 +45,11 @@ export function DbProvider({
   children,
   fallback = null,
   errorFallback,
+  userId,
 }: DbProviderProps): React.ReactElement {
+  // Repositories read this live via the getter passed to buildRepositories, so a sign-in/out updates query scoping without rebuilding the connection.
+  const userIdRef = React.useRef(userId);
+  userIdRef.current = userId;
   const [state, setState] = React.useState<DbContextState>({
     status: "idle",
     value: null,
@@ -54,7 +63,7 @@ export function DbProvider({
         if (isCancelled) return;
         setState({
           status: "ready",
-          value: buildRepositories(db),
+          value: buildRepositories(db, () => userIdRef.current),
           error: null,
         });
       } catch (err) {

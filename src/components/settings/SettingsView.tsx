@@ -2,7 +2,7 @@
 
 import * as Application from "expo-application";
 import * as WebBrowser from "expo-web-browser";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { ScrollView, Text, View } from "react-native";
 import {
   ChevronRight,
@@ -17,7 +17,7 @@ import {
 } from "lucide-react-native";
 import OllamaSvg from "@/assets/icons/Ollama.svg";
 import { LEGAL_URLS } from "@/lib/api/config";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ClearChatsChooser } from "@/components/settings/ClearChatsChooser";
 import { ListRow } from "@/components/ui/ListRow";
 import {
   SegmentedControl,
@@ -30,11 +30,10 @@ import {
   type ThemeMode,
 } from "@/lib/theme/ThemeContext";
 import { iconSize, size } from "@/lib/design/tokens";
-import { useChats } from "@/modules/chat/hooks/useChats";
-import { useClearAllChats } from "@/modules/chat/hooks/useClearAllChats";
 import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { formatModelName } from "@/modules/models/lib/formatModelName";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
+import { useClearChats } from "@/modules/settings/hooks";
 import { useToast } from "@/lib/hooks/useToast";
 import { useSettingsStore } from "@/lib/stores/settings.store";
 
@@ -70,24 +69,29 @@ function SettingsGroup({
 export interface SettingsViewProps {
   onChangeModel?: () => void;
   onOpenOllama: () => void;
+  // Publishes the centered overlay (the clear-chats chooser) up to AccountSheet so it renders in the Sheet's
+  // `overlays` slot — full-display centering, not inside the 90%-height settings card. Null clears it.
+  onRenderOverlays?: (overlays: React.ReactNode) => void;
 }
 
 export function SettingsView({
   onChangeModel,
   onOpenOllama,
+  onRenderOverlays,
 }: SettingsViewProps): React.ReactElement {
   const colors = useThemeColors();
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
   const haptics = useSettingsStore((s) => s.hapticsEnabled);
   const setHapticsEnabled = useSettingsStore((s) => s.setHapticsEnabled);
-  const [confirmClear, setConfirmClear] = useState<boolean>(false);
-  const { clearAll } = useClearAllChats();
-  // Same `useChats` cache as the sidebar list — figure stays in sync after delete/rename without an extra query.
-  const chatsQuery = useChats();
-  const totalChatBytes = useMemo(
-    () => (chatsQuery.data ?? []).reduce((sum, c) => sum + c.sizeBytes, 0),
-    [chatsQuery.data],
-  );
+  const {
+    isChooserOpen,
+    openChooser,
+    closeChooser,
+    clearMine,
+    clearDevice,
+    totalChatBytes,
+    deviceBytes,
+  } = useClearChats();
   const selected = useSelectedModel();
   const toast = useToast();
   const handleThemeChange = useCallback(
@@ -102,39 +106,50 @@ export function SettingsView({
     },
     [setHapticsEnabled],
   );
-  const handleClearChats = useCallback((): void => {
-    setConfirmClear(true);
-  }, []);
-  const confirmClearNow = useCallback((): void => {
-    setConfirmClear(false);
-    void (async (): Promise<void> => {
-      try {
-        await clearAll();
-        toast({ title: "All chats cleared", tone: "success" });
-      } catch (err) {
-        console.error("SettingsView: failed to clear chats", err);
-        toast({
-          title: "Could not clear chats",
-          tone: "error",
-        });
-      }
-    })();
-  }, [clearAll, toast]);
+  const clearOverlay = useMemo(
+    () => (
+      <ClearChatsChooser
+        visible={isChooserOpen}
+        mineBytes={totalChatBytes}
+        deviceBytes={deviceBytes}
+        onChooseMine={clearMine}
+        onChooseDevice={clearDevice}
+        onCancel={closeChooser}
+      />
+    ),
+    [
+      isChooserOpen,
+      totalChatBytes,
+      deviceBytes,
+      clearMine,
+      clearDevice,
+      closeChooser,
+    ],
+  );
+  useEffect(() => {
+    onRenderOverlays?.(clearOverlay);
+  }, [onRenderOverlays, clearOverlay]);
+  useEffect(
+    () => (): void => {
+      onRenderOverlays?.(null);
+    },
+    [onRenderOverlays],
+  );
   const openPrivacy = useCallback((): void => {
     WebBrowser.openBrowserAsync(LEGAL_URLS.privacy).catch((err: unknown) => {
-      console.error("SettingsView: failed to open privacy", err);
+      console.warn("SettingsView: failed to open privacy", err);
       toast({ title: "Could not open link", tone: "error" });
     });
   }, [toast]);
   const openTerms = useCallback((): void => {
     WebBrowser.openBrowserAsync(LEGAL_URLS.terms).catch((err: unknown) => {
-      console.error("SettingsView: failed to open terms", err);
+      console.warn("SettingsView: failed to open terms", err);
       toast({ title: "Could not open link", tone: "error" });
     });
   }, [toast]);
   const openSupport = useCallback((): void => {
     WebBrowser.openBrowserAsync(LEGAL_URLS.support).catch((err: unknown) => {
-      console.error("SettingsView: failed to open support", err);
+      console.warn("SettingsView: failed to open support", err);
       toast({ title: "Could not open link", tone: "error" });
     });
   }, [toast]);
@@ -194,8 +209,10 @@ export function SettingsView({
             icon={Trash2}
             label="Clear all chats"
             destructive
-            trailingMeta={totalChatBytes > 0 ? formatBytes(totalChatBytes) : undefined}
-            onPress={handleClearChats}
+            trailingMeta={
+              totalChatBytes > 0 ? formatBytes(totalChatBytes) : "Empty"
+            }
+            onPress={openChooser}
             showDivider={false}
           />
         </SettingsGroup>
@@ -257,19 +274,6 @@ export function SettingsView({
           />
         </SettingsGroup>
       </ScrollView>
-      <ConfirmDialog
-        visible={confirmClear}
-        title="Clear all chats?"
-        message={
-          totalChatBytes > 0
-            ? `This will permanently remove every chat from this device and free up ${formatBytes(totalChatBytes)}.`
-            : "This will permanently remove every chat from this device."
-        }
-        destructive
-        confirmLabel="Clear"
-        onConfirm={confirmClearNow}
-        onCancel={(): void => setConfirmClear(false)}
-      />
     </>
   );
 }
