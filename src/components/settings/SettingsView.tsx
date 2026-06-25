@@ -11,6 +11,7 @@ import {
   Info,
   LifeBuoy,
   Palette,
+  ShieldCheck,
   Sparkles,
   Trash2,
   Vibrate,
@@ -70,11 +71,13 @@ function SettingsGroup({
 export interface SettingsViewProps {
   onChangeModel?: () => void;
   onOpenOllama: () => void;
+  onOpenAiData: () => void;
 }
 
 export function SettingsView({
   onChangeModel,
   onOpenOllama,
+  onOpenAiData,
 }: SettingsViewProps): React.ReactElement {
   const colors = useThemeColors();
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
@@ -200,6 +203,15 @@ export function SettingsView({
           />
         </SettingsGroup>
         <SettingsGroup label="ABOUT">
+          <ListRow
+            icon={ShieldCheck}
+            label="AI data sharing"
+            onPress={onOpenAiData}
+            trailing={
+              <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
+            }
+            testID="settings-ai-consent"
+          />
           <ListRow
             icon={FileText}
             label="Privacy Policy"

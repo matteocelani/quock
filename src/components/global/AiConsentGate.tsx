@@ -1,5 +1,5 @@
-// First-launch AI data-sharing consent (Apple 5.1.2(i)): blocks the whole app until the user explicitly agrees that
-// their messages leave the device for Ollama Cloud. Persisted in settings.store, so it appears once.
+// First-launch AI data-sharing consent (Apple 5.1.2(i)): blocks the app until the user explicitly agrees their
+// messages leave for Ollama Cloud. Persisted in settings.store, so it appears once; re-readable in Settings.
 
 import * as WebBrowser from "expo-web-browser";
 import React from "react";
@@ -37,7 +37,7 @@ export function AiConsentGate(): React.ReactElement | null {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ flexGrow: 1 }}
         >
-          {/* Content flows from the top; a flex spacer keeps the consent action anchored at the bottom. */}
+          {/* Content flows from the top; a flex spacer keeps the action anchored at the bottom. */}
           <View className="flex-1 px-6 pt-8 pb-2">
             <View className="items-center mb-9">
               <QuockSvg

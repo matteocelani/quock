@@ -16,6 +16,7 @@ interface SettingsState {
   setSelectedModelName: (name: string | null) => void;
   setHapticsEnabled: (enabled: boolean) => void;
   acceptAiConsent: () => void;
+  revokeAiConsent: () => void;
 }
 
 const DEFAULT_THEME: ThemeMode = "system";
@@ -39,6 +40,9 @@ export const useSettingsStore = create<SettingsState>()(
       },
       acceptAiConsent: (): void => {
         set({ aiConsentAcceptedAt: Date.now() });
+      },
+      revokeAiConsent: (): void => {
+        set({ aiConsentAcceptedAt: null });
       },
     }),
     {
