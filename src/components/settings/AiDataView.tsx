@@ -5,6 +5,7 @@ import React, { useCallback } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { OLLAMA_LINKS } from "@/lib/api/config";
 import { Button } from "@/components/ui/Button";
+import { useToast } from "@/lib/hooks/useToast";
 import { useSettingsStore } from "@/lib/stores/settings.store";
 import { useUIStore } from "@/lib/stores/ui.store";
 import { useDeleteDeviceData } from "@/modules/chat/hooks/useDeviceStorage";
@@ -20,28 +21,29 @@ export function AiDataView(): React.ReactElement {
   const closeAccount = useUIStore((s) => s.closeAccount);
   const { clearDeviceData } = useDeleteDeviceData();
   const { signOut } = useSignOut();
+  const toast = useToast();
   const openCloudDocs = useCallback((): void => {
     WebBrowser.openBrowserAsync(OLLAMA_LINKS.cloudDocs).catch((err: unknown) => {
       console.warn("AiDataView: failed to open Ollama Cloud docs", err);
+      toast({ title: "Could not open link", tone: "error" });
     });
-  }, []);
-  // Full reset: clear consent + close the sheet so the blocking gate takes over, then wipe chats + sign out behind it.
+  }, [toast]);
+  // Wipe + sign out FIRST, then clear consent and close the sheet — so a failed reset surfaces a toast (the blocking
+  // gate hasn't taken over yet) instead of silently leaving data behind while the gate implies the reset succeeded.
   const handleRevoke = useCallback((): void => {
-    revokeAiConsent();
-    closeAccount();
     void (async (): Promise<void> => {
       try {
         await clearDeviceData();
-      } catch (err) {
-        console.warn("AiDataView: clear device data failed on revoke", err);
-      }
-      try {
         await signOut();
       } catch (err) {
-        console.warn("AiDataView: sign out failed on revoke", err);
+        console.warn("AiDataView: revoke reset failed", err);
+        toast({ title: "Could not complete the reset", tone: "error" });
+        return;
       }
+      revokeAiConsent();
+      closeAccount();
     })();
-  }, [revokeAiConsent, closeAccount, clearDeviceData, signOut]);
+  }, [clearDeviceData, signOut, revokeAiConsent, closeAccount, toast]);
   const agreedOn =
     acceptedAt !== null
       ? new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(
