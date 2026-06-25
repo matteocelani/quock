@@ -55,7 +55,7 @@ function ChoiceRow({
   const colors = useThemeColors();
   // The design-system Pressable scales the row on press. Keep the press tint on a full-width layer BEHIND that scaling
   // content — a tint that scaled with it would pull in from the card edges and flash the white card on the sides.
-  const [pressed, setPressed] = useState(false);
+  const [isPressed, setIsPressed] = useState(false);
   return (
     <View
       style={
@@ -67,7 +67,7 @@ function ChoiceRow({
           : undefined
       }
     >
-      {pressed ? (
+      {isPressed ? (
         <View
           pointerEvents="none"
           className="absolute inset-0"
@@ -76,16 +76,13 @@ function ChoiceRow({
       ) : null}
       <Pressable
         onPress={onPress}
-        onPressIn={(): void => setPressed(true)}
-        onPressOut={(): void => setPressed(false)}
+        onPressIn={(): void => setIsPressed(true)}
+        onPressOut={(): void => setIsPressed(false)}
         accessibilityLabel={`${label}, ${sizeLabel(bytes)}. ${hint}`}
         testID={testID}
       >
         <View className="flex-row items-center gap-3.5 px-4.5 py-3.5">
-          <View
-            className="items-center justify-center rounded-xl bg-destructive-soft"
-            style={{ width: 36, height: 36 }}
-          >
+          <View className="items-center justify-center rounded-xl bg-destructive-soft w-10 h-10">
             <Icon
               size={iconSize.xl}
               color={colors.destructive}
@@ -168,7 +165,7 @@ export function ClearChatsChooser({
         entering={SlideInDown.duration(baseAnimationDurationMs)}
         exiting={SlideOutDown.duration(baseAnimationDurationMs)}
         className="px-3 gap-2"
-        style={{ paddingBottom: insets.bottom + 8 }}
+        style={{ paddingBottom: insets.bottom + componentLayout.composer.minBottomPad }}
         pointerEvents="box-none"
         accessibilityViewIsModal
       >
@@ -210,6 +207,7 @@ export function ClearChatsChooser({
             testID="clear-scope-device"
           />
         </View>
+        {/* Intentional iOS action-sheet Cancel: a detached bg-card panel matching the options card, not a <Button> pill — no Button variant renders this card shape. */}
         <RNPressable
           onPress={onCancel}
           accessibilityRole="button"

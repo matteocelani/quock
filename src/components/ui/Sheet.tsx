@@ -237,7 +237,7 @@ export function Sheet({
         {/* Overlays — modals/dialogs that should center against the full display, not against the sheet card. Rendered AFTER the card so they paint above it within the same Modal layer. */}
         {overlays}
         {/* The main-tree toast viewport sits behind this Modal, so host one here too — alerts (e.g. "cleared") must surface above the open sheet, not vanish under it. Anchored below the Dynamic Island (no header over a sheet). */}
-        <ToastViewport inSheet />
+        <ToastViewport isInSheet />
       </GestureHandlerRootView>
     </Modal>
   );

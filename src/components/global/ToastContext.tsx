@@ -37,21 +37,21 @@ const TONE_ICON: Record<ToastTone, LucideIcon> = {
 export interface ToastViewportProps {
   // Hosted inside a Sheet's Modal: anchor just below the Dynamic Island (no FloatingHeader exists over a sheet);
   // the chat-tree viewport keeps its FloatingHeader anchor.
-  inSheet?: boolean;
+  isInSheet?: boolean;
 }
 // Renders only the top-most active toast, top-anchored (under the FloatingHeader in chat, below the safe area over a sheet).
 export function ToastViewport({
-  inSheet = false,
+  isInSheet = false,
 }: ToastViewportProps): React.ReactElement | null {
   // Latest-wins: a new toast supersedes the visible one. `shown` lags `target` by one fade so a replacement reads as
   // a clean disappear → reappear, not a text morph in place.
   const target = useToastStore((s) => s.items[s.items.length - 1]);
-  const sheetOpen = useUIStore((s) => s.openSheetCount > 0);
+  const isSheetOpen = useUIStore((s) => s.openSheetCount > 0);
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const [shown, setShown] = useState<ToastItem | undefined>(target);
-  const [visible, setVisible] = useState<boolean>(target !== undefined);
-  const progress = useFadeProgress(visible);
+  const [isVisible, setIsVisible] = useState<boolean>(target !== undefined);
+  const progress = useFadeProgress(isVisible);
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
     // Slide down from above the resting position as progress climbs from 0 → 1.
@@ -64,27 +64,27 @@ export function ToastViewport({
     // Nothing painted yet → bring the new toast straight in.
     if (shown === undefined) {
       setShown(target);
-      setVisible(true);
+      setIsVisible(true);
       return;
     }
     // A different toast (or none) is current: fade the old out, then swap + fade the new in once the exit completes.
-    setVisible(false);
+    setIsVisible(false);
     const t = setTimeout(() => {
       setShown(target);
-      setVisible(target !== undefined);
+      setIsVisible(target !== undefined);
     }, baseAnimationDurationMs);
     return (): void => clearTimeout(t);
   }, [target, shown]);
   if (!shown) {
     return null;
   }
-  // A sheet Modal is up: only the sheet-hosted viewport (inSheet) paints. The main-tree one would bleed through the scrim blur as a faded duplicate.
-  if (!inSheet && sheetOpen) {
+  // A sheet Modal is up: only the sheet-hosted viewport (isInSheet) paints. The main-tree one would bleed through the scrim blur as a faded duplicate.
+  if (!isInSheet && isSheetOpen) {
     return null;
   }
   // Chat: land below the FloatingHeader (safe-area + topGap + orb row + gap). Over a sheet there is no header,
   // so anchor just below the Dynamic Island instead.
-  const toastTop = inSheet
+  const toastTop = isInSheet
     ? insets.top + T.topOffset
     : insets.top +
       componentLayout.floatingHeader.topGap +

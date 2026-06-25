@@ -94,7 +94,7 @@ export function SettingsView({
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
   const haptics = useSettingsStore((s) => s.hapticsEnabled);
   const setHapticsEnabled = useSettingsStore((s) => s.setHapticsEnabled);
-  const [chooserOpen, setChooserOpen] = useState<boolean>(false);
+  const [isChooserOpen, setIsChooserOpen] = useState<boolean>(false);
   const { clearAll } = useClearAllChats();
   const { clearDeviceData } = useClearDeviceData();
   // Same `useChats` cache as the sidebar list — figure stays in sync after delete/rename without an extra query.
@@ -120,10 +120,10 @@ export function SettingsView({
     [setHapticsEnabled],
   );
   const handleClearChats = useCallback((): void => {
-    setChooserOpen(true);
+    setIsChooserOpen(true);
   }, []);
   const closeChooser = useCallback((): void => {
-    setChooserOpen(false);
+    setIsChooserOpen(false);
   }, []);
   // clearAll/clearDeviceData (react-query mutations) + toast get a fresh identity each render. Behind refs so the
   // chooser node published to AccountSheet keeps a stable identity — otherwise the publish effect loops forever.
@@ -135,7 +135,7 @@ export function SettingsView({
   toastRef.current = toast;
   // The chooser IS the confirmation, so a choice deletes straight away — no second dialog.
   const clearMine = useCallback((): void => {
-    setChooserOpen(false);
+    setIsChooserOpen(false);
     void (async (): Promise<void> => {
       try {
         await clearAllRef.current();
@@ -147,7 +147,7 @@ export function SettingsView({
     })();
   }, []);
   const clearDevice = useCallback((): void => {
-    setChooserOpen(false);
+    setIsChooserOpen(false);
     void (async (): Promise<void> => {
       try {
         await clearDeviceDataRef.current();
@@ -164,7 +164,7 @@ export function SettingsView({
   const clearOverlay = useMemo(
     () => (
       <ClearChatsChooser
-        visible={chooserOpen}
+        visible={isChooserOpen}
         mineBytes={totalChatBytes}
         deviceBytes={deviceBytes}
         onChooseMine={clearMine}
@@ -173,7 +173,7 @@ export function SettingsView({
       />
     ),
     [
-      chooserOpen,
+      isChooserOpen,
       totalChatBytes,
       deviceBytes,
       clearMine,
@@ -220,10 +220,7 @@ export function SettingsView({
     <>
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{
-          paddingTop: SCROLL_PAD_TOP,
-          paddingBottom: SCROLL_PAD_BOTTOM,
-        }}
+        contentContainerStyle={{ paddingTop: SCROLL_PAD_TOP, paddingBottom: SCROLL_PAD_BOTTOM }}
         showsVerticalScrollIndicator={false}
         bounces
         decelerationRate="normal"
