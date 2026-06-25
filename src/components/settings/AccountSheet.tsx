@@ -12,6 +12,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { LEGAL_URLS } from "@/lib/api/config";
 import { AccountView } from "@/components/settings/AccountView";
+import { AiDataView } from "@/components/settings/AiDataView";
 import { OllamaView } from "@/components/settings/OllamaView";
 import { SettingsView } from "@/components/settings/SettingsView";
 import { ChevronLeft } from "lucide-react-native";
@@ -62,7 +63,7 @@ export interface AccountSheetProps {
   onChangeModel?: () => void;
 }
 
-type AccountSheetView = "account" | "settings" | "ollama";
+type AccountSheetView = "account" | "settings" | "ollama" | "aiData";
 
 export function AccountSheet({
   visible,
@@ -84,19 +85,23 @@ export function AccountSheet({
   const [isSettlingSettings, setIsSettlingSettings] = useState<boolean>(false);
   const [isSettlingAccount, setIsSettlingAccount] = useState<boolean>(false);
   const [isSettlingOllama, setIsSettlingOllama] = useState<boolean>(false);
-  // Three shared values drive the 3-way crossfade. Each view animates its own progress to 1 while the other two animate to 0.
+  const [isSettlingAiData, setIsSettlingAiData] = useState<boolean>(false);
+  // Shared values drive the crossfade. Each view animates its own progress to 1 while the others animate to 0.
   const accountProgress = useSharedValue(1);
   const settingsProgress = useSharedValue(0);
   const ollamaProgress = useSharedValue(0);
+  const aiDataProgress = useSharedValue(0);
   useEffect(() => {
     if (prevViewRef.current === view) return;
     prevViewRef.current = view;
     const settingsTarget = view === "settings" ? 1 : 0;
     const accountTarget = view === "account" ? 1 : 0;
     const ollamaTarget = view === "ollama" ? 1 : 0;
+    const aiDataTarget = view === "aiData" ? 1 : 0;
     setIsSettlingSettings(true);
     setIsSettlingAccount(true);
     setIsSettlingOllama(true);
+    setIsSettlingAiData(true);
     settingsProgress.value = withTiming(
       settingsTarget,
       {
@@ -130,7 +135,18 @@ export function AccountSheet({
         if (finished) runOnJS(setIsSettlingOllama)(false);
       },
     );
-  }, [view, settingsProgress, accountProgress, ollamaProgress]);
+    aiDataProgress.value = withTiming(
+      aiDataTarget,
+      {
+        duration: view === "aiData" ? SHEET_FADE_IN_MS : SHEET_FADE_OUT_MS,
+        easing: springEasing,
+      },
+      (finished) => {
+        "worklet";
+        if (finished) runOnJS(setIsSettlingAiData)(false);
+      },
+    );
+  }, [view, settingsProgress, accountProgress, ollamaProgress, aiDataProgress]);
   const settingsAnimatedStyle = useAnimatedStyle(() => {
     const scaleValue =
       SETTINGS_DRILL_SCALE_FROM +
@@ -160,6 +176,17 @@ export function AccountSheet({
     return {
       flex: 1,
       opacity: ollamaProgress.value,
+      transform: [{ scale: scaleValue }],
+    };
+  });
+  const aiDataAnimatedStyle = useAnimatedStyle(() => {
+    const scaleValue =
+      SETTINGS_DRILL_SCALE_FROM +
+      (SETTINGS_DRILL_SCALE_TO - SETTINGS_DRILL_SCALE_FROM) *
+        aiDataProgress.value;
+    return {
+      flex: 1,
+      opacity: aiDataProgress.value,
       transform: [{ scale: scaleValue }],
     };
   });
@@ -217,6 +244,9 @@ export function AccountSheet({
       {view === "ollama" ? (
         <SheetHeader title="Ollama" left={renderBackChevron("settings")} />
       ) : null}
+      {view === "aiData" ? (
+        <SheetHeader title="AI data" left={renderBackChevron("settings")} />
+      ) : null}
       <View className="flex-1">
         {view === "account" ? (
           <DrillFrame
@@ -243,16 +273,25 @@ export function AccountSheet({
             <SettingsView
               onChangeModel={onChangeModel}
               onOpenOllama={(): void => setView("ollama")}
+              onOpenAiData={(): void => setView("aiData")}
               onRenderOverlays={setSettingsOverlays}
             />
           </DrillFrame>
-        ) : (
+        ) : view === "ollama" ? (
           <DrillFrame
             isAnimating={isSettlingOllama}
             animatedStyle={ollamaAnimatedStyle}
             animatedKey="ollama-view"
           >
             <OllamaView />
+          </DrillFrame>
+        ) : (
+          <DrillFrame
+            isAnimating={isSettlingAiData}
+            animatedStyle={aiDataAnimatedStyle}
+            animatedKey="aidata-view"
+          >
+            <AiDataView />
           </DrillFrame>
         )}
       </View>

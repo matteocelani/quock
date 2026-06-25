@@ -16,6 +16,7 @@ import { ApiProvider } from "@/lib/contexts/ApiContext";
 import { AuthProvider, useAuthContext } from "@/modules/auth/context/AuthContext";
 import { DbProvider } from "@/lib/contexts/DbContext";
 import { ToastViewport } from "@/components/global/ToastContext";
+import { AiConsentGate } from "@/components/global/AiConsentGate";
 import {
   ThemeProvider,
   useResolvedThemeColors,
@@ -123,6 +124,8 @@ export default function RootLayout(): React.ReactElement {
                     <Slot />
                     <ToastViewport />
                     <SystemChrome />
+                    {/* Blocks the app on first launch until the user consents to messages leaving for Ollama Cloud (Apple 5.1.2(i)). */}
+                    <AiConsentGate />
                   </ThemeProvider>
                 </ScopedDbProvider>
               </AuthProvider>

@@ -29,6 +29,7 @@ export const LEGAL_URLS = {
 // Official Ollama, Inc. community channels surfaced in the Settings sheet under "Ollama Cloud". These are NOT Quock-affiliated — exposing them inside the app is nominative fair use: it reinforces the non-affiliation message by pointing users to the upstream owner for support, docs, and community. Hardcoded (no CLOUD_BASE_URL substitution) because they are operated by Ollama, Inc. regardless of which API host this build talks to.
 export const OLLAMA_LINKS = {
   docs: "https://docs.ollama.com/",
+  cloudDocs: "https://docs.ollama.com/cloud",
   github: "https://github.com/ollama/ollama",
   discord: "https://discord.com/invite/ollama",
   twitter: "https://twitter.com/ollama",

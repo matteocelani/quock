@@ -11,6 +11,7 @@ import {
   Info,
   LifeBuoy,
   Palette,
+  ShieldCheck,
   Sparkles,
   Trash2,
   Vibrate,
@@ -69,6 +70,7 @@ function SettingsGroup({
 export interface SettingsViewProps {
   onChangeModel?: () => void;
   onOpenOllama: () => void;
+  onOpenAiData: () => void;
   // Publishes the centered overlay (the clear-chats chooser) up to AccountSheet so it renders in the Sheet's
   // `overlays` slot — full-display centering, not inside the 90%-height settings card. Null clears it.
   onRenderOverlays?: (overlays: React.ReactNode) => void;
@@ -77,6 +79,7 @@ export interface SettingsViewProps {
 export function SettingsView({
   onChangeModel,
   onOpenOllama,
+  onOpenAiData,
   onRenderOverlays,
 }: SettingsViewProps): React.ReactElement {
   const colors = useThemeColors();
@@ -217,6 +220,15 @@ export function SettingsView({
           />
         </SettingsGroup>
         <SettingsGroup label="ABOUT">
+          <ListRow
+            icon={ShieldCheck}
+            label="AI data sharing"
+            onPress={onOpenAiData}
+            trailing={
+              <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
+            }
+            testID="settings-ai-consent"
+          />
           <ListRow
             icon={FileText}
             label="Privacy Policy"
