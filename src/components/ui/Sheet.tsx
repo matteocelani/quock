@@ -30,6 +30,8 @@ import { sheetSpring } from "@/lib/design/motion";
 import { iconSize, sheetPrimitive, timingsNamed } from "@/lib/design/tokens";
 
 import { IconButton } from "@/components/ui/IconButton";
+import { ToastViewport } from "@/components/global/ToastContext";
+import { useUIStore } from "@/lib/stores/ui.store";
 
 export interface SheetProps {
   visible: boolean;
@@ -106,6 +108,15 @@ export function Sheet({
       });
     }
   }, [visible, translateY, scrimOpacity, dragY, setMountedFromWorklet]);
+  const pushSheet = useUIStore((s) => s.pushSheet);
+  const popSheet = useUIStore((s) => s.popSheet);
+  // While this sheet's Modal is mounted, suppress the main-tree toast viewport so only the sheet-hosted one paints —
+  // otherwise the main-tree toast bleeds through the scrim blur as a faded duplicate beneath this sheet.
+  useEffect(() => {
+    if (!mounted) return;
+    pushSheet();
+    return (): void => popSheet();
+  }, [mounted, pushSheet, popSheet]);
   // `activeOffsetY: [10, 9999]` — pan only claims the gesture after ~10pt down, so taps on the title still fire.
   const panGesture = Gesture.Pan()
     .activeOffsetY([10, 9999])
@@ -225,6 +236,8 @@ export function Sheet({
         </Animated.View>
         {/* Overlays — modals/dialogs that should center against the full display, not against the sheet card. Rendered AFTER the card so they paint above it within the same Modal layer. */}
         {overlays}
+        {/* The main-tree toast viewport sits behind this Modal, so host one here too — alerts (e.g. "cleared") must surface above the open sheet, not vanish under it. Anchored below the Dynamic Island (no header over a sheet). */}
+        <ToastViewport inSheet />
       </GestureHandlerRootView>
     </Modal>
   );

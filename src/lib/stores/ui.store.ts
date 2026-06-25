@@ -14,6 +14,10 @@ interface UIState {
   modelPickerMode: ModelPickerMode;
   accountOpen: boolean;
   attachOpen: boolean;
+  // # of mounted sheet Modals; the main-tree toast viewport hides while > 0 so only the sheet-hosted one paints (else both render and the main one bleeds through the scrim blur as a faded duplicate).
+  openSheetCount: number;
+  pushSheet: () => void;
+  popSheet: () => void;
   // Upgrade modal — surfaced when Composer catches a `subscription_required` API error, owns the offending model name to render the CTA text.
   upgradeModalOpen: boolean;
   upgradeModalModelName: string;
@@ -40,6 +44,7 @@ export const useUIStore = create<UIState>((set) => ({
   modelPickerMode: "current",
   accountOpen: false,
   attachOpen: false,
+  openSheetCount: 0,
   upgradeModalOpen: false,
   upgradeModalModelName: "",
   openChatHistory: (): void => {
@@ -66,6 +71,12 @@ export const useUIStore = create<UIState>((set) => ({
   },
   closeAttach: (): void => {
     set({ attachOpen: false });
+  },
+  pushSheet: (): void => {
+    set((s) => ({ openSheetCount: s.openSheetCount + 1 }));
+  },
+  popSheet: (): void => {
+    set((s) => ({ openSheetCount: Math.max(0, s.openSheetCount - 1) }));
   },
   // Settings → Default model → opens the picker in "default" mode so a pick rewrites the persisted preference, not the per-chat override.
   switchToModelPickerFromAccount: (): void => {
