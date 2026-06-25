@@ -70,6 +70,11 @@ const ADD_MESSAGE_SENT_MODES = `
   ALTER TABLE messages ADD COLUMN sent_with_think INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE messages ADD COLUMN sent_with_web_search INTEGER NOT NULL DEFAULT 0;
 `;
+// Scopes each chat to the Ollama account (id from /api/me) that created it, so switching accounts on one device never surfaces another account's local chats. Pre-existing rows get NULL — orphaned and hidden from every account.
+const ADD_CHAT_USER = `
+  ALTER TABLE chats ADD COLUMN user_id TEXT;
+  CREATE INDEX IF NOT EXISTS idx_chats_user_updated ON chats(user_id, updated_at DESC);
+`;
 
 export const MIGRATIONS: readonly Migration[] = [
   { id: 1, up: INITIAL_SCHEMA },
@@ -79,6 +84,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { id: 5, up: ADD_MESSAGE_WEB_SEARCH_FAILED },
   { id: 6, up: ADD_CHAT_COMPOSER_MODES },
   { id: 7, up: ADD_MESSAGE_SENT_MODES },
+  { id: 8, up: ADD_CHAT_USER },
 ];
 export const CURRENT_VERSION: number =
   MIGRATIONS.length > 0

@@ -38,9 +38,15 @@ function rowToChat(row: ChatRow): DbChat {
 }
 
 export class ChatRepository {
-  constructor(private readonly db: SQLiteDatabase) {}
+  // Every query is scoped to getUserId() (the signed-in account id, "" when signed out) so one device's accounts
+  // never see each other's local chats; injected by DbProvider and read live per-call, so sign-in/out needs no rebuild.
+  constructor(
+    private readonly db: SQLiteDatabase,
+    private readonly getUserId: () => string,
+  ) {}
   // Returns chats most-recently-updated first; excerpt is the FIRST user message so the row reads as the chat's stable topic identity rather than its latest reply. `size_bytes` aggregates SQLite-side so we never round-trip per row.
   async list(): Promise<ChatSummary[]> {
+    const userId = this.getUserId();
     const rows = await this.db.getAllAsync<ChatSummaryRow>(
       `
       SELECT
@@ -67,8 +73,10 @@ export class ChatRepository {
           WHERE m.chat_id = c.id
         )             AS size_bytes
       FROM chats c
+      WHERE c.user_id = ?
       ORDER BY c.updated_at DESC
       `,
+      [userId],
     );
     return rows.map((row) => ({
       id: asChatId(row.id),
@@ -80,26 +88,34 @@ export class ChatRepository {
   }
   // Aggregates total bytes across all chats — used by the "Clear all chats" confirm dialog so the user sees how much storage they will free. A single scan, no per-chat round-trip.
   async getTotalSize(): Promise<number> {
+    const userId = this.getUserId();
     const row = await this.db.getFirstAsync<{ total: number | null }>(
       `
       SELECT
         (
-          SELECT COALESCE(SUM(LENGTH(content)) + SUM(COALESCE(LENGTH(thinking), 0)), 0)
-          FROM messages
+          SELECT COALESCE(SUM(LENGTH(m.content)) + SUM(COALESCE(LENGTH(m.thinking), 0)), 0)
+          FROM messages m
+          JOIN chats c ON m.chat_id = c.id
+          WHERE c.user_id = ?
         )
         +
         (
-          SELECT COALESCE(SUM(LENGTH(data)), 0)
-          FROM attachments
+          SELECT COALESCE(SUM(LENGTH(a.data)), 0)
+          FROM attachments a
+          JOIN messages m ON a.message_id = m.id
+          JOIN chats c ON m.chat_id = c.id
+          WHERE c.user_id = ?
         )       AS total
       `,
+      [userId, userId],
     );
     return row?.total ?? 0;
   }
   async get(id: ChatId): Promise<DbChat | null> {
+    const userId = this.getUserId();
     const row = await this.db.getFirstAsync<ChatRow>(
-      "SELECT id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled FROM chats WHERE id = ?",
-      [id],
+      "SELECT id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled FROM chats WHERE id = ? AND user_id = ?",
+      [id, userId],
     );
     return row ? rowToChat(row) : null;
   }
@@ -107,10 +123,11 @@ export class ChatRepository {
     const id = newChatId();
     const now = Date.now();
     const resolvedTitle = title ?? "";
-    // model is left NULL so a new chat follows the user's global default until they pin one; mode toggles default off (0).
+    const userId = this.getUserId();
+    // model is left NULL so a new chat follows the user's global default until they pin one; mode toggles default off (0). user_id scopes the chat to the signed-in account.
     await this.db.runAsync(
-      "INSERT INTO chats (id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) VALUES (?, ?, ?, ?, NULL, NULL, 0, 0)",
-      [id, resolvedTitle, now, now],
+      "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) VALUES (?, ?, ?, ?, ?, NULL, NULL, 0, 0)",
+      [id, userId, resolvedTitle, now, now],
     );
     return {
       id,
@@ -162,15 +179,17 @@ export class ChatRepository {
   }
   // Removes chats that never received a single message. `keepId` excludes the user's currently-open chat so we don't delete the row the Composer is about to append messages to (FK violation).
   async deleteEmpty(keepId?: ChatId): Promise<number> {
+    const userId = this.getUserId();
     if (keepId !== undefined) {
       const result = await this.db.runAsync(
-        "DELETE FROM chats WHERE id != ? AND NOT EXISTS (SELECT 1 FROM messages WHERE chat_id = chats.id)",
-        [keepId],
+        "DELETE FROM chats WHERE user_id = ? AND id != ? AND NOT EXISTS (SELECT 1 FROM messages WHERE chat_id = chats.id)",
+        [userId, keepId],
       );
       return result.changes;
     }
     const result = await this.db.runAsync(
-      "DELETE FROM chats WHERE NOT EXISTS (SELECT 1 FROM messages WHERE chat_id = chats.id)",
+      "DELETE FROM chats WHERE user_id = ? AND NOT EXISTS (SELECT 1 FROM messages WHERE chat_id = chats.id)",
+      [userId],
     );
     return result.changes;
   }
