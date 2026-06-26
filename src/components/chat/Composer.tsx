@@ -289,20 +289,23 @@ export function Composer({
       {/* Background-less surface: the orbs + TextField float over MessageList directly (Apple HIG iOS 26 topmost-layer pattern). Each control owns its own surface (GlassOrb shadow on the orbs, bg-card on the TextField) so they read cleanly without a strip behind them. */}
       <View style={{ paddingBottom: restingBottomPad }} onLayout={handleComposerLayout}>
         {isJumpToLatestVisible && onJumpToLatest ? (
-          // A flow child of the bar (not absolute) so it stays tappable and rides the composer's keyboard lift; sits just above the orbs and toggles with the list's scroll position.
-          <View className="items-center pb-2">
+          // A flow child of the bar (not absolute) so it stays tappable and rides the composer's keyboard lift; right-
+          // aligned (pr-3 + same orb size as send) so it sits exactly above the send orb, Telegram/WhatsApp style.
+          <View className="items-end pr-3 pb-2">
             <GlassOrb
+              variant="regular"
               interactive
               onPress={onJumpToLatest}
               borderRadius={999}
-              className="w-11 h-11 items-center justify-center"
               accessibilityLabel="Scroll to latest"
             >
-              <ChevronDown
-                size={iconSize.lg}
-                color={colors.foreground}
-                strokeWidth={strokeWidth.regular}
-              />
+              <View className="w-9.5 h-9.5 items-center justify-center">
+                <ChevronDown
+                  size={iconSize.lg}
+                  color={colors.foreground}
+                  strokeWidth={strokeWidth.regular}
+                />
+              </View>
             </GlassOrb>
           </View>
         ) : null}
