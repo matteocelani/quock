@@ -82,13 +82,11 @@ function ChoiceRow({
         testID={testID}
       >
         <View className="flex-row items-center gap-3.5 px-4.5 py-3.5">
-          <View className="items-center justify-center rounded-xl bg-destructive-soft w-10 h-10">
-            <Icon
-              size={iconSize.xl}
-              color={colors.destructive}
-              strokeWidth={strokeWidth.regular}
-            />
-          </View>
+          <Icon
+            size={iconSize.xl}
+            color={colors.destructive}
+            strokeWidth={strokeWidth.regular}
+          />
           <View className="flex-1">
             <View className="flex-row items-center gap-2">
               <Text
@@ -174,7 +172,7 @@ export function ClearChatsChooser({
           style={[{ borderRadius: cardRadius }, cardShadow]}
         >
           <View className="items-center px-5 pt-6 pb-3.5 border-b border-border">
-            <View className="w-11 h-11 rounded-full bg-destructive-soft items-center justify-center mb-2.5">
+            <View className="mb-2.5">
               <Trash2
                 size={iconSize.xl}
                 color={colors.destructive}
