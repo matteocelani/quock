@@ -81,37 +81,35 @@ export function AiDataView(): React.ReactElement {
             You agreed on {agreedOn}.
           </Text>
         ) : null}
-        {/* Danger zone — the destructive reset grouped as one deliberate block; calm neutral surface, red kept to accents. */}
-        <View className="rounded-2xl bg-muted p-5">
-          <Text className="font-sans font-semibold text-destructive text-base mb-2.5">
-            Revoke consent
-          </Text>
-          <Text className="font-sans text-foreground text-sm leading-6 mb-3">
-            Revoking is a full reset of Quock on this device — it will:
-          </Text>
-          <Text className="font-sans text-foreground text-sm leading-6">
-            1.  Delete every chat saved on this device
-          </Text>
-          <Text className="font-sans text-foreground text-sm leading-6">
-            2.  Sign you out of your account
-          </Text>
-          <Text className="font-sans text-foreground text-sm leading-6 mb-3">
-            3.  Turn off AI data sharing
-          </Text>
-          <Text className="font-sans text-destructive text-xs leading-5 mb-4">
-            This wipes data for every account on this phone and can&apos;t be
-            undone.
-          </Text>
-          <Button
-            variant="destructiveSoft"
-            size="lg"
-            fullWidth
-            onPress={handleRevoke}
-            testID="ai-data-revoke"
-          >
-            Revoke &amp; delete all data
-          </Button>
-        </View>
+        {/* Revoke section — flat like the rest of Settings; the red heading + warning + button carry the destructive intent, no boxed surface. */}
+        <Text className="font-sans font-semibold text-destructive text-base mb-2.5">
+          Revoke consent
+        </Text>
+        <Text className="font-sans text-foreground text-sm leading-6 mb-3">
+          Revoking is a full reset of Quock on this device — it will:
+        </Text>
+        <Text className="font-sans text-foreground text-sm leading-6">
+          1.  Delete every chat saved on this device
+        </Text>
+        <Text className="font-sans text-foreground text-sm leading-6">
+          2.  Sign you out of your account
+        </Text>
+        <Text className="font-sans text-foreground text-sm leading-6 mb-3">
+          3.  Turn off AI data sharing
+        </Text>
+        <Text className="font-sans text-destructive text-xs leading-5 mb-4">
+          This wipes data for every account on this phone and can&apos;t be
+          undone.
+        </Text>
+        <Button
+          variant="destructiveSoft"
+          size="lg"
+          fullWidth
+          onPress={handleRevoke}
+          testID="ai-data-revoke"
+        >
+          Revoke &amp; delete all data
+        </Button>
       </View>
     </ScrollView>
   );

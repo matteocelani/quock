@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import { Image } from "expo-image";
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Text, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -17,12 +17,14 @@ import { componentLayout, iconSize, motion, strokeWidth } from "@/lib/design/tok
 import { baseAnimationDurationMs, surfaceSpring } from "@/lib/design/motion";
 import { ATTACHMENT_CHIP_SLIDE_DISTANCE } from "@/modules/chat/constants";
 
+// Decode-size hint: ~2x the 60px display so expo-image decodes the thumbnail at chip scale, not full resolution. 2x keeps it crisp on retina.
+const THUMB_DECODE_PX = componentLayout.attachmentChipThumb * 2;
+
 export interface AttachmentChipProps {
   filename: string;
   uri?: string;
   isImage?: boolean;
   invalid?: boolean;
-  reason?: string;
   onRemove?: () => void;
 }
 
@@ -31,7 +33,6 @@ export function AttachmentChip({
   uri,
   isImage,
   invalid,
-  reason,
   onRemove,
 }: AttachmentChipProps): React.ReactElement {
   const colors = useThemeColors();
@@ -53,87 +54,111 @@ export function AttachmentChip({
     transform: [{ translateX: translate.value }],
   }));
   const isInvalid = invalid === true;
+  // Stable source object so expo-image doesn't treat each re-render's inline {uri} as a new source and re-decode the thumbnail.
+  // width/height are a decode-size hint so expo-image decodes the local file at thumbnail scale; the original photo stays the upload source.
+  const imageSource = useMemo(
+    () => ({ uri, width: THUMB_DECODE_PX, height: THUMB_DECODE_PX }),
+    [uri],
+  );
+  // Wrapper sized to thumb + half-badge so both sit as absolute children; the explicit size keeps the badge fully
+  // in-bounds (iOS drops taps on children outside the parent) and tappable. 20px must match the w-5.25 badge class.
+  const removeBadgeSize = componentLayout.attachmentChipRemoveBadge; // mirrors the w-5.25/h-5.25 badge class
+  const halfBadge = removeBadgeSize / 2;
+  const thumbWrapperSize = componentLayout.attachmentChipThumb + halfBadge;
+  const removeBadge =
+    onRemove !== undefined ? (
+      // Pressable forwards className to BOTH its outer and inner view, so position must ride inline style on the outer
+      // only; size/shape come from the w-5.25 class. The badge straddles the thumb's top-right corner 50/50, in-bounds.
+      <Pressable
+        onPress={onRemove}
+        hitSlop={componentLayout.attachmentChipRemoveBadgeHitSlop}
+        scale={motion.scalePressXTight}
+        accessibilityLabel="Remove attachment"
+        className="w-5.25 h-5.25 rounded-full bg-secondary items-center justify-center"
+        style={{ position: "absolute", top: 0, right: 0 }}
+      >
+        <X
+          size={iconSize["2xs"]}
+          color={colors.foreground}
+          strokeWidth={strokeWidth.bold}
+        />
+      </Pressable>
+    ) : null;
   return (
     <Animated.View className="relative" style={animatedStyle}>
       {showThumb ? (
+        // Explicit-size wrapper = thumb + half-badge on top+right; thumb pinned bottom-left, badge top-right (below).
         <View
-          className={clsx(
-            "rounded-2xl overflow-hidden border bg-muted",
-            isInvalid ? "border-destructive" : "border-gray4",
-          )}
-          style={{
-            width: componentLayout.attachmentChipThumb,
-            height: componentLayout.attachmentChipThumb,
-          }}
+          className="relative"
+          style={{ width: thumbWrapperSize, height: thumbWrapperSize }}
         >
-          <Image
-            source={{ uri }}
-            // expo-image's `style` prop doesn't accept className.
+          <View
+            className={clsx(
+              "rounded-2xl overflow-hidden border bg-muted",
+              isInvalid ? "border-destructive" : "border-gray4",
+            )}
             style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
               width: componentLayout.attachmentChipThumb,
               height: componentLayout.attachmentChipThumb,
             }}
-            contentFit="cover"
-            transition={120}
-          />
-          {isInvalid ? (
-            <View className="absolute inset-0 bg-destructive opacity-25" />
-          ) : null}
+          >
+            <Image
+              source={imageSource}
+              // expo-image's `style` prop doesn't accept className.
+              style={{
+                width: componentLayout.attachmentChipThumb,
+                height: componentLayout.attachmentChipThumb,
+              }}
+              contentFit="cover"
+              transition={120}
+            />
+            {isInvalid ? (
+              <View className="absolute inset-0 bg-destructive opacity-25" />
+            ) : null}
+          </View>
+          {removeBadge}
         </View>
       ) : (
+        // File pill: width is dynamic so the wrapper can't be pre-sized. Inline padding reserves the half-badge overhang and keeps it
+        // in-bounds/tappable; Yoga padding doesn't inset abs children, so the badge's top:0/right:0 straddle the pill's top-right corner as on the thumb.
         <View
-          className={clsx(
-            "flex-row items-center border rounded-xl px-2.5 py-1.5",
-            isInvalid
-              ? "bg-destructive-soft border-destructive"
-              : "bg-card border-gray4",
-          )}
-          style={{ maxWidth: componentLayout.attachmentChipMaxWidth }}
+          className="relative"
+          style={{ paddingTop: halfBadge, paddingRight: halfBadge }}
         >
           <View
-            className="bg-muted rounded-lg items-center justify-center mr-2"
-            style={{
-              width: componentLayout.attachmentChipIconWrap,
-              height: componentLayout.attachmentChipIconWrap,
-            }}
-          >
-            <FileText size={iconSize.xs} color={colors.mutedForeground} />
-          </View>
-          <Text
             className={clsx(
-              "font-sans flex-shrink text-xs",
-              isInvalid ? "text-destructive" : "text-foreground",
+              "flex-row items-center border rounded-xl px-2.5 py-1.5",
+              isInvalid
+                ? "bg-destructive-soft border-destructive"
+                : "bg-card border-gray4",
             )}
-            numberOfLines={1}
+            style={{ maxWidth: componentLayout.attachmentChipMaxWidth }}
           >
-            {filename}
-          </Text>
+            <View
+              className="bg-muted rounded-lg items-center justify-center mr-2"
+              style={{
+                width: componentLayout.attachmentChipIconWrap,
+                height: componentLayout.attachmentChipIconWrap,
+              }}
+            >
+              <FileText size={iconSize.xs} color={colors.mutedForeground} />
+            </View>
+            <Text
+              className={clsx(
+                "font-sans flex-shrink text-xs",
+                isInvalid ? "text-destructive" : "text-foreground",
+              )}
+              numberOfLines={1}
+            >
+              {filename}
+            </Text>
+          </View>
+          {removeBadge}
         </View>
       )}
-      {isInvalid && reason !== undefined ? (
-        <Text
-          className="font-sans text-destructive mt-1 text-xs max-w-50"
-          numberOfLines={1}
-        >
-          {reason}
-        </Text>
-      ) : null}
-      {onRemove !== undefined ? (
-        // Remove button positioned just outside the chip's top-right corner via negative offsets.
-        <View className="absolute -top-1.5 -right-1.5">
-          <Pressable
-            onPress={onRemove}
-            scale={motion.scalePressXTight}
-            className="w-4.5 h-4.5 rounded-full bg-secondary items-center justify-center"
-          >
-            <X
-              size={iconSize["2xs"]}
-              color={colors.foreground}
-              strokeWidth={strokeWidth.bold}
-            />
-          </Pressable>
-        </View>
-      ) : null}
     </Animated.View>
   );
 }

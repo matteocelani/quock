@@ -289,6 +289,8 @@ export interface DesignComponentLayout {
   attachmentChipThumb: number;       // 60
   attachmentChipMaxWidth: number;    // 200 — text doc chip max-width
   attachmentChipIconWrap: number;    // 22 — small inner doc-icon halo
+  attachmentChipRemoveBadge: number; // 20 — remove-X badge diameter; mirrors the w-5.25 Tailwind tier
+  attachmentChipRemoveBadgeHitSlop: number; // 10 — touch-target padding around the remove-X badge
   // Three floating orbs at the top of the chat screen (FloatingHeader).
   floatingHeader: {
     topGap: number;   // 8  — space above the orb row, beyond safe-area top
@@ -348,6 +350,8 @@ export const componentLayout: DesignComponentLayout = {
   attachmentChipThumb: 60,
   attachmentChipMaxWidth: 200,
   attachmentChipIconWrap: 22,
+  attachmentChipRemoveBadge: 20,
+  attachmentChipRemoveBadgeHitSlop: 10,
   floatingHeader: {
     topGap: 8,
     sidePad: 12,

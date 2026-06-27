@@ -72,7 +72,9 @@ const INVALID_COPY: Record<UiAttachmentInvalidReason, string> = {
 export interface ComposerProps {
   chatId: ChatId;
   attachments: UiAttachment[];
-  onRemoveAttachment: (index: number) => void;
+  // Remove by STABLE id (not index): idempotent against RN Pressable double-fire and immune to stale-index
+  // wrong-item removal during re-renders. UiAttachment.id already exists as the React list key below.
+  onRemoveAttachment: (id: string) => void;
   // Clears all in-flight attachments once they've been handed to the send pipeline.
   onClearAttachments: () => void;
   // Reports the composer's measured resting height so the list can pad/scroll exactly clear of it — the bar grows with attachment + active-mode chip rows, and a stale inset leaves the last message (and the scroll-to-bottom button) trapped behind it.
@@ -135,6 +137,19 @@ export function Composer({
     () => validatedAttachments.some((a) => a.status === "invalid"),
     [validatedAttachments],
   );
+  // One global rejection line (deduped) instead of repeating the reason under every chip — e.g. all images flip to "Switch to a vision model" at once.
+  const invalidReasonText = useMemo<string | null>(() => {
+    const reasons = [
+      ...new Set(
+        validatedAttachments
+          .filter((a) => a.status === "invalid" && a.invalidReason !== undefined)
+          .map((a) => a.invalidReason as UiAttachmentInvalidReason),
+      ),
+    ];
+    return reasons.length > 0
+      ? reasons.map((r) => INVALID_COPY[r]).join(" · ")
+      : null;
+  }, [validatedAttachments]);
   // Total payload across the ready chips: a single oversized file is caught per-chip, but a pile of in-budget ones can still overflow the request and stall the stream.
   const isAttachmentTotalTooLarge = useMemo<boolean>(() => {
     const total = validatedAttachments
@@ -237,6 +252,25 @@ export function Composer({
     insets.bottom,
     componentLayout.composer.minBottomPad,
   );
+  // Single source for the arrow orb so its one placement below doesn't duplicate the GlassOrb JSX.
+  const jumpToLatestOrb =
+    isJumpToLatestVisible && onJumpToLatest ? (
+      <GlassOrb
+        variant="regular"
+        interactive
+        onPress={onJumpToLatest}
+        borderRadius={999}
+        accessibilityLabel="Scroll to latest"
+      >
+        <View className="w-9.5 h-9.5 items-center justify-center">
+          <ChevronDown
+            size={iconSize.lg}
+            color={colors.foreground}
+            strokeWidth={strokeWidth.regular}
+          />
+        </View>
+      </GlassOrb>
+    ) : null;
   // Report the bar's rendered height up so the list inset tracks chip/attachment rows; rounded to avoid sub-pixel re-render churn.
   const handleComposerLayout = useCallback(
     (e: LayoutChangeEvent): void => {
@@ -287,26 +321,13 @@ export function Composer({
         </MaskedView>
       ) : null}
       {/* Background-less surface: the orbs + TextField float over MessageList directly (Apple HIG iOS 26 topmost-layer pattern). Each control owns its own surface (GlassOrb shadow on the orbs, bg-card on the TextField) so they read cleanly without a strip behind them. */}
-      <View style={{ paddingBottom: restingBottomPad }} onLayout={handleComposerLayout}>
-        {isJumpToLatestVisible && onJumpToLatest ? (
-          // A flow child of the bar (not absolute) so it stays tappable and rides the composer's keyboard lift; sits just above the orbs and toggles with the list's scroll position.
-          <View className="items-center pb-2">
-            <GlassOrb
-              interactive
-              onPress={onJumpToLatest}
-              borderRadius={999}
-              className="w-11 h-11 items-center justify-center"
-              accessibilityLabel="Scroll to latest"
-            >
-              <ChevronDown
-                size={iconSize.lg}
-                color={colors.foreground}
-                strokeWidth={strokeWidth.regular}
-              />
-            </GlassOrb>
-          </View>
-        ) : null}
+      <View
+        style={{ position: "relative", paddingBottom: restingBottomPad }}
+        onLayout={handleComposerLayout}
+      >
         {validatedAttachments.length > 0 ? (
+          // Chip band: a single horizontal scroller. The scroll-to-latest arrow is anchored to the input row
+          // below, so it never overlaps the chips — symmetric padding, no right-side reservation.
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -316,24 +337,25 @@ export function Composer({
               gap: componentLayout.composer.chipScrollGap,
             }}
           >
-            {validatedAttachments.map((a, idx) => {
-              const reason =
-                a.invalidReason !== undefined
-                  ? INVALID_COPY[a.invalidReason]
-                  : undefined;
-              const chipProps: React.ComponentProps<typeof AttachmentChip> = {
-                filename: a.filename,
-                isImage: a.mimeType?.startsWith("image/") === true,
-                uri: a.uri,
-                invalid: a.status === "invalid",
-                onRemove: () => onRemoveAttachment(idx),
-              };
-              if (reason !== undefined) chipProps.reason = reason;
-              return (
-                <AttachmentChip key={a.id} {...chipProps} />
-              );
-            })}
+            {validatedAttachments.map((a) => (
+              <AttachmentChip
+                key={a.id}
+                filename={a.filename}
+                isImage={a.mimeType?.startsWith("image/") === true}
+                uri={a.uri}
+                invalid={a.status === "invalid"}
+                onRemove={() => onRemoveAttachment(a.id)}
+              />
+            ))}
           </ScrollView>
+        ) : null}
+        {invalidReasonText !== null ? (
+          <Text
+            className="font-sans text-destructive text-xs px-3 pb-1.5"
+            numberOfLines={1}
+          >
+            {invalidReasonText}
+          </Text>
         ) : null}
         {isAttachmentTotalTooLarge ? (
           <Text className="font-sans text-xs text-destructive px-3 pb-1">
@@ -453,6 +475,26 @@ export function Composer({
             </View>
           </GlassOrb>
         </View>
+        {jumpToLatestOrb !== null ? (
+          // One arrow for every state, out of flow so warning texts / chip band grow without moving it. Inline style
+          // carries the computed bottom (restingBottomPad + orbRowPaddingY*2 + orbSize) that lands it above the send orb.
+          <View
+            pointerEvents="box-none"
+            className="pr-3"
+            style={{
+              position: "absolute",
+              right: 0,
+              bottom:
+                restingBottomPad +
+                componentLayout.composer.orbRowPaddingY * 2 +
+                componentLayout.composer.orbSize,
+              zIndex: zLayer.composer + 1,
+              elevation: zLayer.composer + 1,
+            }}
+          >
+            {jumpToLatestOrb}
+          </View>
+        ) : null}
       </View>
     </KeyboardAvoidingView>
   );
