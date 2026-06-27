@@ -26,8 +26,9 @@ export const ATTACHMENT_SELECTION_LIMIT = 8;
 // Downscale captured/picked photos before upload: full-resolution images stall the cloud vision model regardless of byte size. 2048px long edge + JPEG recompress keeps detail while staying within model limits.
 export const IMAGE_MAX_UPLOAD_DIMENSION = 2048;
 export const IMAGE_UPLOAD_COMPRESS = 0.8;
-// Wait out the attach sheet's native-modal dismiss (~sheetSlide) before presenting the OS picker — iOS silently drops a present that overlaps a dismiss, so a real pick can land straight in the chat with no sheet flap.
-export const ATTACH_PICKER_PRESENT_DELAY_MS = 300;
+// Wait out the attach sheet's native Modal dismiss before presenting the OS picker; must exceed sheetCloseTail (350)
+// or presenting over the still-dismissing Fabric Modal throws "already presenting" and deadlocks the main thread.
+export const ATTACH_PICKER_PRESENT_DELAY_MS = 450;
 // Text documents (txt/md/csv/json/code) are folded into the message as plain text — cap per-file and
 // per-turn characters so a large file can't blow the model context or stall the request.
 export const DOCUMENT_TEXT_MAX_CHARS = 100_000;

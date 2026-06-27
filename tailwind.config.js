@@ -59,6 +59,7 @@ module.exports = {
       spacing: {
         // Fixed-px layout values Tailwind's scale lacks. NativeWind inlines rem at 14px, so these are exact pt, not rem-derived; keys avoid the stock numeric scale (e.g. no 80) so nothing is redefined.
         4.5: "18px",
+        5.25: "20px",
         5.5: "22px",
         8.5: "34px",
         9.5: "38px",

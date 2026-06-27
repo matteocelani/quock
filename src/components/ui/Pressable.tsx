@@ -6,6 +6,7 @@ import {
   Pressable as RNPressable,
   type AccessibilityRole,
   type AccessibilityState,
+  type Insets,
   type View,
   type ViewStyle,
 } from "react-native";
@@ -33,6 +34,8 @@ export interface PressableProps {
   /** Defaults to "button"; pass "switch" for toggles, etc. */
   accessibilityRole?: AccessibilityRole;
   accessibilityState?: AccessibilityState;
+  /** Extends the touchable area past the visual bounds — for small targets like a remove badge. */
+  hitSlop?: number | Insets;
   /** Optional press-state observers — let parents layer their own animations (e.g. background tint). */
   onPressIn?: () => void;
   onPressOut?: () => void;
@@ -53,6 +56,7 @@ export const Pressable = React.forwardRef<View, PressableProps>(
       accessibilityLabel,
       accessibilityRole = "button",
       accessibilityState,
+      hitSlop,
       onPressIn,
       onPressOut,
     },
@@ -98,6 +102,7 @@ export const Pressable = React.forwardRef<View, PressableProps>(
         onLongPress={onLongPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
+        hitSlop={hitSlop}
         testID={testID}
         accessibilityLabel={accessibilityLabel}
         accessibilityRole={accessibilityRole}
