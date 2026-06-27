@@ -1,8 +1,6 @@
 // Composer + hub: attachment tiles (Camera, Photo, File) plus the model's tool toggles (web search, thinking).
 
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system/legacy";
-import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import React, { useCallback } from "react";
 import { Text, View } from "react-native";
@@ -18,6 +16,8 @@ import {
   X,
 } from "lucide-react-native";
 import { isImageMime, isTextDocument } from "@/modules/chat/lib/documentText";
+import { readUriAsBytes } from "@/modules/chat/lib/imageUpload";
+import { useToast } from "@/lib/hooks/useToast";
 import { IconButton } from "@/components/ui/IconButton";
 import { Sheet } from "@/components/ui/Sheet";
 import { SheetHeader } from "@/components/ui/SheetHeader";
@@ -35,8 +35,6 @@ import {
   ATTACH_SHEET_SNAP_WITH_TOOLS,
   ATTACHMENT_MAX_BYTES,
   ATTACHMENT_SELECTION_LIMIT,
-  IMAGE_MAX_UPLOAD_DIMENSION,
-  IMAGE_UPLOAD_COMPRESS,
 } from "@/modules/chat/constants";
 
 export interface AttachSheetProps {
@@ -45,45 +43,13 @@ export interface AttachSheetProps {
   // Reopens the sheet when the user cancels the OS picker — handlers close + wait out the dismiss before presenting, so a cancel needs to bring the sheet back.
   onReopen?: () => void;
   onAttach: (file: UiAttachment) => void;
+  // Attachments already on the composer draft — handlers cap new picks against this so the running total never exceeds ATTACHMENT_SELECTION_LIMIT (selectionLimit only bounds a single pick session).
+  currentCount: number;
   chatId: ChatId;
-}
-// Avoid `Buffer` (not available in RN without a polyfill); rely on the `atob` shim.
-function base64ToBytes(base64: string): Uint8Array {
-  const binary = globalThis.atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
-async function readUriAsBytes(uri: string): Promise<Uint8Array> {
-  const base64 = await FileSystem.readAsStringAsync(uri, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  return base64ToBytes(base64);
 }
 // Promise-based sleep so a handler can wait out an animation (the sheet dismiss) before the next step.
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-// Shrink an oversized photo to IMAGE_MAX_UPLOAD_DIMENSION on its long edge (JPEG recompress) before upload —
-// full-resolution images stall the cloud vision model. Small photos pass through untouched (never upscale).
-async function downscaleImageUri(
-  uri: string,
-  width: number | undefined,
-  height: number | undefined,
-): Promise<string> {
-  if (!width || !height || Math.max(width, height) <= IMAGE_MAX_UPLOAD_DIMENSION)
-    return uri;
-  const resize =
-    width >= height
-      ? { width: IMAGE_MAX_UPLOAD_DIMENSION }
-      : { height: IMAGE_MAX_UPLOAD_DIMENSION };
-  const result = await manipulateAsync(uri, [{ resize }], {
-    compress: IMAGE_UPLOAD_COMPRESS,
-    format: SaveFormat.JPEG,
-  });
-  return result.uri;
 }
 
 function deriveFilename(uri: string, fallback: string): string {
@@ -104,13 +70,16 @@ function validateAttachment(
 }
 // Monotonic per-session counter for unique attachment ids — survives duplicate-file picks (same uri).
 let attachmentSeq = 0;
-// Lifts validateAttachment into the chip shape the rest of the UI consumes.
+// Lifts validateAttachment into the chip shape the UI consumes. `data` is OPTIONAL: optimistic images omit it and
+// carry original dimensions for the deferred send-time downscale; text docs pass their bytes in at attach.
 function buildAttachment(
   base: {
     filename: string;
     uri: string;
-    data: Uint8Array;
+    data?: Uint8Array;
     mimeType?: string;
+    originalWidth?: number;
+    originalHeight?: number;
   },
   sizeBytes: number,
 ): UiAttachment {
@@ -123,11 +92,15 @@ function buildAttachment(
     id: `att-${(attachmentSeq += 1)}`,
     filename: base.filename,
     uri: base.uri,
-    data: base.data,
     sizeBytes,
     status: invalidReason !== null ? "invalid" : "ready",
   };
+  if (base.data !== undefined) payload.data = base.data;
   if (base.mimeType !== undefined) payload.mimeType = base.mimeType;
+  if (base.originalWidth !== undefined)
+    payload.originalWidth = base.originalWidth;
+  if (base.originalHeight !== undefined)
+    payload.originalHeight = base.originalHeight;
   if (invalidReason !== null) payload.invalidReason = invalidReason;
   return payload;
 }
@@ -137,8 +110,10 @@ export function AttachSheet({
   onClose,
   onReopen,
   onAttach,
+  currentCount,
   chatId,
 }: AttachSheetProps): React.ReactElement {
+  const toast = useToast();
   const { model } = useChatModel(chatId);
   const hasThinking = useHasThinkingCapability(model?.name);
   const hasWebSearch = useHasToolsCapability(model?.name);
@@ -147,6 +122,13 @@ export function AttachSheet({
     useChatComposerModes(chatId);
   // Close the sheet, wait out its native-modal dismiss, THEN present the OS picker — iOS silently drops a present that overlaps a dismiss, so the picker must open after the sheet is gone. A real pick then lands straight in the chat (no flap); a cancel reopens the sheet.
   const handleCamera = useCallback(async (): Promise<void> => {
+    if (currentCount >= ATTACHMENT_SELECTION_LIMIT) {
+      toast({
+        title: `You can attach up to ${ATTACHMENT_SELECTION_LIMIT} images`,
+        tone: "error",
+      });
+      return;
+    }
     onClose();
     await delay(ATTACH_PICKER_PRESENT_DELAY_MS);
     try {
@@ -165,24 +147,34 @@ export function AttachSheet({
       }
       const asset = result.assets[0];
       if (!asset) return;
-      const uri = await downscaleImageUri(asset.uri, asset.width, asset.height);
-      const bytes = await readUriAsBytes(uri);
+      // Optimistic attach: record the ORIGINAL captured uri + dimensions so the chip paints immediately; the
+      // downscale + byte read defer to send so they never block a mid-attach remove. sizeBytes is the estimate (or 0).
       onAttach(
         buildAttachment(
           {
             filename: asset.fileName ?? deriveFilename(asset.uri, "camera.jpg"),
-            uri,
-            data: bytes,
+            uri: asset.uri,
+            originalWidth: asset.width,
+            originalHeight: asset.height,
             ...(asset.mimeType !== undefined ? { mimeType: asset.mimeType } : {}),
           },
-          bytes.byteLength,
+          asset.fileSize ?? 0,
         ),
       );
     } catch (err) {
       console.error("AttachSheet: camera failed", err);
     }
-  }, [onAttach, onClose, onReopen]);
+  }, [currentCount, onAttach, onClose, onReopen, toast]);
   const handlePhoto = useCallback(async (): Promise<void> => {
+    // Cap the picker to slots left on the running total — selectionLimit only bounds one pick session, so reopening the sheet would otherwise stack past the cap.
+    const remaining = ATTACHMENT_SELECTION_LIMIT - currentCount;
+    if (remaining <= 0) {
+      toast({
+        title: `You can attach up to ${ATTACHMENT_SELECTION_LIMIT} images`,
+        tone: "error",
+      });
+      return;
+    }
     onClose();
     await delay(ATTACH_PICKER_PRESENT_DELAY_MS);
     try {
@@ -196,7 +188,8 @@ export function AttachSheet({
         mediaTypes: ["images"],
         // Pick several photos in one trip instead of reopening the sheet per image; the OS picker handles the multi-select + confirm UI.
         allowsMultipleSelection: true,
-        selectionLimit: ATTACHMENT_SELECTION_LIMIT,
+        // Remaining slots only — never 0 (guarded above); expo-image-picker treats selectionLimit 0 as UNLIMITED.
+        selectionLimit: remaining,
         quality: 0.85,
         // iPhone photos are HEIC; the Ollama Cloud gateway sniffs the bytes and rejects HEIC as
         // "application/octet-stream". 'compatible' makes iOS transcode to JPEG so the gateway accepts it.
@@ -207,28 +200,36 @@ export function AttachSheet({
         onReopen?.();
         return;
       }
+      // Optimistic attach: one chip per picked photo with its ORIGINAL uri + dimensions; defer the downscale +
+      // byte read to send so a mid-attach remove still paints. sizeBytes is the picker's fileSize estimate (or 0).
       for (const asset of result.assets) {
-        const uri = await downscaleImageUri(asset.uri, asset.width, asset.height);
-        const bytes = await readUriAsBytes(uri);
         onAttach(
           buildAttachment(
             {
               filename: asset.fileName ?? deriveFilename(asset.uri, "photo.jpg"),
-              uri,
-              data: bytes,
+              uri: asset.uri,
+              originalWidth: asset.width,
+              originalHeight: asset.height,
               ...(asset.mimeType !== undefined
                 ? { mimeType: asset.mimeType }
                 : {}),
             },
-            bytes.byteLength,
+            asset.fileSize ?? 0,
           ),
         );
       }
     } catch (err) {
       console.error("AttachSheet: photo library failed", err);
     }
-  }, [onAttach, onClose, onReopen]);
+  }, [currentCount, onAttach, onClose, onReopen, toast]);
   const handleFile = useCallback(async (): Promise<void> => {
+    if (currentCount >= ATTACHMENT_SELECTION_LIMIT) {
+      toast({
+        title: `You can attach up to ${ATTACHMENT_SELECTION_LIMIT} images`,
+        tone: "error",
+      });
+      return;
+    }
     onClose();
     await delay(ATTACH_PICKER_PRESENT_DELAY_MS);
     try {
@@ -257,7 +258,7 @@ export function AttachSheet({
     } catch (err) {
       console.error("AttachSheet: document picker failed", err);
     }
-  }, [onAttach, onClose, onReopen]);
+  }, [currentCount, onAttach, onClose, onReopen, toast]);
   return (
     <Sheet
       visible={visible}

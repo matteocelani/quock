@@ -12,7 +12,10 @@ import { ChatHistorySheet } from "@/components/chat/ChatHistorySheet";
 import { ModelPickerSheet } from "@/components/models/ModelPickerSheet";
 import { Spinner } from "@/components/ui/Spinner";
 import { componentLayout } from "@/lib/design/tokens";
-import { DEFAULT_BOTTOM_INSET } from "@/modules/chat/constants";
+import {
+  ATTACHMENT_SELECTION_LIMIT,
+  DEFAULT_BOTTOM_INSET,
+} from "@/modules/chat/constants";
 import { isChatNotFoundError, useChat } from "@/modules/chat/hooks/useChat";
 import { useIsStreaming } from "@/modules/chat/hooks/useIsStreaming";
 import { useSendMessage } from "@/modules/chat/hooks/useSendMessage";
@@ -34,7 +37,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const insets = useSafeAreaInsets();
   // MessageList topInset = safe-area + floating header height; content scrolls UNDER the orbs.
   const listTopInset = insets.top + componentLayout.floatingHeader.height;
-  // Reserve list bottom space for the composer plus, when open, the keyboard — as REAL content padding on both platforms so FlashList's own scrollToEnd lands the tail above both (its v2 scrollToEnd ignores the native keyboard inset, which left the tail hidden under the keyboard on iOS).
+  // Reserve list bottom space for the composer plus, when open, the keyboard — as real content padding so FlashList's scrollToEnd lands the tail above both (its v2 scrollToEnd ignores the native keyboard inset).
   const isKeyboardVisible = useKeyboardState((s) => s.isVisible);
   const keyboardHeight = useKeyboardState((s) => s.height);
   // Measured composer height so the list inset tracks the bar as it grows (attachment/chip rows); seeded with
@@ -137,10 +140,15 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     router.replace("/c");
   }, [closeChatHistory, router]);
   const handleAttachResult = useCallback((file: UiAttachment) => {
-    setAttachments((prev) => [...prev, file]);
+    // Last-line guard: never exceed the cap even if a picker over-delivers or a sheet gate is bypassed.
+    setAttachments((prev) =>
+      prev.length >= ATTACHMENT_SELECTION_LIMIT ? prev : [...prev, file],
+    );
   }, []);
-  const handleRemoveAttachment = useCallback((index: number) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  // Remove by STABLE id, not array index: RN 0.83 Pressable can double-fire a tap and a stale closed-over index
+  // would drop the WRONG chip. Filtering by id is idempotent, so a double-tap is a harmless no-op.
+  const handleRemoveAttachment = useCallback((id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
   }, []);
   const handleClearAttachments = useCallback(() => setAttachments([]), []);
   const messages = data?.messages ?? [];
@@ -151,7 +159,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const showEmpty = !showLoading && !showError && messages.length === 0;
   return (
     <View className="flex-1 bg-background">
-      {/* Body fills the screen edge-to-edge; the FloatingHeader orbs float on top via absolute positioning, and the MessageList's contentContainerStyle.paddingTop pushes the first message clear of them — so content scrolls UNDER the orbs (Apple HIG iOS 26 topmost-layer pattern). */}
+      {/* Body fills the screen edge-to-edge; the FloatingHeader orbs float on top, and the list's top inset pushes the first message clear of them so content scrolls under the orbs (Apple HIG topmost-layer pattern). */}
       <View className="flex-1">
         {showLoading ? (
           <View className="flex-1 items-center justify-center">
@@ -219,6 +227,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         onClose={closeAttach}
         onReopen={openAttach}
         onAttach={handleAttachResult}
+        currentCount={attachments.length}
         chatId={chatId}
       />
       <UpgradePromptModal

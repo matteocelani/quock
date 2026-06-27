@@ -1,6 +1,6 @@
 {
   "name": "quock",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Quock — community-built mobile client for Ollama Cloud (unofficial)",
   "author": "Matteo Celani",
   "license": "MIT",

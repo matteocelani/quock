@@ -37,6 +37,7 @@ import {
   appendDocumentText,
   isTextDocument,
 } from "@/modules/chat/lib/documentText";
+import { materializeImageAttachment } from "@/modules/chat/lib/imageUpload";
 import { CHAT_AUTO_TITLE_MAX_CHARS } from "@/modules/chat/constants";
 
 // Full UiAttachment in (carries `uri` for the DB write); API send narrows below.
@@ -173,13 +174,19 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       const insertedAttachments: DbAttachment[] = [];
       for (const att of inputAttachments) {
         try {
+          // Optimistically-attached images carry no bytes yet (downscale + byte read were deferred off the attach
+          // path). Materialize now — only for what's being sent — to produce the 2048px JPEG bytes + uri the gateway wants.
+          const ready = await materializeImageAttachment(att);
+          if (ready.data === undefined) {
+            throw new Error("attachment has no data after materialize");
+          }
           const row = await attachments.add({
             messageId: userMessage.id,
-            filename: att.filename,
-            mimeType: att.mimeType ?? null,
-            data: att.data,
-            uri: att.uri,
-            sizeBytes: att.sizeBytes ?? att.data.byteLength,
+            filename: ready.filename,
+            mimeType: ready.mimeType ?? null,
+            data: ready.data,
+            uri: ready.uri,
+            sizeBytes: ready.sizeBytes || ready.data.byteLength,
           });
           insertedAttachments.push(row);
         } catch (err) {

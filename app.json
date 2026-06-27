@@ -3,7 +3,7 @@
     "name": "Quock",
     "slug": "quock",
     "scheme": "quock",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -28,7 +28,7 @@
         "monochromeImage": "./assets/images/adaptive-icon-monochrome.png",
         "backgroundColor": "#FFFFFF"
       },
-      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE"]
+      "permissions": ["CAMERA"]
     },
     "plugins": [
       "expo-router",

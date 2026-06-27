@@ -10,9 +10,13 @@ interface SettingsState {
   themeMode: ThemeMode;
   selectedModelName: string | null;
   hapticsEnabled: boolean;
+  // Apple 5.1.2(i): epoch ms when the user explicitly consented to sending messages to Ollama Cloud, null until then.
+  aiConsentAcceptedAt: number | null;
   setThemeMode: (mode: ThemeMode) => void;
   setSelectedModelName: (name: string | null) => void;
   setHapticsEnabled: (enabled: boolean) => void;
+  acceptAiConsent: () => void;
+  revokeAiConsent: () => void;
 }
 
 const DEFAULT_THEME: ThemeMode = "system";
@@ -24,6 +28,7 @@ export const useSettingsStore = create<SettingsState>()(
       themeMode: DEFAULT_THEME,
       selectedModelName: null,
       hapticsEnabled: DEFAULT_HAPTICS,
+      aiConsentAcceptedAt: null,
       setThemeMode: (themeMode): void => {
         set({ themeMode });
       },
@@ -32,6 +37,12 @@ export const useSettingsStore = create<SettingsState>()(
       },
       setHapticsEnabled: (hapticsEnabled): void => {
         set({ hapticsEnabled });
+      },
+      acceptAiConsent: (): void => {
+        set({ aiConsentAcceptedAt: Date.now() });
+      },
+      revokeAiConsent: (): void => {
+        set({ aiConsentAcceptedAt: null });
       },
     }),
     {
@@ -43,6 +54,7 @@ export const useSettingsStore = create<SettingsState>()(
         themeMode: state.themeMode,
         selectedModelName: state.selectedModelName,
         hapticsEnabled: state.hapticsEnabled,
+        aiConsentAcceptedAt: state.aiConsentAcceptedAt,
       }),
     },
   ),

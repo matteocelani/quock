@@ -23,6 +23,8 @@ export function useClearAllChats(): UseClearAllChatsResult {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.chats() });
       queryClient.removeQueries({ queryKey: queryKeys.chatRoot() });
+      // Clearing this account's chats shrinks the device-wide total shown on the "clear all data" row.
+      queryClient.invalidateQueries({ queryKey: queryKeys.deviceStorage() });
     },
   });
 
