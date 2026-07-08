@@ -8,14 +8,14 @@ describe("markdownToPlainText", () => {
   });
 
   it("drops heading hashes", () => {
-    expect(markdownToPlainText("### 29. Spaghetti al sugo")).toBe(
-      "29. Spaghetti al sugo",
+    expect(markdownToPlainText("### 29. Tomato basil pasta")).toBe(
+      "29. Tomato basil pasta",
     );
   });
 
   it("keeps bullet lists as separate lines with a marker", () => {
-    expect(markdownToPlainText("- pasta\n- tonno\n- basilico")).toBe(
-      "• pasta\n• tonno\n• basilico",
+    expect(markdownToPlainText("- pasta\n- tuna\n- basil")).toBe(
+      "• pasta\n• tuna\n• basil",
     );
   });
 
@@ -26,9 +26,9 @@ describe("markdownToPlainText", () => {
   });
 
   it("separates blocks with a blank line so structure survives", () => {
-    const md = "# Ricette\n\n1. Pasta al sugo\n2. Pasta al pesto";
+    const md = "# Recipes\n\n1. Tomato pasta\n2. Pesto pasta";
     expect(markdownToPlainText(md)).toBe(
-      "Ricette\n\n1. Pasta al sugo\n2. Pasta al pesto",
+      "Recipes\n\n1. Tomato pasta\n2. Pesto pasta",
     );
   });
 
