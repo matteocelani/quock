@@ -140,8 +140,8 @@ function AssistantMessageImpl({
     onRetry?.(message.id);
   }, [onRetry, message.id]);
   const handleSelectText = useCallback((): void => {
-    openSelectText(message.content);
-  }, [openSelectText, message.content]);
+    openSelectText(message.id);
+  }, [openSelectText, message.id]);
   const isPending = message.status === "pending";
   const isError = message.status === "error";
   const isInterrupted = message.status === "interrupted";

@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import { timingsNamed } from "@/lib/design/tokens";
+import type { MessageId } from "@/lib/types/ids";
 
 // "default" → the picker writes to settings.store.selectedModelName (persisted user preference).
 // "current" → the picker pins the choice to the open chat (chats.model, via useChatModel).
@@ -21,9 +22,9 @@ interface UIState {
   // Upgrade modal — surfaced when Composer catches a `subscription_required` API error, owns the offending model name to render the CTA text.
   upgradeModalOpen: boolean;
   upgradeModalModelName: string;
-  // Select-text sheet — the in-list Markdown can't be selected (FlashList + Fabric swallow the long-press), so this lifts one reply into a sheet where native selection works. Owns the content to display.
+  // Select-text sheet — the in-list Markdown can't be selected (FlashList + Fabric swallow the long-press), so this lifts one reply into a sheet where native selection works. Holds the message id; content is resolved from the query cache, never mirrored here.
   selectTextOpen: boolean;
-  selectTextContent: string;
+  selectTextMessageId: MessageId | null;
   // Sheet toggles
   openChatHistory: () => void;
   closeChatHistory: () => void;
@@ -33,7 +34,7 @@ interface UIState {
   closeAccount: () => void;
   openAttach: () => void;
   closeAttach: () => void;
-  openSelectText: (content: string) => void;
+  openSelectText: (messageId: MessageId) => void;
   closeSelectText: () => void;
   // Choreographed transitions: close the current sheet, then schedule the next after `timingsNamed.sheetCloseTail` so the two animations do not stack and stutter.
   switchToModelPickerFromAccount: () => void;
@@ -53,7 +54,7 @@ export const useUIStore = create<UIState>((set) => ({
   upgradeModalOpen: false,
   upgradeModalModelName: "",
   selectTextOpen: false,
-  selectTextContent: "",
+  selectTextMessageId: null,
   openChatHistory: (): void => {
     set({ chatHistoryOpen: true });
   },
@@ -79,8 +80,8 @@ export const useUIStore = create<UIState>((set) => ({
   closeAttach: (): void => {
     set({ attachOpen: false });
   },
-  openSelectText: (content): void => {
-    set({ selectTextOpen: true, selectTextContent: content });
+  openSelectText: (messageId): void => {
+    set({ selectTextOpen: true, selectTextMessageId: messageId });
   },
   closeSelectText: (): void => {
     set({ selectTextOpen: false });
