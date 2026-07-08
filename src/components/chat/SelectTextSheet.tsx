@@ -52,8 +52,8 @@ export function SelectTextSheet({
           scrollEnabled
           textAlignVertical="top"
           selectionColor={colors.primary}
-          style={{ flex: 1, color: colors.foreground }}
-          className="font-sans text-base leading-6"
+          style={{ flex: 1 }}
+          className="font-sans text-base leading-6 text-foreground"
         />
       </View>
     </Sheet>
