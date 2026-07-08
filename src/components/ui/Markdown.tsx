@@ -1,4 +1,4 @@
-// Renders parsed markdown nodes — inline nodes nest in Text for wrapping/selection, block nodes are Views.
+// Renders parsed markdown nodes — block text is selectable for partial copy; inline nodes nest in Text for wrapping.
 
 import clsx from "clsx";
 import React from "react";
@@ -58,13 +58,13 @@ function renderBlock(node: BlockNode, key: number): React.ReactElement {
   switch (node.type) {
     case "paragraph":
       return (
-        <Text key={key} className="font-sans text-base text-foreground leading-6 mb-3">
+        <Text key={key} selectable className="font-sans text-base text-foreground leading-6 mb-3">
           {node.children.map(renderInline)}
         </Text>
       );
     case "heading":
       return (
-        <Text key={key} className={HEADING_CLASS[node.level]}>
+        <Text key={key} selectable className={HEADING_CLASS[node.level]}>
           {node.children.map(renderInline)}
         </Text>
       );
@@ -74,7 +74,7 @@ function renderBlock(node: BlockNode, key: number): React.ReactElement {
           {node.items.map((item, idx) => (
             <View key={idx} className="flex-row mb-1">
               <Text className="font-sans text-base text-muted-foreground mr-2">•</Text>
-              <Text className="font-sans text-base text-foreground flex-1 leading-6">
+              <Text selectable className="font-sans text-base text-foreground flex-1 leading-6">
                 {item.map(renderInline)}
               </Text>
             </View>
@@ -89,7 +89,7 @@ function renderBlock(node: BlockNode, key: number): React.ReactElement {
               <Text className="font-sans text-base text-muted-foreground mr-2">
                 {`${node.start + idx}.`}
               </Text>
-              <Text className="font-sans text-base text-foreground flex-1 leading-6">
+              <Text selectable className="font-sans text-base text-foreground flex-1 leading-6">
                 {item.map(renderInline)}
               </Text>
             </View>
@@ -127,7 +127,7 @@ function renderBlock(node: BlockNode, key: number): React.ReactElement {
                   ci > 0 && "border-l border-border",
                 )}
               >
-                <Text className="font-sans text-base font-semibold text-foreground">
+                <Text selectable className="font-sans text-base font-semibold text-foreground">
                   {cell.map(renderInline)}
                 </Text>
               </View>
@@ -143,7 +143,7 @@ function renderBlock(node: BlockNode, key: number): React.ReactElement {
                     ci > 0 && "border-l border-border",
                   )}
                 >
-                  <Text className="font-sans text-base text-foreground leading-6">
+                  <Text selectable className="font-sans text-base text-foreground leading-6">
                     {cell.map(renderInline)}
                   </Text>
                 </View>
