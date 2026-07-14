@@ -316,4 +316,41 @@ describe("parseMarkdown", () => {
       "orderedList",
     ]);
   });
+
+  it("parses a markdown link into a link node", () => {
+    const nodes = parseInline("see [Ollama](https://ollama.com) docs");
+    expect(nodes).toEqual([
+      { type: "text", value: "see " },
+      { type: "link", value: "Ollama", href: "https://ollama.com" },
+      { type: "text", value: " docs" },
+    ]);
+  });
+
+  it("parses a link inside an ordered-list item", () => {
+    const blocks = parseMarkdown("1. [AccuWeather](https://accuweather.com)");
+    expect(blocks).toEqual([
+      {
+        type: "orderedList",
+        start: 1,
+        items: [
+          [
+            {
+              type: "link",
+              value: "AccuWeather",
+              href: "https://accuweather.com",
+            },
+          ],
+        ],
+      },
+    ]);
+  });
+
+  it("leaves a malformed or empty link as plain text", () => {
+    expect(parseInline("[label](")).toEqual([
+      { type: "text", value: "[label](" },
+    ]);
+    expect(parseInline("[](https://x.com)")).toEqual([
+      { type: "text", value: "[](https://x.com)" },
+    ]);
+  });
 });

@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 import React from "react";
-import { Text, View } from "react-native";
+import { Linking, ScrollView, Text, View, type LayoutChangeEvent } from "react-native";
 import { CodeBlock } from "@/components/ui/CodeBlock";
 import {
   type BlockNode,
@@ -14,6 +14,12 @@ export interface MarkdownProps {
   source: string;
   className?: string;
   testID?: string;
+}
+// Opens a markdown link externally; a rejected promise (bad scheme / no handler) is logged, never thrown, so a malformed LLM link can't crash the row.
+function openLink(href: string): void {
+  Linking.openURL(href).catch((error: unknown) => {
+    console.warn("Markdown: failed to open link", href, error);
+  });
 }
 // Inline `code` stays inside the parent Text flow as a styled Text — using the View-based <Code/> would break wrapping.
 function renderInline(node: InlineNode, key: number): React.ReactElement {
@@ -39,6 +45,16 @@ function renderInline(node: InlineNode, key: number): React.ReactElement {
           {node.value}
         </Text>
       );
+    case "link":
+      return (
+        <Text
+          key={key}
+          className="text-primary underline"
+          onPress={(): void => openLink(node.href)}
+        >
+          {node.value}
+        </Text>
+      );
     default:
       return <Text key={key} />;
   }
@@ -53,6 +69,9 @@ const HEADING_CLASS = {
   5: "font-sans text-sm font-semibold text-foreground mb-1 mt-2",
   6: "font-sans text-sm font-semibold text-muted-foreground mb-1 mt-2",
 } as const;
+
+// A wide table gives each column a readable min width and scrolls sideways; one that already fits fills the width instead.
+const TABLE_MIN_COLUMN_WIDTH = 112;
 
 function renderBlock(node: BlockNode, key: number): React.ReactElement {
   switch (node.type) {
@@ -113,19 +132,37 @@ function renderBlock(node: BlockNode, key: number): React.ReactElement {
         </View>
       );
     case "table":
-      return (
-        <View
-          key={key}
-          className="mb-3 rounded-xl border border-border overflow-hidden"
-        >
+      return <TableBlock key={key} headers={node.headers} rows={node.rows} />;
+    default:
+      return <View key={key} />;
+  }
+}
+
+interface TableBlockProps {
+  headers: InlineNode[][];
+  rows: InlineNode[][][];
+}
+// Measures the row width: columns fill it when the table fits, else fall back to a min width and the whole table scrolls sideways so cells never crush to one glyph per line.
+function TableBlock({ headers, rows }: TableBlockProps): React.ReactElement {
+  const [available, setAvailable] = React.useState(0);
+  const columnCount = headers.length;
+  const columnWidth =
+    available > 0
+      ? Math.max(TABLE_MIN_COLUMN_WIDTH, available / columnCount)
+      : TABLE_MIN_COLUMN_WIDTH;
+  const onLayout = (event: LayoutChangeEvent): void => {
+    setAvailable(event.nativeEvent.layout.width);
+  };
+  return (
+    <View className="mb-3" onLayout={onLayout}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View className="rounded-xl border border-border overflow-hidden">
           <View className="flex-row bg-muted">
-            {node.headers.map((cell, ci) => (
+            {headers.map((cell, ci) => (
               <View
                 key={ci}
-                className={clsx(
-                  "flex-1 px-3 py-2",
-                  ci > 0 && "border-l border-border",
-                )}
+                style={{ width: columnWidth }}
+                className={clsx("px-3 py-2", ci > 0 && "border-l border-border")}
               >
                 <Text className="font-sans text-base font-semibold text-foreground">
                   {cell.map(renderInline)}
@@ -133,13 +170,14 @@ function renderBlock(node: BlockNode, key: number): React.ReactElement {
               </View>
             ))}
           </View>
-          {node.rows.map((row, ri) => (
+          {rows.map((row, ri) => (
             <View key={ri} className="flex-row border-t border-border">
               {row.map((cell, ci) => (
                 <View
                   key={ci}
+                  style={{ width: columnWidth }}
                   className={clsx(
-                    "flex-1 px-3 py-2",
+                    "px-3 py-2",
                     ci > 0 && "border-l border-border",
                   )}
                 >
@@ -151,10 +189,9 @@ function renderBlock(node: BlockNode, key: number): React.ReactElement {
             </View>
           ))}
         </View>
-      );
-    default:
-      return <View key={key} />;
-  }
+      </ScrollView>
+    </View>
+  );
 }
 
 export function Markdown({

@@ -1,10 +1,11 @@
-// Minimal dependency-free markdown parser for the chat surface. Handles headings (1-6), fenced code, bullet lists, GFM pipe tables, paragraphs; inline code/bold/italic. Greedy left-to-right inline scan; code spans take priority over emphasis.
+// Minimal dependency-free markdown parser for the chat surface. Handles headings (1-6), fenced code, bullet lists, GFM pipe tables, paragraphs; inline code/bold/italic/links. Greedy left-to-right inline scan; code spans take priority over emphasis and links.
 
 export type InlineNode =
   | { type: "text"; value: string }
   | { type: "code"; value: string }
   | { type: "bold"; value: string }
-  | { type: "italic"; value: string };
+  | { type: "italic"; value: string }
+  | { type: "link"; value: string; href: string };
 
 export type BlockNode =
   | { type: "paragraph"; children: InlineNode[] }
@@ -195,6 +196,24 @@ export function parseInline(input: string): InlineNode[] {
         i = close + 1;
         textStart = i;
         continue;
+      }
+    }
+    // Link [text](href) — after code so a code span still wins; the label is plain text, and malformed forms fall through as literal text.
+    if (ch === "[") {
+      const closeBracket = input.indexOf("]", i + 1);
+      if (closeBracket !== -1 && input[closeBracket + 1] === "(") {
+        const closeParen = input.indexOf(")", closeBracket + 2);
+        if (closeParen !== -1) {
+          const label = input.slice(i + 1, closeBracket);
+          const href = input.slice(closeBracket + 2, closeParen).trim();
+          if (label.length > 0 && href.length > 0) {
+            flushText(i);
+            out.push({ type: "link", value: label, href });
+            i = closeParen + 1;
+            textStart = i;
+            continue;
+          }
+        }
       }
     }
     // Bold (CommonMark-ish: marker must hug non-whitespace on both sides, otherwise the asterisks stay as literal text).
