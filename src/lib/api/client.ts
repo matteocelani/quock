@@ -28,7 +28,7 @@ const RETRYABLE_HTTP_METHODS_WITH_BODY: ReadonlySet<string> = new Set([
   "PUT",
   "PATCH",
 ]);
-// Server-side gate for paid models: returns 403 with a `subscription` keyword in the message. Detected here so the UI can show an upgrade modal.
+// Server-side gate for paid models: returns 403 with a `subscription` keyword in the message. Mapped to a typed error that surfaces as the neutral inline "usage limit reached" badge (no purchase path — App Store 3.1.1).
 const HTTP_STATUS_FORBIDDEN = 403;
 const SUBSCRIPTION_KEYWORD = "subscription";
 // Single fetch surface for the app: signs every request with the device key, adds JSON content-type for write methods, translates non-2xx into the centralized error catalog.

@@ -26,7 +26,6 @@ import { Composer } from "@/components/chat/Composer";
 import { EmptyState } from "@/components/chat/EmptyState";
 import { MessageList, type MessageListHandle } from "@/components/chat/MessageList";
 import type { UiAttachment } from "@/modules/chat/types";
-import { UpgradePromptModal } from "@/components/chat/UpgradePromptModal";
 import { SelectTextSheet } from "@/components/chat/SelectTextSheet";
 
 export interface ChatHomeProps {
@@ -54,8 +53,6 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const modelPickerOpen = useUIStore((s) => s.modelPickerOpen);
   const accountOpen = useUIStore((s) => s.accountOpen);
   const attachOpen = useUIStore((s) => s.attachOpen);
-  const upgradeModalOpen = useUIStore((s) => s.upgradeModalOpen);
-  const upgradeModelName = useUIStore((s) => s.upgradeModalModelName);
   const closeChatHistory = useUIStore((s) => s.closeChatHistory);
   const closeModelPicker = useUIStore((s) => s.closeModelPicker);
   const closeAccount = useUIStore((s) => s.closeAccount);
@@ -64,8 +61,6 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const switchToModelPickerFromAccount = useUIStore(
     (s) => s.switchToModelPickerFromAccount,
   );
-  const closeUpgradeModal = useUIStore((s) => s.closeUpgradeModal);
-  const pickAnotherFromUpgrade = useUIStore((s) => s.pickAnotherFromUpgrade);
   const selectTextOpen = useUIStore((s) => s.selectTextOpen);
   const selectTextMessageId = useUIStore((s) => s.selectTextMessageId);
   const closeSelectText = useUIStore((s) => s.closeSelectText);
@@ -234,12 +229,6 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         onAttach={handleAttachResult}
         currentCount={attachments.length}
         chatId={chatId}
-      />
-      <UpgradePromptModal
-        visible={upgradeModalOpen}
-        modelName={upgradeModelName}
-        onClose={closeUpgradeModal}
-        onPickAnotherModel={pickAnotherFromUpgrade}
       />
       <SelectTextSheet
         visible={selectTextOpen}

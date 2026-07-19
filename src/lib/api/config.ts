@@ -15,14 +15,12 @@ export const API_ROUTES = {
 // GitHub repo URL — used to deep-link to project-owned documents like the Privacy Policy and Terms of Service that live in `docs/`. Hardcoded because it is the canonical home of the codebase regardless of CLOUD_BASE_URL.
 const QUOCK_REPO_URL = "https://github.com/matteocelani/quock";
 
-// Public web URLs the app links to. `privacy` and `terms` point at OUR own policies in this repo because the app is Quock's surface — Ollama's privacy/terms apply to Ollama Cloud separately, not to what the Quock client does locally. The Ollama-side URLs (manageSubscription, upgrade, logo) remain on CLOUD_BASE_URL so staging envs flip them in lockstep. The sign-in URL itself is the `${CLOUD_BASE_URL}/connect?...` payload built dynamically from the device keypair (see `@/modules/auth/lib/connect#buildConnectUrl`), so it is not declared here.
+// Public web URLs the app links to. `privacy` and `terms` point at OUR own policies in this repo because the app is Quock's surface — Ollama's privacy/terms apply to Ollama Cloud separately, not to what the Quock client does locally. `logo` stays on CLOUD_BASE_URL so staging envs flip it in lockstep. No subscription/upgrade/manage URLs: Quock links out to NO external purchase or account-management flow (App Store guideline 3.1.1 — the app neither sells nor facilitates buying Ollama Cloud plans). The sign-in URL itself is the `${CLOUD_BASE_URL}/connect?...` payload built dynamically from the device keypair (see `@/modules/auth/lib/connect#buildConnectUrl`), so it is not declared here.
 export const LEGAL_URLS = {
   privacy: `${QUOCK_REPO_URL}/blob/main/docs/PRIVACY.md`,
   terms: `${QUOCK_REPO_URL}/blob/main/docs/TERMS.md`,
   // Apple + Google submission require a public support URL; GitHub Issues is the canonical channel for an MIT open-source client.
   support: `${QUOCK_REPO_URL}/issues`,
-  manageSubscription: `${CLOUD_BASE_URL}/settings`,
-  upgrade: `${CLOUD_BASE_URL}/upgrade`,
   logo: `${CLOUD_BASE_URL}/public/ollama.png`,
 } as const;
 

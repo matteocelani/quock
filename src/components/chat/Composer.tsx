@@ -24,7 +24,6 @@ import {
 } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArrowUp, ChevronDown, Globe, Plus, Square } from "lucide-react-native";
-import { CloudAPIError } from "@/lib/api/errors";
 import { GlassOrb } from "@/components/ui/GlassOrb";
 import { TextField } from "@/components/ui/TextField";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
@@ -120,7 +119,6 @@ export function Composer({
   const { webSearchEnabled, setWebSearchEnabled } = useChatComposerModes(chatId);
   const effectiveWebSearch = webSearchEnabled && hasWebSearch;
   const openAttach = useUIStore((s) => s.openAttach);
-  const openUpgradeModal = useUIStore((s) => s.openUpgradeModal);
   const hasText = text.trim().length > 0;
   // Re-validate against the live model so switching to a non-vision model flips already-attached images to invalid.
   const validatedAttachments = useMemo<UiAttachment[]>(() => {
@@ -203,7 +201,6 @@ export function Composer({
       (a) => a.status === "ready",
     );
     haptics.light();
-    const modelName = model?.name;
     sendingRef.current = true;
     // Think is decided in useSendMessage from the chat's persisted preference (omitted when off → the model decides); the composer only carries the web-search flag.
     void send({
@@ -217,15 +214,9 @@ export function Composer({
       },
     })
       .catch((err: unknown) => {
-        if (
-          err instanceof CloudAPIError &&
-          err.code === "subscription_required" &&
-          modelName !== undefined
-        ) {
-          openUpgradeModal(modelName);
-          return;
-        }
-        // Other errors land as `status: 'error'` on the row; `warn` (not `error`) so the diagnostic doesn't trigger LogBox.
+        // All send failures — including a `subscription_required` gate — land as `status: 'error'` on the assistant
+        // row with neutral copy; the app never surfaces a purchase or upgrade path (App Store guideline 3.1.1).
+        // `warn` (not `error`) so the diagnostic doesn't trigger LogBox.
         console.warn("Composer: send failed", err);
       })
       .finally(() => {
@@ -240,9 +231,7 @@ export function Composer({
     hasText,
     haptics,
     isStreaming,
-    model,
     onClearAttachments,
-    openUpgradeModal,
     send,
     text,
     validatedAttachments,

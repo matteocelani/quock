@@ -1,6 +1,5 @@
 // Owns the sheet and the 3-way drill animation between AccountView (40%) / SettingsView (90%) / OllamaView (90%).
 
-import * as WebBrowser from "expo-web-browser";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, type ViewStyle } from "react-native";
 import Animated, {
@@ -10,7 +9,6 @@ import Animated, {
   withTiming,
   type AnimatedStyle,
 } from "react-native-reanimated";
-import { LEGAL_URLS } from "@/lib/api/config";
 import { AccountView } from "@/components/settings/AccountView";
 import { AiDataView } from "@/components/settings/AiDataView";
 import { OllamaView } from "@/components/settings/OllamaView";
@@ -207,14 +205,6 @@ export function AccountSheet({
       toast({ title: "Sign-out failed", tone: "error" });
     });
   }, [signOut, onClose, toast]);
-  const handleManageSubscription = useCallback((): void => {
-    WebBrowser.openBrowserAsync(LEGAL_URLS.manageSubscription).catch(
-      (err: unknown) => {
-        console.error("AccountSheet: failed to open subscription", err);
-        toast({ title: "Could not open link", tone: "error" });
-      },
-    );
-  }, [toast]);
   const renderBackChevron = useCallback(
     (target: AccountSheetView): React.ReactElement => (
       <Pressable
@@ -260,7 +250,6 @@ export function AccountSheet({
               userPlan={user?.plan ?? null}
               avatarUri={user?.avatarurl}
               onOpenSettings={(): void => setView("settings")}
-              onManageSubscription={handleManageSubscription}
               onSignOut={handleSignOut}
             />
           </DrillFrame>

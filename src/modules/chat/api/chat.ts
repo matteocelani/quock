@@ -120,7 +120,7 @@ interface RawOllamaChunk {
   [k: string]: unknown;
 }
 
-// Heuristic match against the cloud's free-tier exhaustion / upgrade-required error strings so the UI can route to the upgrade modal instead of the inline error badge.
+// Heuristic match against the cloud's free-tier exhaustion / upgrade-required error strings so the turn lands with the `subscription` error code and its neutral inline badge (Quock surfaces no purchase path — App Store 3.1.1).
 function isSubscriptionError(message: string): boolean {
   const lower = message.toLowerCase();
   return (
@@ -136,7 +136,7 @@ function isSubscriptionError(message: string): boolean {
 function reviveOllamaChunk(raw: RawOllamaChunk): ChatEventUnion[] {
   if (raw.error) {
     if (isSubscriptionError(raw.error)) {
-      // Throw mid-stream so `useSendMessage`'s catch surfaces the typed error and Composer can open the upgrade modal.
+      // Throw mid-stream so `useSendMessage`'s catch writes the neutral `subscription` error state onto the row.
       throw new CloudAPIError(
         HTTP_STATUS_FORBIDDEN,
         "subscription_required",
