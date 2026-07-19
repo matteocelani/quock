@@ -108,6 +108,8 @@ export function AccountSheet({
   // full-display `overlays` slot, not inside the card. Gated on the settings view so it never paints over other panes.
   const [settingsOverlays, setSettingsOverlays] =
     useState<React.ReactNode>(null);
+  // The AI-data pane publishes its revoke-confirmation dialog here for the same full-display centering.
+  const [aiDataOverlays, setAiDataOverlays] = useState<React.ReactNode>(null);
   const { user } = useAuth();
   const { signOut } = useSignOut();
   const toast = useToast();
@@ -209,7 +211,13 @@ export function AccountSheet({
       visible={visible}
       onClose={onClose}
       snapPoints={[...snapPoints]}
-      overlays={view === "settings" ? settingsOverlays : null}
+      overlays={
+        view === "settings"
+          ? settingsOverlays
+          : view === "aiData"
+            ? aiDataOverlays
+            : null
+      }
     >
       {view === "settings" ? (
         <SheetHeader title="Settings" left={renderBackChevron("account")} />
@@ -276,7 +284,7 @@ export function AccountSheet({
             animatedStyle={aiDataAnimatedStyle}
             animatedKey="aidata-view"
           >
-            <AiDataView />
+            <AiDataView onRenderOverlays={setAiDataOverlays} />
           </DrillFrame>
         )}
       </View>

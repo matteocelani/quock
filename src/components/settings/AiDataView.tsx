@@ -1,48 +1,61 @@
-// Drill panel from Settings — re-read the AI data-sharing disclosure or revoke consent (a full device reset).
+// Drill panel from About — re-read the AI data-sharing disclosure or revoke consent (a full device reset).
 
 import * as WebBrowser from "expo-web-browser";
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { OLLAMA_LINKS } from "@/lib/api/config";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useToast } from "@/lib/hooks/useToast";
 import { useSettingsStore } from "@/lib/stores/settings.store";
-import { useUIStore } from "@/lib/stores/ui.store";
-import { useDeleteDeviceData } from "@/modules/chat/hooks/useDeviceStorage";
-import { useSignOut } from "@/modules/auth/hooks/useAuth";
+import { useRevokeAiConsent } from "@/modules/settings/hooks/useRevokeAiConsent";
 
 const SCROLL_PAD_TOP = 8;
 const SCROLL_PAD_BOTTOM = 40;
 
-export function AiDataView(): React.ReactElement {
+export interface AiDataViewProps {
+  // Publishes the revoke confirmation up to AccountSheet so it renders in the Sheet's `overlays` slot — centered
+  // against the full display, not inside the pane card. Null clears it.
+  onRenderOverlays?: (overlays: React.ReactNode) => void;
+}
+
+export function AiDataView({
+  onRenderOverlays,
+}: AiDataViewProps): React.ReactElement {
   const acceptedAt = useSettingsStore((s) => s.aiConsentAcceptedAt);
-  const revokeAiConsent = useSettingsStore((s) => s.revokeAiConsent);
-  const closeAccount = useUIStore((s) => s.closeAccount);
-  const { clearDeviceData } = useDeleteDeviceData();
-  const { signOut } = useSignOut();
   const toast = useToast();
+  const { isConfirmOpen, openConfirm, closeConfirm, confirmRevoke } =
+    useRevokeAiConsent();
   const openCloudDocs = useCallback((): void => {
     WebBrowser.openBrowserAsync(OLLAMA_LINKS.cloudDocs).catch((err: unknown) => {
       console.warn("AiDataView: failed to open Ollama Cloud docs", err);
       toast({ title: "Could not open link", tone: "error" });
     });
   }, [toast]);
-  // Wipe + sign out FIRST, then clear consent and close the sheet — so a failed reset surfaces a toast (the blocking
-  // gate hasn't taken over yet) instead of silently leaving data behind while the gate implies the reset succeeded.
-  const handleRevoke = useCallback((): void => {
-    void (async (): Promise<void> => {
-      try {
-        await clearDeviceData();
-        await signOut();
-      } catch (err) {
-        console.warn("AiDataView: revoke reset failed", err);
-        toast({ title: "Could not complete the reset", tone: "error" });
-        return;
-      }
-      revokeAiConsent();
-      closeAccount();
-    })();
-  }, [clearDeviceData, signOut, revokeAiConsent, closeAccount, toast]);
+  const revokeOverlay = useMemo(
+    () => (
+      <ConfirmDialog
+        visible={isConfirmOpen}
+        title="Delete all data?"
+        message="This permanently erases every chat on this device and signs you out. It can't be undone."
+        destructive
+        confirmLabel="Delete everything"
+        onConfirm={confirmRevoke}
+        onCancel={closeConfirm}
+        testID="ai-data-revoke-confirm"
+      />
+    ),
+    [isConfirmOpen, confirmRevoke, closeConfirm],
+  );
+  useEffect(() => {
+    onRenderOverlays?.(revokeOverlay);
+  }, [onRenderOverlays, revokeOverlay]);
+  useEffect(
+    () => (): void => {
+      onRenderOverlays?.(null);
+    },
+    [onRenderOverlays],
+  );
   const agreedOn =
     acceptedAt !== null
       ? new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(
@@ -105,7 +118,7 @@ export function AiDataView(): React.ReactElement {
           variant="destructiveSoft"
           size="lg"
           fullWidth
-          onPress={handleRevoke}
+          onPress={openConfirm}
           testID="ai-data-revoke"
         >
           Revoke &amp; delete all data
