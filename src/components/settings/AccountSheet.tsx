@@ -8,6 +8,7 @@ import Animated, {
   useSharedValue,
   withTiming,
   type AnimatedStyle,
+  type SharedValue,
 } from "react-native-reanimated";
 import { AboutView } from "@/components/settings/AboutView";
 import { AccountView } from "@/components/settings/AccountView";
@@ -56,6 +57,38 @@ function DrillFrame({
   return <View className="flex-1">{children}</View>;
 }
 
+// One pane's crossfade style: scale from `scaleFrom` to `scaleTo` and opacity 0→1 as its progress climbs.
+function useDrillStyle(
+  progress: SharedValue<number>,
+  scaleFrom: number,
+  scaleTo: number,
+): AnimatedStyle<ViewStyle> {
+  return useAnimatedStyle(() => ({
+    flex: 1,
+    opacity: progress.value,
+    transform: [{ scale: scaleFrom + (scaleTo - scaleFrom) * progress.value }],
+  }));
+}
+
+// Drive one pane toward its active/inactive target, clearing its settling flag when the timing lands.
+function animatePane(
+  progress: SharedValue<number>,
+  isActive: boolean,
+  setSettling: (settling: boolean) => void,
+): void {
+  progress.value = withTiming(
+    isActive ? 1 : 0,
+    {
+      duration: isActive ? SHEET_FADE_IN_MS : SHEET_FADE_OUT_MS,
+      easing: springEasing,
+    },
+    (finished) => {
+      "worklet";
+      if (finished) runOnJS(setSettling)(false);
+    },
+  );
+}
+
 export interface AccountSheetProps {
   visible: boolean;
   onClose: () => void;
@@ -95,71 +128,16 @@ export function AccountSheet({
   useEffect(() => {
     if (prevViewRef.current === view) return;
     prevViewRef.current = view;
-    const settingsTarget = view === "settings" ? 1 : 0;
-    const accountTarget = view === "account" ? 1 : 0;
-    const aboutTarget = view === "about" ? 1 : 0;
-    const ollamaTarget = view === "ollama" ? 1 : 0;
-    const aiDataTarget = view === "aiData" ? 1 : 0;
     setIsSettlingSettings(true);
     setIsSettlingAccount(true);
     setIsSettlingAbout(true);
     setIsSettlingOllama(true);
     setIsSettlingAiData(true);
-    settingsProgress.value = withTiming(
-      settingsTarget,
-      {
-        duration: view === "settings" ? SHEET_FADE_IN_MS : SHEET_FADE_OUT_MS,
-        easing: springEasing,
-      },
-      (finished) => {
-        "worklet";
-        if (finished) runOnJS(setIsSettlingSettings)(false);
-      },
-    );
-    aboutProgress.value = withTiming(
-      aboutTarget,
-      {
-        duration: view === "about" ? SHEET_FADE_IN_MS : SHEET_FADE_OUT_MS,
-        easing: springEasing,
-      },
-      (finished) => {
-        "worklet";
-        if (finished) runOnJS(setIsSettlingAbout)(false);
-      },
-    );
-    accountProgress.value = withTiming(
-      accountTarget,
-      {
-        duration: view === "account" ? SHEET_FADE_IN_MS : SHEET_FADE_OUT_MS,
-        easing: springEasing,
-      },
-      (finished) => {
-        "worklet";
-        if (finished) runOnJS(setIsSettlingAccount)(false);
-      },
-    );
-    ollamaProgress.value = withTiming(
-      ollamaTarget,
-      {
-        duration: view === "ollama" ? SHEET_FADE_IN_MS : SHEET_FADE_OUT_MS,
-        easing: springEasing,
-      },
-      (finished) => {
-        "worklet";
-        if (finished) runOnJS(setIsSettlingOllama)(false);
-      },
-    );
-    aiDataProgress.value = withTiming(
-      aiDataTarget,
-      {
-        duration: view === "aiData" ? SHEET_FADE_IN_MS : SHEET_FADE_OUT_MS,
-        easing: springEasing,
-      },
-      (finished) => {
-        "worklet";
-        if (finished) runOnJS(setIsSettlingAiData)(false);
-      },
-    );
+    animatePane(settingsProgress, view === "settings", setIsSettlingSettings);
+    animatePane(accountProgress, view === "account", setIsSettlingAccount);
+    animatePane(aboutProgress, view === "about", setIsSettlingAbout);
+    animatePane(ollamaProgress, view === "ollama", setIsSettlingOllama);
+    animatePane(aiDataProgress, view === "aiData", setIsSettlingAiData);
   }, [
     view,
     settingsProgress,
@@ -168,60 +146,31 @@ export function AccountSheet({
     ollamaProgress,
     aiDataProgress,
   ]);
-  const settingsAnimatedStyle = useAnimatedStyle(() => {
-    const scaleValue =
-      SETTINGS_DRILL_SCALE_FROM +
-      (SETTINGS_DRILL_SCALE_TO - SETTINGS_DRILL_SCALE_FROM) *
-        settingsProgress.value;
-    return {
-      flex: 1,
-      opacity: settingsProgress.value,
-      transform: [{ scale: scaleValue }],
-    };
-  });
-  const accountAnimatedStyle = useAnimatedStyle(() => {
-    const scaleValue =
-      ACCOUNT_DRILL_SCALE_FROM +
-      (1 - ACCOUNT_DRILL_SCALE_FROM) * accountProgress.value;
-    return {
-      flex: 1,
-      opacity: accountProgress.value,
-      transform: [{ scale: scaleValue }],
-    };
-  });
-  const aboutAnimatedStyle = useAnimatedStyle(() => {
-    const scaleValue =
-      SETTINGS_DRILL_SCALE_FROM +
-      (SETTINGS_DRILL_SCALE_TO - SETTINGS_DRILL_SCALE_FROM) *
-        aboutProgress.value;
-    return {
-      flex: 1,
-      opacity: aboutProgress.value,
-      transform: [{ scale: scaleValue }],
-    };
-  });
-  const ollamaAnimatedStyle = useAnimatedStyle(() => {
-    const scaleValue =
-      SETTINGS_DRILL_SCALE_FROM +
-      (SETTINGS_DRILL_SCALE_TO - SETTINGS_DRILL_SCALE_FROM) *
-        ollamaProgress.value;
-    return {
-      flex: 1,
-      opacity: ollamaProgress.value,
-      transform: [{ scale: scaleValue }],
-    };
-  });
-  const aiDataAnimatedStyle = useAnimatedStyle(() => {
-    const scaleValue =
-      SETTINGS_DRILL_SCALE_FROM +
-      (SETTINGS_DRILL_SCALE_TO - SETTINGS_DRILL_SCALE_FROM) *
-        aiDataProgress.value;
-    return {
-      flex: 1,
-      opacity: aiDataProgress.value,
-      transform: [{ scale: scaleValue }],
-    };
-  });
+  const settingsAnimatedStyle = useDrillStyle(
+    settingsProgress,
+    SETTINGS_DRILL_SCALE_FROM,
+    SETTINGS_DRILL_SCALE_TO,
+  );
+  const accountAnimatedStyle = useDrillStyle(
+    accountProgress,
+    ACCOUNT_DRILL_SCALE_FROM,
+    1,
+  );
+  const aboutAnimatedStyle = useDrillStyle(
+    aboutProgress,
+    SETTINGS_DRILL_SCALE_FROM,
+    SETTINGS_DRILL_SCALE_TO,
+  );
+  const ollamaAnimatedStyle = useDrillStyle(
+    ollamaProgress,
+    SETTINGS_DRILL_SCALE_FROM,
+    SETTINGS_DRILL_SCALE_TO,
+  );
+  const aiDataAnimatedStyle = useDrillStyle(
+    aiDataProgress,
+    SETTINGS_DRILL_SCALE_FROM,
+    SETTINGS_DRILL_SCALE_TO,
+  );
   // Always re-enter on the account view so the user does not land back inside Settings or Ollama after a dismiss.
   useEffect(() => {
     if (visible) setView("account");
