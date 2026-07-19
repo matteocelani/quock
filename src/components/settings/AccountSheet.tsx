@@ -1,4 +1,4 @@
-// Owns the sheet and the 3-way drill animation between AccountView (40%) / SettingsView (90%) / OllamaView (90%).
+// Owns the sheet and the drill animation between AccountView (40%) and the Settings / About / Ollama / AI-data panes (75%).
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, type ViewStyle } from "react-native";
@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
   type AnimatedStyle,
 } from "react-native-reanimated";
+import { AboutView } from "@/components/settings/AboutView";
 import { AccountView } from "@/components/settings/AccountView";
 import { AiDataView } from "@/components/settings/AiDataView";
 import { OllamaView } from "@/components/settings/OllamaView";
@@ -61,7 +62,7 @@ export interface AccountSheetProps {
   onChangeModel?: () => void;
 }
 
-type AccountSheetView = "account" | "settings" | "ollama" | "aiData";
+type AccountSheetView = "account" | "settings" | "about" | "ollama" | "aiData";
 
 export function AccountSheet({
   visible,
@@ -82,11 +83,13 @@ export function AccountSheet({
   // Once settled, render the live content without an animated wrapper so theme re-renders don't retrigger the transform (diag30 zoom bug).
   const [isSettlingSettings, setIsSettlingSettings] = useState<boolean>(false);
   const [isSettlingAccount, setIsSettlingAccount] = useState<boolean>(false);
+  const [isSettlingAbout, setIsSettlingAbout] = useState<boolean>(false);
   const [isSettlingOllama, setIsSettlingOllama] = useState<boolean>(false);
   const [isSettlingAiData, setIsSettlingAiData] = useState<boolean>(false);
   // Shared values drive the crossfade. Each view animates its own progress to 1 while the others animate to 0.
   const accountProgress = useSharedValue(1);
   const settingsProgress = useSharedValue(0);
+  const aboutProgress = useSharedValue(0);
   const ollamaProgress = useSharedValue(0);
   const aiDataProgress = useSharedValue(0);
   useEffect(() => {
@@ -94,10 +97,12 @@ export function AccountSheet({
     prevViewRef.current = view;
     const settingsTarget = view === "settings" ? 1 : 0;
     const accountTarget = view === "account" ? 1 : 0;
+    const aboutTarget = view === "about" ? 1 : 0;
     const ollamaTarget = view === "ollama" ? 1 : 0;
     const aiDataTarget = view === "aiData" ? 1 : 0;
     setIsSettlingSettings(true);
     setIsSettlingAccount(true);
+    setIsSettlingAbout(true);
     setIsSettlingOllama(true);
     setIsSettlingAiData(true);
     settingsProgress.value = withTiming(
@@ -109,6 +114,17 @@ export function AccountSheet({
       (finished) => {
         "worklet";
         if (finished) runOnJS(setIsSettlingSettings)(false);
+      },
+    );
+    aboutProgress.value = withTiming(
+      aboutTarget,
+      {
+        duration: view === "about" ? SHEET_FADE_IN_MS : SHEET_FADE_OUT_MS,
+        easing: springEasing,
+      },
+      (finished) => {
+        "worklet";
+        if (finished) runOnJS(setIsSettlingAbout)(false);
       },
     );
     accountProgress.value = withTiming(
@@ -144,7 +160,14 @@ export function AccountSheet({
         if (finished) runOnJS(setIsSettlingAiData)(false);
       },
     );
-  }, [view, settingsProgress, accountProgress, ollamaProgress, aiDataProgress]);
+  }, [
+    view,
+    settingsProgress,
+    accountProgress,
+    aboutProgress,
+    ollamaProgress,
+    aiDataProgress,
+  ]);
   const settingsAnimatedStyle = useAnimatedStyle(() => {
     const scaleValue =
       SETTINGS_DRILL_SCALE_FROM +
@@ -163,6 +186,17 @@ export function AccountSheet({
     return {
       flex: 1,
       opacity: accountProgress.value,
+      transform: [{ scale: scaleValue }],
+    };
+  });
+  const aboutAnimatedStyle = useAnimatedStyle(() => {
+    const scaleValue =
+      SETTINGS_DRILL_SCALE_FROM +
+      (SETTINGS_DRILL_SCALE_TO - SETTINGS_DRILL_SCALE_FROM) *
+        aboutProgress.value;
+    return {
+      flex: 1,
+      opacity: aboutProgress.value,
       transform: [{ scale: scaleValue }],
     };
   });
@@ -192,7 +226,7 @@ export function AccountSheet({
   useEffect(() => {
     if (visible) setView("account");
   }, [visible]);
-  // Sheet wrapper memoises on identity, so a fresh array is required each toggle. Ollama and Settings share the 90% snap.
+  // Sheet wrapper memoises on identity, so a fresh array is required each toggle. Every drill pane shares the taller snap; only the account landing uses the shorter one.
   const snapPoints =
     view === "account"
       ? ([ACCOUNT_SHEET_SNAP_ACCOUNT] as const)
@@ -231,11 +265,14 @@ export function AccountSheet({
       {view === "settings" ? (
         <SheetHeader title="Settings" left={renderBackChevron("account")} />
       ) : null}
+      {view === "about" ? (
+        <SheetHeader title="About" left={renderBackChevron("account")} />
+      ) : null}
       {view === "ollama" ? (
-        <SheetHeader title="Ollama" left={renderBackChevron("settings")} />
+        <SheetHeader title="Ollama" left={renderBackChevron("about")} />
       ) : null}
       {view === "aiData" ? (
-        <SheetHeader title="AI data" left={renderBackChevron("settings")} />
+        <SheetHeader title="AI data" left={renderBackChevron("about")} />
       ) : null}
       <View className="flex-1">
         {view === "account" ? (
@@ -250,6 +287,7 @@ export function AccountSheet({
               userPlan={user?.plan ?? null}
               avatarUri={user?.avatarurl}
               onOpenSettings={(): void => setView("settings")}
+              onOpenAbout={(): void => setView("about")}
               onSignOut={handleSignOut}
             />
           </DrillFrame>
@@ -261,9 +299,18 @@ export function AccountSheet({
           >
             <SettingsView
               onChangeModel={onChangeModel}
-              onOpenOllama={(): void => setView("ollama")}
-              onOpenAiData={(): void => setView("aiData")}
               onRenderOverlays={setSettingsOverlays}
+            />
+          </DrillFrame>
+        ) : view === "about" ? (
+          <DrillFrame
+            isAnimating={isSettlingAbout}
+            animatedStyle={aboutAnimatedStyle}
+            animatedKey="about-view"
+          >
+            <AboutView
+              onOpenAiData={(): void => setView("aiData")}
+              onOpenOllama={(): void => setView("ollama")}
             />
           </DrillFrame>
         ) : view === "ollama" ? (

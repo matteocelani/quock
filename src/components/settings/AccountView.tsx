@@ -2,7 +2,11 @@
 
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { ChevronRight, Settings as SettingsIcon } from "lucide-react-native";
+import {
+  ChevronRight,
+  Info,
+  Settings as SettingsIcon,
+} from "lucide-react-native";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { ListRow } from "@/components/ui/ListRow";
@@ -16,6 +20,7 @@ export interface AccountViewProps {
   userPlan: string | null;
   avatarUri: string | undefined;
   onOpenSettings: () => void;
+  onOpenAbout: () => void;
   onSignOut: () => void;
 }
 
@@ -25,6 +30,7 @@ export function AccountView({
   userPlan,
   avatarUri,
   onOpenSettings,
+  onOpenAbout,
   onSignOut,
 }: AccountViewProps): React.ReactElement {
   const colors = useThemeColors();
@@ -72,6 +78,15 @@ export function AccountView({
             label="Settings"
             onPress={onOpenSettings}
             testID="account-settings"
+            trailing={
+              <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
+            }
+          />
+          <ListRow
+            icon={Info}
+            label="About"
+            onPress={onOpenAbout}
+            testID="account-about"
             trailing={
               <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
             }

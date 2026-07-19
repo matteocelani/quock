@@ -1,23 +1,8 @@
-// 90%-snap settings view inside AccountSheet — appearance / chat / about + a drill entry to OllamaView.
+// Settings pane inside AccountSheet — appearance + chat preferences. About/legal lives in AboutView.
 
-import * as Application from "expo-application";
-import * as WebBrowser from "expo-web-browser";
 import React, { useCallback, useEffect, useMemo } from "react";
-import { ScrollView, Text, View } from "react-native";
-import {
-  ChevronRight,
-  ExternalLink,
-  FileText,
-  Info,
-  LifeBuoy,
-  Palette,
-  ShieldCheck,
-  Sparkles,
-  Trash2,
-  Vibrate,
-} from "lucide-react-native";
-import OllamaSvg from "@/assets/icons/Ollama.svg";
-import { LEGAL_URLS } from "@/lib/api/config";
+import { ScrollView, View } from "react-native";
+import { ChevronRight, Palette, Sparkles, Trash2, Vibrate } from "lucide-react-native";
 import { ClearChatsChooser } from "@/components/settings/ClearChatsChooser";
 import { SettingsGroup } from "@/components/settings/SettingsGroup";
 import { ListRow } from "@/components/ui/ListRow";
@@ -36,7 +21,6 @@ import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { formatModelName } from "@/modules/models/lib/formatModelName";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
 import { useClearChats } from "@/modules/settings/hooks/useClearChats";
-import { useToast } from "@/lib/hooks/useToast";
 import { useSettingsStore } from "@/lib/stores/settings.store";
 
 const THEME_OPTIONS: readonly SegmentedOption[] = [
@@ -51,17 +35,13 @@ const SCROLL_PAD_BOTTOM = 40;
 
 export interface SettingsViewProps {
   onChangeModel?: () => void;
-  onOpenOllama: () => void;
-  onOpenAiData: () => void;
   // Publishes the centered overlay (the clear-chats chooser) up to AccountSheet so it renders in the Sheet's
-  // `overlays` slot — full-display centering, not inside the 90%-height settings card. Null clears it.
+  // `overlays` slot — full-display centering, not inside the settings card. Null clears it.
   onRenderOverlays?: (overlays: React.ReactNode) => void;
 }
 
 export function SettingsView({
   onChangeModel,
-  onOpenOllama,
-  onOpenAiData,
   onRenderOverlays,
 }: SettingsViewProps): React.ReactElement {
   const colors = useThemeColors();
@@ -78,7 +58,6 @@ export function SettingsView({
     deviceBytes,
   } = useClearChats();
   const selected = useSelectedModel();
-  const toast = useToast();
   const handleThemeChange = useCallback(
     (next: string): void => {
       setThemeMode(next as ThemeMode);
@@ -120,29 +99,10 @@ export function SettingsView({
     },
     [onRenderOverlays],
   );
-  const openPrivacy = useCallback((): void => {
-    WebBrowser.openBrowserAsync(LEGAL_URLS.privacy).catch((err: unknown) => {
-      console.warn("SettingsView: failed to open privacy", err);
-      toast({ title: "Could not open link", tone: "error" });
-    });
-  }, [toast]);
-  const openTerms = useCallback((): void => {
-    WebBrowser.openBrowserAsync(LEGAL_URLS.terms).catch((err: unknown) => {
-      console.warn("SettingsView: failed to open terms", err);
-      toast({ title: "Could not open link", tone: "error" });
-    });
-  }, [toast]);
-  const openSupport = useCallback((): void => {
-    WebBrowser.openBrowserAsync(LEGAL_URLS.support).catch((err: unknown) => {
-      console.warn("SettingsView: failed to open support", err);
-      toast({ title: "Could not open link", tone: "error" });
-    });
-  }, [toast]);
   // ChatHome's onChangeModel already closes the sheet and schedules the picker; calling onClose() here would double-fire the dismiss.
   const handleChangeModel = useCallback((): void => {
     onChangeModel?.();
   }, [onChangeModel]);
-  const versionLabel = `v${Application.nativeApplicationVersion ?? "?"} (build ${Application.nativeBuildVersion ?? "?"})`;
   const modelLabel = selected.model
     ? formatModelName(selected.model.name)
     : "Not set";
@@ -199,72 +159,6 @@ export function SettingsView({
             }
             onPress={openChooser}
             showDivider={false}
-          />
-        </SettingsGroup>
-        <SettingsGroup label="ABOUT">
-          <ListRow
-            icon={ShieldCheck}
-            label="AI data sharing"
-            onPress={onOpenAiData}
-            trailing={
-              <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
-            }
-            testID="settings-ai-consent"
-          />
-          <ListRow
-            icon={FileText}
-            label="Privacy Policy"
-            onPress={openPrivacy}
-            trailing={
-              <ExternalLink size={iconSize.md} color={colors.mutedForeground} />
-            }
-          />
-          <ListRow
-            icon={FileText}
-            label="Terms of Service"
-            onPress={openTerms}
-            trailing={
-              <ExternalLink size={iconSize.md} color={colors.mutedForeground} />
-            }
-          />
-          <ListRow
-            icon={LifeBuoy}
-            label="Support"
-            onPress={openSupport}
-            trailing={
-              <ExternalLink size={iconSize.md} color={colors.mutedForeground} />
-            }
-          />
-          <ListRow
-            icon={Info}
-            label="Version"
-            trailing={
-              <Text className="font-mono text-muted-foreground text-sm">
-                {versionLabel}
-              </Text>
-            }
-            showDivider={false}
-          />
-        </SettingsGroup>
-        {/* `OLLAMA` eyebrow names the brand once; the row label is the
-            descriptive content. No repetition. The drill panel re-states
-            the full disclaimer at the top for legal prominence. */}
-        <SettingsGroup label="OLLAMA">
-          <ListRow
-            leading={
-              <OllamaSvg
-                width={size.iconRowBrand}
-                height={size.iconRowBrand}
-                color={colors.foreground}
-              />
-            }
-            label="Official channels — not affiliated"
-            onPress={onOpenOllama}
-            trailing={
-              <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
-            }
-            showDivider={false}
-            testID="settings-open-ollama"
           />
         </SettingsGroup>
       </ScrollView>
