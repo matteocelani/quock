@@ -1,6 +1,5 @@
-// Orchestrates the AI-data-sharing revoke flow: a confirmation gate in front of the irreversible device reset
-// (wipe all chats, sign out, clear consent). Extracted from AiDataView so the destructive action can never fire
-// on a stray tap and the dialog node published to AccountSheet keeps a stable identity.
+// Confirmation-gated AI-data revoke (wipe chats, sign out, clear consent), extracted from AiDataView so the
+// destructive action never fires on a stray tap and the published dialog node keeps a stable identity.
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useToast } from "@/lib/hooks/useToast";

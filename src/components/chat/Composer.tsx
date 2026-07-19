@@ -214,9 +214,8 @@ export function Composer({
       },
     })
       .catch((err: unknown) => {
-        // All send failures — including a `subscription_required` gate — land as `status: 'error'` on the assistant
-        // row with neutral copy; the app never surfaces a purchase or upgrade path (App Store guideline 3.1.1).
-        // `warn` (not `error`) so the diagnostic doesn't trigger LogBox.
+        // Every send failure (incl. a subscription gate) lands as status:'error' with neutral copy — no purchase/
+        // upgrade path is surfaced (App Store 3.1.1). warn, not error, so the diagnostic doesn't trigger LogBox.
         console.warn("Composer: send failed", err);
       })
       .finally(() => {
