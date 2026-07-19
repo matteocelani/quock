@@ -19,6 +19,7 @@ import {
 import OllamaSvg from "@/assets/icons/Ollama.svg";
 import { LEGAL_URLS } from "@/lib/api/config";
 import { ClearChatsChooser } from "@/components/settings/ClearChatsChooser";
+import { SettingsGroup } from "@/components/settings/SettingsGroup";
 import { ListRow } from "@/components/ui/ListRow";
 import {
   SegmentedControl,
@@ -34,7 +35,7 @@ import { iconSize, size } from "@/lib/design/tokens";
 import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { formatModelName } from "@/modules/models/lib/formatModelName";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
-import { useClearChats } from "@/modules/settings/hooks";
+import { useClearChats } from "@/modules/settings/hooks/useClearChats";
 import { useToast } from "@/lib/hooks/useToast";
 import { useSettingsStore } from "@/lib/stores/settings.store";
 
@@ -47,25 +48,6 @@ const THEME_OPTIONS: readonly SegmentedOption[] = [
 // Visual rhythm for the settings ScrollView: a little breathing space after the sheet header, generous bottom inset so the last row never sits flush against the safe-area edge.
 const SCROLL_PAD_TOP = 14;
 const SCROLL_PAD_BOTTOM = 40;
-
-interface SettingsGroupProps {
-  label: string;
-  children: React.ReactNode;
-}
-// Cardless eyebrow + rows wrapper; mirrors Section's label typography for consistency.
-function SettingsGroup({
-  label,
-  children,
-}: SettingsGroupProps): React.ReactElement {
-  return (
-    <View className="mb-6">
-      <Text className="font-mono text-muted-foreground text-xs uppercase tracking-widest mb-2 ml-4.5">
-        {label}
-      </Text>
-      {children}
-    </View>
-  );
-}
 
 export interface SettingsViewProps {
   onChangeModel?: () => void;
