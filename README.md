@@ -11,6 +11,8 @@
 
 A community-built mobile client for [Ollama Cloud](https://ollama.com). Chat with cloud-hosted LLMs from your phone — privately, with conversations stored locally on-device.
 
+**[Download on the App Store](https://apps.apple.com/app/quock/id6785608333)**
+
 </div>
 
 ---
@@ -39,6 +41,8 @@ It's deliberately small and focused: **open the app, tap a model, type — a str
 
 ## Quick start
 
+Just want to use the app? Get it on the [App Store](https://apps.apple.com/app/quock/id6785608333). To run it from source:
+
 ```bash
 pnpm install
 
@@ -56,6 +60,11 @@ You'll need [Node 22+](https://nodejs.org), [pnpm 11+](https://pnpm.io), [Xcode 
 New here? [`CONTRIBUTING.md`](./CONTRIBUTING.md) is the short human path — clone, run, branch, PR. The full rulebook (non-negotiables, feature-first architecture, the `/commit` · `/pr` · `/review` workflow) lives in [`AGENTS.md`](./AGENTS.md).
 
 Bug reports and PRs welcome. Found a security issue? See [`SECURITY.md`](./SECURITY.md).
+
+## Download
+
+- **iPhone** — [Quock on the App Store](https://apps.apple.com/app/quock/id6785608333)
+- **Android** — coming soon on Google Play
 
 ## Resources
 
