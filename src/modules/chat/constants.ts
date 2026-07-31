@@ -36,6 +36,12 @@ export const DOCUMENT_TEXT_TOTAL_MAX_CHARS = 200_000;
 // Binary sniff: a decoded doc with more than this ratio of U+FFFD chars in its first N chars is rejected as binary.
 export const DOCUMENT_BINARY_SNIFF_CHARS = 1000;
 export const DOCUMENT_BINARY_REPLACEMENT_RATIO = 0.1;
+// PDF pages rendered as images for vision models: the first few only, since a vision model's attention thins out over
+// many full-page images and the text layer already carries the whole document for every model.
+export const PDF_PAGE_IMAGE_LIMIT = 4;
+// 2.5x takes an A4 page (595x842pt) just past IMAGE_MAX_UPLOAD_DIMENSION, so the downscale lands it exactly on the
+// 2048 ceiling — rendering at 1x leaves small digits and footnotes unreadable to the model.
+export const PDF_PAGE_RENDER_SCALE = 2.5;
 
 // ThinkingDots cadence: each dot loops opacity over DURATION_MS with STAGGER_MS lag so the trio reads as a wave.
 export const THINKING_DOT_DURATION_MS = 900;
