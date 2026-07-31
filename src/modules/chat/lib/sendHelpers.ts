@@ -10,6 +10,8 @@ import type { WireChatMessage } from "@/modules/chat/api/chat";
 import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import type { ApiAttachment } from "@/modules/chat/lib/streamPipeline";
 import type { UiAttachment } from "@/modules/chat/types";
+import { attachmentTextBlocks } from "@/modules/chat/lib/attachmentText";
+import { allocateBlocks, foldBlocks } from "@/modules/chat/lib/documentText";
 
 // Drops image attachments when the active model lacks vision so unsupported blobs never reach the DB write
 // or the wire payload. Generic over Ui/Db attachment rows — both carry a `mimeType`.
@@ -42,11 +44,38 @@ export function narrowUiAttachments(items: UiAttachment[]): ApiAttachment[] {
   });
 }
 
-// Maps persisted rows to the stateless `/api/chat` wire history, keeping only user + assistant turns.
-export function toWireHistory(messages: DbMessage[]): WireChatMessage[] {
-  return messages
-    .filter((m) => m.role === "user" || m.role === "assistant")
-    .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+// Maps persisted rows to the stateless `/api/chat` wire conversation, keeping only user + assistant turns, and re-folds
+// each user turn's documents from their rows. Folding only the turn being sent left a document invisible from the second
+// question on: the model saw the question about a PDF with no PDF attached, and disowned its own correct answer.
+export interface WireHistory {
+  messages: WireChatMessage[];
+  // True when the character budget forced a document to be cut, so the caller can say so instead of shipping a silent gap.
+  truncated: boolean;
+}
+
+export function toWireHistory(
+  messages: readonly DbMessage[],
+  attachmentRows: readonly DbAttachment[] = [],
+  hasVision = false,
+): WireHistory {
+  const turns = messages.filter(
+    (m) => m.role === "user" || m.role === "assistant",
+  );
+  const groups = turns.map((m) =>
+    m.role === "user"
+      ? attachmentRows
+          .filter((a) => a.messageId === m.id)
+          .flatMap((a) => attachmentTextBlocks(a, hasVision))
+      : [],
+  );
+  const allocated = allocateBlocks(groups);
+  return {
+    messages: turns.map((m, i) => ({
+      role: m.role as "user" | "assistant",
+      content: foldBlocks(m.content, allocated.groups[i] ?? []),
+    })),
+    truncated: allocated.truncated,
+  };
 }
 
 // Locates an assistant turn and its preceding user turn, validating both. Shared by regenerate + retry;

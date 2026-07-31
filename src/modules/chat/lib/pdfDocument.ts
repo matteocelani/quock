@@ -68,15 +68,23 @@ export async function extractPdfText(uri: string): Promise<PdfTextResult> {
   return { pages, pageCount };
 }
 
-// One fold block per page, labelled with the file AND the page, so a reader of the prompt can cite the page.
+// One fold block per page, labelled with the file AND the page, so a reader of the prompt can cite the page. Kept apart
+// from the result shape because a replayed turn rebuilds the same blocks from the stored pages, not from an extraction.
+export function pdfPageBlocks(
+  filename: string,
+  pages: readonly PdfPageText[],
+): TextBlockInput[] {
+  return pages.map((p) => ({
+    filename: `${filename}, page ${p.page}`,
+    text: p.text,
+  }));
+}
+
 export function pdfTextBlocks(
   filename: string,
   result: PdfTextResult,
 ): TextBlockInput[] {
-  return result.pages.map((p) => ({
-    filename: `${filename}, page ${p.page}`,
-    text: p.text,
-  }));
+  return pdfPageBlocks(filename, result.pages);
 }
 
 // Whether the pages ARE pictures rather than pages carrying pictures. A digital document averages thousands of

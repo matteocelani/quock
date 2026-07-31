@@ -75,6 +75,12 @@ const ADD_CHAT_USER = `
   ALTER TABLE chats ADD COLUMN user_id TEXT;
   CREATE INDEX IF NOT EXISTS idx_chats_user_updated ON chats(user_id, updated_at DESC);
 `;
+// A document's extracted text, stored once at send time so every later turn can replay it: re-extracting a PDF costs a
+// native pass per turn and depends on a picker URI iOS may have already reclaimed. Text documents leave this NULL and
+// are re-decoded from `data` instead. Holds JSON so a PDF keeps its per-page structure.
+const ADD_ATTACHMENT_TEXT = `
+  ALTER TABLE attachments ADD COLUMN text_content TEXT;
+`;
 
 export const MIGRATIONS: readonly Migration[] = [
   { id: 1, up: INITIAL_SCHEMA },
@@ -85,6 +91,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { id: 6, up: ADD_CHAT_COMPOSER_MODES },
   { id: 7, up: ADD_MESSAGE_SENT_MODES },
   { id: 8, up: ADD_CHAT_USER },
+  { id: 9, up: ADD_ATTACHMENT_TEXT },
 ];
 export const CURRENT_VERSION: number =
   MIGRATIONS.length > 0

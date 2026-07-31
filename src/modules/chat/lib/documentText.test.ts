@@ -1,7 +1,7 @@
 import {
-  appendDocumentText,
-  appendTextBlocks,
+  allocateBlocks,
   decodeDocumentText,
+  foldBlocks,
   isImageMime,
   isTextDocument,
   textDocBlocks,
@@ -54,37 +54,6 @@ describe("decodeDocumentText", () => {
   });
 });
 
-describe("appendDocumentText", () => {
-  it("returns the base text unchanged when there are no documents", () => {
-    expect(appendDocumentText("hello", [])).toBe("hello");
-  });
-
-  it("folds a document's text onto the message under a labelled block", () => {
-    const out = appendDocumentText("summarise this", [
-      { filename: "cv.txt", data: bytes("Jane Doe\nEngineer") },
-    ]);
-    expect(out).toBe("summarise this\n\n--- cv.txt ---\nJane Doe\nEngineer");
-  });
-
-  it("appends multiple documents in order", () => {
-    const out = appendDocumentText("read these", [
-      { filename: "a.txt", data: bytes("alpha") },
-      { filename: "b.txt", data: bytes("beta") },
-    ]);
-    expect(out).toBe(
-      "read these\n\n--- a.txt ---\nalpha\n\n--- b.txt ---\nbeta",
-    );
-  });
-
-  it("skips a document that decodes to mostly replacement chars (binary)", () => {
-    // 0xFF bytes are invalid UTF-8 → TextDecoder emits U+FFFD for each.
-    const garbage = new Uint8Array(50).fill(0xff);
-    expect(
-      appendDocumentText("base", [{ filename: "blob.bin", data: garbage }]),
-    ).toBe("base");
-  });
-});
-
 describe("textDocBlocks", () => {
   it("decodes documents and drops the binary ones", () => {
     const garbage = new Uint8Array(50).fill(0xff);
@@ -97,37 +66,54 @@ describe("textDocBlocks", () => {
   });
 });
 
-describe("appendTextBlocks", () => {
-  it("folds text that never was bytes, such as a PDF layer", () => {
+describe("foldBlocks", () => {
+  it("returns the base text unchanged when there is nothing to fold", () => {
+    expect(foldBlocks("hello", [])).toBe("hello");
+  });
+
+  it("frames each block under its own label", () => {
     expect(
-      appendTextBlocks("look", [
-        { filename: "invoices.pdf", text: "total 42" },
+      foldBlocks("look", [
+        { filename: "a.txt", text: "one" },
+        { filename: "invoices.pdf, page 6", text: "two" },
       ]),
-    ).toBe("look\n\n--- invoices.pdf ---\ntotal 42");
+    ).toBe("look\n\n--- a.txt ---\none\n\n--- invoices.pdf, page 6 ---\ntwo");
+  });
+});
+
+describe("allocateBlocks", () => {
+  it("keeps a document that fits whole", () => {
+    const alloc = allocateBlocks([[{ filename: "a.txt", text: "short" }]]);
+    expect(alloc.groups[0][0].text).toBe("short");
+    expect(alloc.truncated).toBe(false);
   });
 
-  // The reason both sources fold in ONE call: a per-call cap would let each source spend the whole total budget.
-  it("shares one total budget across sources", () => {
+  it("caps a single document at the per-file limit and says it cut", () => {
+    const long = "x".repeat(DOCUMENT_TEXT_MAX_CHARS * 2);
+    const alloc = allocateBlocks([[{ filename: "big.txt", text: long }]]);
+    expect(alloc.groups[0][0].text).toHaveLength(DOCUMENT_TEXT_MAX_CHARS);
+    expect(alloc.truncated).toBe(true);
+  });
+
+  // Newest first is the whole point: the document just attached must arrive whole, and an older one yields.
+  it("spends the conversation budget on the newest turns", () => {
     const long = "x".repeat(DOCUMENT_TEXT_MAX_CHARS);
-    const fillers = Array.from(
-      {
-        length: Math.ceil(
-          DOCUMENT_TEXT_TOTAL_MAX_CHARS / DOCUMENT_TEXT_MAX_CHARS,
-        ),
-      },
-      (_, i) => ({ filename: `fill${i}.txt`, text: long }),
+    const fillers = Math.ceil(
+      DOCUMENT_TEXT_TOTAL_MAX_CHARS / DOCUMENT_TEXT_MAX_CHARS,
     );
-    const out = appendTextBlocks("base", [
-      ...fillers,
-      { filename: "extra.pdf", text: long },
+    const groups = Array.from({ length: fillers + 1 }, (_, i) => [
+      { filename: `turn${i}.txt`, text: long },
     ]);
-    expect(out).toContain("--- fill0.txt ---");
-    expect(out).not.toContain("--- extra.pdf ---");
+    const alloc = allocateBlocks(groups);
+    expect(alloc.groups[groups.length - 1][0].text).toHaveLength(
+      DOCUMENT_TEXT_MAX_CHARS,
+    );
+    expect(alloc.groups[0]).toEqual([]);
+    expect(alloc.truncated).toBe(true);
   });
 
-  it("skips an empty block instead of emitting an empty label", () => {
-    expect(appendTextBlocks("base", [{ filename: "scan.pdf", text: "" }])).toBe(
-      "base",
-    );
+  it("drops an empty block instead of emitting an empty label", () => {
+    const alloc = allocateBlocks([[{ filename: "scan.pdf", text: "" }]]);
+    expect(alloc.groups[0]).toEqual([]);
   });
 });

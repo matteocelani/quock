@@ -1,5 +1,6 @@
-// The cloud `/api/chat` has no document slot (only content + images), so text/code attachments are read as
-// UTF-8 on-device and folded into the message content. Binary docs (pdf/docx) can't be decoded — they need a parser.
+// The cloud `/api/chat` has no document slot (only content + images), so text/code attachments are read as UTF-8
+// on-device and folded into the message content. A PDF goes through a native extractor (see pdfDocument); docx and the
+// other Office formats are still refused, since each needs its own parser.
 
 import {
   DOCUMENT_BINARY_REPLACEMENT_RATIO,
@@ -120,34 +121,41 @@ export function textDocBlocks(docs: TextDocInput[]): TextBlockInput[] {
   });
 }
 
-// Folds each block onto the user's typed message, capped per-file and in total so a huge file can't blow the model
-// context. One call per turn across every source, or two sources would each get the whole total budget.
-export function appendTextBlocks(
-  baseText: string,
-  inputs: TextBlockInput[],
-): string {
-  if (inputs.length === 0) return baseText;
-  const blocks: string[] = [];
-  let total = 0;
-  for (const input of inputs) {
-    if (total >= DOCUMENT_TEXT_TOTAL_MAX_CHARS) break;
-    const budget = Math.min(
-      DOCUMENT_TEXT_MAX_CHARS,
-      DOCUMENT_TEXT_TOTAL_MAX_CHARS - total,
-    );
-    const text = input.text.slice(0, budget);
-    if (text.length === 0) continue;
-    total += text.length;
-    blocks.push(`\n\n--- ${input.filename} ---\n${text}`);
-  }
-  return blocks.length > 0 ? baseText + blocks.join("") : baseText;
+// Allocates the per-turn character budget across every group of blocks in the conversation, NEWEST FIRST: the document
+// just attached arrives whole and an older one yields, which is the opposite of what walking chronologically would do.
+// Groups come in and go out in chronological order; `truncated` says whether anything had to be cut.
+export interface BlockAllocation {
+  groups: TextBlockInput[][];
+  truncated: boolean;
 }
 
-// Byte-document convenience wrapper: decode, then fold. A turn that also carries a PDF must call appendTextBlocks
-// directly with both sources, so the caps stay shared.
-export function appendDocumentText(
+export function allocateBlocks(
+  groups: readonly (readonly TextBlockInput[])[],
+): BlockAllocation {
+  const out: TextBlockInput[][] = groups.map(() => []);
+  let remaining = DOCUMENT_TEXT_TOTAL_MAX_CHARS;
+  let truncated = false;
+  for (let g = groups.length - 1; g >= 0; g -= 1) {
+    const kept: TextBlockInput[] = [];
+    for (const block of groups[g]) {
+      const budget = Math.min(DOCUMENT_TEXT_MAX_CHARS, remaining);
+      const text = block.text.slice(0, budget);
+      if (text.length < block.text.length) truncated = true;
+      if (text.length === 0) continue;
+      remaining -= text.length;
+      kept.push({ filename: block.filename, text });
+    }
+    out[g] = kept;
+  }
+  return { groups: out, truncated };
+}
+
+// Frames already-allocated blocks onto a message's text. Capping lives in allocateBlocks, so this never drops anything.
+export function foldBlocks(
   baseText: string,
-  docs: TextDocInput[],
+  blocks: readonly TextBlockInput[],
 ): string {
-  return appendTextBlocks(baseText, textDocBlocks(docs));
+  if (blocks.length === 0) return baseText;
+  const framed = blocks.map((b) => `\n\n--- ${b.filename} ---\n${b.text}`);
+  return baseText + framed.join("");
 }

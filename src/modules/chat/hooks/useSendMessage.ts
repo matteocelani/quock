@@ -9,7 +9,7 @@ import { useDb } from "@/lib/contexts/DbContext";
 import { useStreamingStore } from "@/modules/chat/stores/streaming.store";
 import { useChatComposerModes } from "@/modules/chat/hooks/useChatComposerModes";
 import type { DbAttachment, DbMessage } from "@/lib/db/types";
-import type { ChatId, MessageId } from "@/lib/types/ids";
+import type { AttachmentId, ChatId, MessageId } from "@/lib/types/ids";
 import {
   useHasThinkingCapability,
   useHasToolsCapability,
@@ -36,19 +36,13 @@ import {
 } from "@/modules/chat/lib/sendHelpers";
 import { WEB_TOOLS, type ToolDefinition } from "@/modules/chat/lib/tools";
 import {
-  appendTextBlocks,
-  isTextDocument,
-  textDocBlocks,
-  type TextBlockInput,
-} from "@/modules/chat/lib/documentText";
-import {
   extractPdfText,
   isPdf,
   pagesToRender,
-  pdfPlaceholder,
-  pdfTextBlocks,
   renderPdfPageImages,
+  type PdfTextResult,
 } from "@/modules/chat/lib/pdfDocument";
+import { serializePdfText } from "@/modules/chat/lib/attachmentText";
 import { materializeImageAttachment } from "@/modules/chat/lib/imageUpload";
 import {
   ATTACHMENT_MAX_TOTAL_BYTES,
@@ -188,6 +182,9 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         sentWithWebSearch: input.webSearch === true,
       });
       const insertedAttachments: DbAttachment[] = [];
+      // Kept for this turn only: the render decision and the password toast are send-time concerns, while the wire
+      // content is rebuilt from the rows so a later turn needs no side channel.
+      const pdfResults = new Map<AttachmentId, PdfTextResult>();
       for (const att of inputAttachments) {
         try {
           // Optimistically-attached images carry no bytes yet (downscale + byte read were deferred off the attach
@@ -196,6 +193,11 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           if (ready.data === undefined) {
             throw new Error("attachment has no data after materialize");
           }
+          // A PDF is read BEFORE the insert so its row is written complete: that stored text is what every later turn
+          // replays, and re-extracting per turn would cost a native pass and a picker URI iOS may have reclaimed.
+          const pdfResult = isPdf(ready.mimeType, ready.filename)
+            ? await extractPdfText(ready.uri)
+            : null;
           const row = await attachments.add({
             messageId: userMessage.id,
             filename: ready.filename,
@@ -203,7 +205,20 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
             data: ready.data,
             uri: ready.uri,
             sizeBytes: ready.sizeBytes || ready.data.byteLength,
+            textContent:
+              pdfResult === null ? null : serializePdfText(pdfResult),
           });
+          if (pdfResult !== null) {
+            pdfResults.set(row.id, pdfResult);
+            // A locked PDF reads as empty at every layer, so say so: silently sending nothing looks like the model ignored it.
+            if (pdfResult.failure === "password") {
+              toast({
+                title: `${ready.filename} is password protected`,
+                description: "Quock can't read a locked PDF.",
+                tone: "error",
+              });
+            }
+          }
           insertedAttachments.push(row);
         } catch (err) {
           // Attachment writes are best-effort so one bad blob cannot block the rest of the turn.
@@ -268,74 +283,37 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       // receives an attachment the DB/cache lacks if an insert failed.
       const apiAttachments = narrowApiAttachments(insertedAttachments);
       // Replay the full history each send (`/api/chat` is stateless). Read from SQLite, not the cache: a cold cache
-      // (sending in a just-opened chat) would replay EMPTY history. Exclude the two rows just appended; user turn re-added below.
+      // (sending in a just-opened chat) would replay EMPTY history. Only the pending assistant row is excluded.
       const dbForWire = await messages.listByChat(chatId);
-      const wireHistory = toWireHistory(
-        dbForWire.filter(
-          (m) => m.id !== userMessage.id && m.id !== placeholderAssistant.id,
-        ),
+      // Every user turn re-folds its own documents from their rows, so the PDF attached three questions ago is still
+      // there. The current turn included: its text was written with the row a few lines above.
+      const attachmentRows = await attachments.listByChat(chatId);
+      const wire = toWireHistory(
+        dbForWire.filter((m) => m.id !== placeholderAssistant.id),
+        attachmentRows,
+        hasVision,
       );
-      // Fold text-document attachments into THIS turn's wire content (the cloud /api/chat has no
-      // document slot; images ride images[]). The persisted bubble keeps the user's typed text.
-      const textDocs = insertedAttachments.filter((a) =>
-        isTextDocument(a.mimeType, a.filename),
-      );
-      // A PDF's text layer is read natively from the file, not decoded from its bytes, so it is resolved here and then
-      // folded through the same caps as a text doc — one budget for the turn, not one per source.
-      const pdfs = insertedAttachments.filter(
-        (a) => isPdf(a.mimeType, a.filename) && a.uri !== null,
-      );
-      const pdfBlocks: TextBlockInput[] = [];
-      // Rendering is decided by what the text layer could NOT carry, so it is resolved alongside the text, not guessed.
-      const pdfsToRender: { pdf: DbAttachment; pages: number[] }[] = [];
-      for (const pdf of pdfs) {
-        const result = await extractPdfText(pdf.uri ?? "");
-        pdfBlocks.push(...pdfTextBlocks(pdf.filename, result));
-        const note = pdfPlaceholder(pdf.filename, result, hasVision);
-        if (note !== null) {
-          pdfBlocks.push({ filename: pdf.filename, text: note });
-        }
-        const pagesForVision = pagesToRender(result);
-        if (pagesForVision.length > 0) {
-          pdfsToRender.push({ pdf, pages: pagesForVision });
-        }
-        // A locked PDF reads as empty at every layer, so say so: silently sending nothing looks like the model ignored it.
-        if (result.failure === "password") {
-          toast({
-            title: `${pdf.filename} is password protected`,
-            description: "Quock can't read a locked PDF.",
-            tone: "error",
-          });
-        }
-      }
-      const wireMessages: WireChatMessage[] = [
-        ...wireHistory,
-        {
-          role: "user",
-          content: appendTextBlocks(text, [
-            ...textDocBlocks(textDocs),
-            ...pdfBlocks,
-          ]),
-        },
-      ];
-      // Vision only, and wire-only: the pages recover what the text layer cannot represent, but the bubble and the DB
-      // keep just the PDF the user picked — the same treatment the folded document text already gets. A document whose
-      // text layer already says everything renders nothing at all, which is also the fast path.
-      if (hasVision && pdfsToRender.length > 0) {
+      const wireMessages = wire.messages;
+      // Vision only, and only for the pages the text layer could not carry. A document that already reads as text
+      // renders nothing at all, which is also the fast path.
+      if (hasVision) {
         let budget =
           ATTACHMENT_MAX_TOTAL_BYTES -
           insertedAttachments.reduce((sum, a) => sum + a.sizeBytes, 0);
-        for (const entry of pdfsToRender) {
+        for (const row of insertedAttachments) {
+          const result = pdfResults.get(row.id);
+          if (result === undefined) continue;
+          const pagesForVision = pagesToRender(result);
+          if (pagesForVision.length === 0) continue;
           const pages = await renderPdfPageImages(
-            entry.pdf.uri ?? "",
-            entry.pdf.filename,
-            String(entry.pdf.id),
-            entry.pages,
+            row.uri ?? "",
+            row.filename,
+            String(row.id),
+            pagesForVision,
             budget,
           );
-          const wirePages = narrowUiAttachments(pages);
           budget -= pages.reduce((sum, p) => sum + p.sizeBytes, 0);
-          apiAttachments.push(...wirePages);
+          apiAttachments.push(...narrowUiAttachments(pages));
         }
       }
       await runStreamWithContext(
@@ -418,7 +396,11 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         gateVisionAttachments(persistedAttachments, hasVision),
       );
       // Wire history for regenerate: every turn UP TO AND INCLUDING the user message we're re-asking. `headSlice` already excludes the assistant turn being replaced.
-      const wireMessages = toWireHistory(headSlice);
+      const wireMessages = toWireHistory(
+        headSlice,
+        await attachments.listByChat(chatId),
+        hasVision,
+      ).messages;
       await runStreamWithContext(
         model.name,
         placeholderAssistant.id,
@@ -501,7 +483,11 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       const apiAttachments = narrowApiAttachments(
         gateVisionAttachments(persistedAttachments, hasVision),
       );
-      const wireMessages = toWireHistory(headSlice);
+      const wireMessages = toWireHistory(
+        headSlice,
+        await attachments.listByChat(chatId),
+        hasVision,
+      ).messages;
       await runStreamWithContext(
         model.name,
         assistantMessageId,
@@ -550,7 +536,8 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       });
       await messages.deleteAfter(chatId, userMessageId);
       // Attachments stay bound to the user message; vision-gating mirrors `send`.
-      const persistedAttachments = await attachments.listByMessage(userMessageId);
+      const persistedAttachments =
+        await attachments.listByMessage(userMessageId);
       const placeholderAssistant = await messages.append({
         chatId,
         role: "assistant",
@@ -598,7 +585,11 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       );
       // Wire history: every prior turn + the freshly-edited user content as the last entry.
       const wireMessages: WireChatMessage[] = [
-        ...toWireHistory(headSlice),
+        ...toWireHistory(
+          headSlice,
+          await attachments.listByChat(chatId),
+          hasVision,
+        ).messages,
         { role: "user", content: newContent },
       ];
       await runStreamWithContext(

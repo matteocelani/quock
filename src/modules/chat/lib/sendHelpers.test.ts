@@ -55,6 +55,7 @@ function dbAtt(id: number, mimeType: string | null): DbAttachment {
     data: new Uint8Array([id]),
     uri: null,
     sizeBytes: 1,
+    textContent: null,
   };
 }
 
@@ -64,7 +65,11 @@ function makeQueryClient(): QueryClient {
 }
 
 describe("gateVisionAttachments", () => {
-  const rows = [dbAtt(1, "image/png"), dbAtt(2, "application/pdf"), dbAtt(3, null)];
+  const rows = [
+    dbAtt(1, "image/png"),
+    dbAtt(2, "application/pdf"),
+    dbAtt(3, null),
+  ];
 
   it("returns the rows untouched when the model has vision", () => {
     expect(gateVisionAttachments(rows, true)).toBe(rows);
@@ -85,7 +90,9 @@ describe("gateVisionAttachments", () => {
 
 describe("narrowApiAttachments", () => {
   it("keeps bytes + filename and omits mimeType only when null", () => {
-    expect(narrowApiAttachments([dbAtt(1, "image/png"), dbAtt(2, null)])).toEqual([
+    expect(
+      narrowApiAttachments([dbAtt(1, "image/png"), dbAtt(2, null)]),
+    ).toEqual([
       { filename: "file-1", data: new Uint8Array([1]), mimeType: "image/png" },
       { filename: "file-2", data: new Uint8Array([2]) },
     ]);
@@ -100,41 +107,76 @@ describe("toWireHistory", () => {
       dbMsg(3, "tool", "tool output"),
       dbMsg(4, "user", "again"),
     ];
-    expect(toWireHistory(messages)).toEqual([
+    expect(toWireHistory(messages).messages).toEqual([
       { role: "user", content: "hi" },
       { role: "assistant", content: "hello" },
       { role: "user", content: "again" },
     ]);
+  });
+
+  // The bug this shape exists to kill: the document used to reach the model only on the turn it was attached to, so the
+  // second question arrived with no document and the model disowned its own correct answer.
+  it("re-folds a past turn's document, not just the last one", () => {
+    const messages = [
+      dbMsg(1, "user", "what is the code?"),
+      dbMsg(2, "assistant", "IT3600..."),
+      dbMsg(3, "user", "which page?"),
+    ];
+    const withPdf: DbAttachment = {
+      ...dbAtt(1, "application/pdf"),
+      filename: "invoices.pdf",
+      textContent: JSON.stringify({
+        pageCount: 1,
+        pages: [{ page: 6, text: "Codice Id. Azienda Creditrice IT3600..." }],
+      }),
+    };
+    const wire = toWireHistory(messages, [withPdf], false);
+    expect(wire.messages[0].content).toContain("--- invoices.pdf, page 6 ---");
+    expect(wire.messages[0].content).toContain("IT3600...");
+    expect(wire.messages[2].content).toBe("which page?");
+    expect(wire.truncated).toBe(false);
+  });
+
+  it("leaves a turn alone when its attachment carries no text", () => {
+    const messages = [dbMsg(1, "user", "look at this")];
+    const wire = toWireHistory(messages, [dbAtt(1, "image/png")], true);
+    expect(wire.messages[0].content).toBe("look at this");
   });
 });
 
 describe("locateAssistantTurn", () => {
   it("returns the assistant index and its preceding user turn", () => {
     const messages = [dbMsg(1, "user"), dbMsg(2, "assistant")];
-    expect(locateAssistantTurn(messages, asMessageId(2), "Regenerate")).toEqual({
-      assistantIndex: 1,
-      priorUser: messages[0],
-    });
+    expect(locateAssistantTurn(messages, asMessageId(2), "Regenerate")).toEqual(
+      {
+        assistantIndex: 1,
+        priorUser: messages[0],
+      },
+    );
   });
 
   it("throws (context-prefixed) when the assistant turn is missing", () => {
     const messages = [dbMsg(1, "user"), dbMsg(2, "assistant")];
-    expect(() => locateAssistantTurn(messages, asMessageId(999), "Retry")).toThrow(
-      "Retry: assistant message not found",
-    );
+    expect(() =>
+      locateAssistantTurn(messages, asMessageId(999), "Retry"),
+    ).toThrow("Retry: assistant message not found");
   });
 
   it("throws when the assistant turn is first (no prior user)", () => {
     expect(() =>
-      locateAssistantTurn([dbMsg(5, "assistant")], asMessageId(5), "Regenerate"),
+      locateAssistantTurn(
+        [dbMsg(5, "assistant")],
+        asMessageId(5),
+        "Regenerate",
+      ),
     ).toThrow("Regenerate: assistant message not found");
   });
 
   it("throws when the preceding turn is not a user message", () => {
     const messages = [dbMsg(10, "assistant"), dbMsg(20, "assistant")];
-    expect(() => locateAssistantTurn(messages, asMessageId(20), "Retry")).toThrow(
-      "Retry: no preceding user message",
-    );
+    expect(() =>
+      locateAssistantTurn(messages, asMessageId(20), "Retry"),
+    ).toThrow("Retry: no preceding user message");
   });
 });
 
@@ -193,10 +235,19 @@ describe("patchChatCache", () => {
     const updated = [dbMsg(1, "user")];
     const attachmentsByMessage = new Map<MessageId, DbAttachment[]>();
 
-    await patchChatCache(queryClient, chats, CHAT_ID, existing, updated, attachmentsByMessage);
+    await patchChatCache(
+      queryClient,
+      chats,
+      CHAT_ID,
+      existing,
+      updated,
+      attachmentsByMessage,
+    );
 
     expect(chats.get).not.toHaveBeenCalled();
-    expect(queryClient.getQueryData<UseChatData>(queryKeys.chat(CHAT_ID))).toEqual({
+    expect(
+      queryClient.getQueryData<UseChatData>(queryKeys.chat(CHAT_ID)),
+    ).toEqual({
       chat: existing.chat,
       messages: updated,
       attachmentsByMessage,

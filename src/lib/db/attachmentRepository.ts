@@ -5,6 +5,7 @@ import {
   asAttachmentId,
   asMessageId,
   type AttachmentId,
+  type ChatId,
   type MessageId,
 } from "@/lib/types/ids";
 import type { DbAttachment } from "@/lib/db/types";
@@ -17,6 +18,7 @@ interface AttachmentRow {
   data: Uint8Array;
   uri: string | null;
   size_bytes: number;
+  text_content: string | null;
 }
 
 function rowToAttachment(row: AttachmentRow): DbAttachment {
@@ -28,21 +30,22 @@ function rowToAttachment(row: AttachmentRow): DbAttachment {
     data: row.data,
     uri: row.uri,
     sizeBytes: row.size_bytes,
+    textContent: row.text_content,
   };
 }
-// Add input lets callers omit `uri` and `sizeBytes`; sizeBytes defaults to `data.byteLength`.
+// Add input lets callers omit `uri`, `sizeBytes` and `textContent`; sizeBytes defaults to `data.byteLength`.
 export type AttachmentAddInput = Omit<
   DbAttachment,
-  "id" | "uri" | "sizeBytes"
+  "id" | "uri" | "sizeBytes" | "textContent"
 > &
-  Partial<Pick<DbAttachment, "uri" | "sizeBytes">>;
+  Partial<Pick<DbAttachment, "uri" | "sizeBytes" | "textContent">>;
 
 export class AttachmentRepository {
   constructor(private readonly db: SQLiteDatabase) {}
   async listByMessage(messageId: MessageId): Promise<DbAttachment[]> {
     const rows = await this.db.getAllAsync<AttachmentRow>(
       `
-      SELECT id, message_id, filename, mime_type, data, uri, size_bytes
+      SELECT id, message_id, filename, mime_type, data, uri, size_bytes, text_content
       FROM attachments
       WHERE message_id = ?
       ORDER BY id ASC
@@ -51,13 +54,29 @@ export class AttachmentRepository {
     );
     return rows.map(rowToAttachment);
   }
+  // Every attachment of a chat in ONE query: the wire history re-folds each turn's documents, and a query per message
+  // would put a round-trip on every turn of a long conversation.
+  async listByChat(chatId: ChatId): Promise<DbAttachment[]> {
+    const rows = await this.db.getAllAsync<AttachmentRow>(
+      `
+      SELECT a.id, a.message_id, a.filename, a.mime_type, a.data, a.uri, a.size_bytes, a.text_content
+      FROM attachments a
+      JOIN messages m ON m.id = a.message_id
+      WHERE m.chat_id = ?
+      ORDER BY a.id ASC
+      `,
+      [chatId],
+    );
+    return rows.map(rowToAttachment);
+  }
   async add(input: AttachmentAddInput): Promise<DbAttachment> {
     const uri = input.uri ?? null;
     const sizeBytes = input.sizeBytes ?? input.data.byteLength;
+    const textContent = input.textContent ?? null;
     const result = await this.db.runAsync(
       `
-      INSERT INTO attachments (message_id, filename, mime_type, data, uri, size_bytes)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO attachments (message_id, filename, mime_type, data, uri, size_bytes, text_content)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
       [
         input.messageId,
@@ -66,6 +85,7 @@ export class AttachmentRepository {
         input.data,
         uri,
         sizeBytes,
+        textContent,
       ],
     );
     return {
@@ -73,6 +93,7 @@ export class AttachmentRepository {
       id: asAttachmentId(result.lastInsertRowId),
       uri,
       sizeBytes,
+      textContent,
     };
   }
   async delete(id: AttachmentId): Promise<void> {

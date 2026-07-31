@@ -58,6 +58,8 @@ export interface DbAttachment {
   // Local picker URI captured at attach time; null for pre-migration rows.
   uri: string | null;
   sizeBytes: number;
+  // Extracted text kept for replay, as JSON pages for a PDF. NULL when the text can be re-decoded from `data`.
+  textContent: string | null;
 }
 
 export interface ChatSummary {
