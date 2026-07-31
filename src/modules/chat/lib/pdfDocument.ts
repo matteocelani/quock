@@ -2,7 +2,7 @@
 // models its first pages ALSO render to images (tables/layout the text linearisation loses). Both run at send time.
 
 import PdfPageImage from "react-native-pdf-page-image";
-import { extractText } from "expo-pdf-text-extract";
+import { extractTextWithInfo } from "expo-pdf-text-extract";
 import { readUriAsBytes, toJpegUri } from "@/modules/chat/lib/imageUpload";
 import {
   PDF_PAGE_IMAGE_LIMIT,
@@ -20,14 +20,28 @@ export function isPdf(
   return mimeType === PDF_MIME || filename.toLowerCase().endsWith(".pdf");
 }
 
-// Extract the PDF's text layer on-device (native PDFKit / PDFBox). Returns "" on a text-less scan or any failure —
-// the caller still has the page images (vision) as fallback, so a miss never blocks the send.
-export async function extractPdfText(uri: string): Promise<string> {
+// Why not just a string: no text has three causes the caller must tell apart. A scan simply has no text layer and the
+// page images cover it; a locked PDF can never be read and the user has to hear that; anything else is a broken file.
+export interface PdfTextResult {
+  text: string;
+  failure?: "password" | "unreadable";
+}
+
+// Extract the PDF's text layer on-device (native PDFKit / PDFBox) via the non-throwing variant, which reports a
+// password wall as a flag instead of an exception. A miss never blocks the send — vision still has the page images.
+export async function extractPdfText(uri: string): Promise<PdfTextResult> {
   try {
-    return await extractText(uri);
+    const info = await extractTextWithInfo(uri);
+    if (info.text.length > 0) return { text: info.text };
+    if (info.passwordRequired === true)
+      return { text: "", failure: "password" };
+    // Successful read, no characters: a scanned PDF. Not a failure — there is nothing to extract by design.
+    if (info.success) return { text: "" };
+    console.warn("pdfDocument: extraction returned no text", info.error);
+    return { text: "", failure: "unreadable" };
   } catch (err) {
     console.warn("pdfDocument: text extraction failed", err);
-    return "";
+    return { text: "", failure: "unreadable" };
   }
 }
 
@@ -41,8 +55,15 @@ export async function renderPdfPageImages(
   sourceId: string,
   budgetBytes: number,
 ): Promise<UiAttachment[]> {
-  const info = await PdfPageImage.open(uri);
-  const pageCount = Math.min(info.pageCount, PDF_PAGE_IMAGE_LIMIT);
+  // Degrade like the text side does: a PDF that cannot be opened costs the vision half, never the send.
+  let pageCount = 0;
+  try {
+    const info = await PdfPageImage.open(uri);
+    pageCount = Math.min(info.pageCount, PDF_PAGE_IMAGE_LIMIT);
+  } catch (err) {
+    console.warn("pdfDocument: cannot open the PDF for rendering", err);
+    return [];
+  }
   const images: UiAttachment[] = [];
   let usedBytes = 0;
   try {
@@ -81,9 +102,15 @@ export async function renderPdfPageImages(
         status: "ready",
       });
     }
+  } catch (err) {
+    // Keep the pages that did render: a document that stops early still shows the model something.
+    console.warn("pdfDocument: page render stopped early", err);
   } finally {
-    // Always free the native document + its temp files, even if a page render throws mid-loop.
-    await PdfPageImage.close(uri);
+    // Always free the native document + its temp files, even if a page render threw mid-loop. A failed close only
+    // leaks a temp file, so it must never discard the pages that already rendered.
+    await PdfPageImage.close(uri).catch((err: unknown) => {
+      console.warn("pdfDocument: closing the PDF failed", err);
+    });
   }
   return images;
 }
