@@ -44,6 +44,9 @@ import {
 import {
   extractPdfText,
   isPdf,
+  pagesToRender,
+  pdfPlaceholder,
+  pdfTextBlocks,
   renderPdfPageImages,
 } from "@/modules/chat/lib/pdfDocument";
 import { materializeImageAttachment } from "@/modules/chat/lib/imageUpload";
@@ -283,10 +286,18 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         (a) => isPdf(a.mimeType, a.filename) && a.uri !== null,
       );
       const pdfBlocks: TextBlockInput[] = [];
+      // Rendering is decided by what the text layer could NOT carry, so it is resolved alongside the text, not guessed.
+      const pdfsToRender: { pdf: DbAttachment; pages: number[] }[] = [];
       for (const pdf of pdfs) {
         const result = await extractPdfText(pdf.uri ?? "");
-        if (result.text.length > 0) {
-          pdfBlocks.push({ filename: pdf.filename, text: result.text });
+        pdfBlocks.push(...pdfTextBlocks(pdf.filename, result));
+        const note = pdfPlaceholder(pdf.filename, result, hasVision);
+        if (note !== null) {
+          pdfBlocks.push({ filename: pdf.filename, text: note });
+        }
+        const pagesForVision = pagesToRender(result);
+        if (pagesForVision.length > 0) {
+          pdfsToRender.push({ pdf, pages: pagesForVision });
         }
         // A locked PDF reads as empty at every layer, so say so: silently sending nothing looks like the model ignored it.
         if (result.failure === "password") {
@@ -307,17 +318,19 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           ]),
         },
       ];
-      // Vision only, and wire-only: the pages recover the tables and layout the text fold flattens, but the bubble and
-      // the DB keep just the PDF the user picked — the same treatment the folded document text already gets.
-      if (hasVision && pdfs.length > 0) {
+      // Vision only, and wire-only: the pages recover what the text layer cannot represent, but the bubble and the DB
+      // keep just the PDF the user picked — the same treatment the folded document text already gets. A document whose
+      // text layer already says everything renders nothing at all, which is also the fast path.
+      if (hasVision && pdfsToRender.length > 0) {
         let budget =
           ATTACHMENT_MAX_TOTAL_BYTES -
           insertedAttachments.reduce((sum, a) => sum + a.sizeBytes, 0);
-        for (const pdf of pdfs) {
+        for (const entry of pdfsToRender) {
           const pages = await renderPdfPageImages(
-            pdf.uri ?? "",
-            pdf.filename,
-            String(pdf.id),
+            entry.pdf.uri ?? "",
+            entry.pdf.filename,
+            String(entry.pdf.id),
+            entry.pages,
             budget,
           );
           const wirePages = narrowUiAttachments(pages);

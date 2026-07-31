@@ -23,6 +23,10 @@ export async function getPageCount(): Promise<number> {
   return 0;
 }
 
+export async function extractTextFromPage(): Promise<string> {
+  return "";
+}
+
 export async function isPasswordProtected(): Promise<boolean> {
   return false;
 }
