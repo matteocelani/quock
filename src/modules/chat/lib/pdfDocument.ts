@@ -9,6 +9,7 @@ import {
   PDF_TEXT_THIN_CHARS_PER_PAGE,
 } from "@/modules/chat/constants";
 import type { TextBlockInput } from "@/modules/chat/lib/documentText";
+import type { AttachmentId } from "@/lib/types/ids";
 import type { UiAttachment } from "@/modules/chat/types";
 
 const PDF_MIME = "application/pdf";
@@ -36,20 +37,23 @@ export interface PdfTextResult {
 
 // The extractor throws with a `.code` for the cases it can name; everything else is just a broken file.
 function classifyFailure(err: unknown): "password" | "unreadable" {
-  const code = (err as { code?: string } | null)?.code;
+  if (typeof err !== "object" || err === null || !("code" in err)) {
+    return "unreadable";
+  }
+  const code = (err as { code?: unknown }).code;
   return code === "PASSWORD_REQUIRED" || code === "INCORRECT_PASSWORD"
     ? "password"
     : "unreadable";
 }
 
-// Extract the text layer page by page (native PDFKit / PDFBox). Page by page and not in one call because the page
-// number travels with the text: the model can then say WHERE it read something, and the caller can see which pages
-// carry nothing. No page cap — a document contributes all of itself, as the Ollama desktop client also does.
+// Page by page rather than in one call so the page number travels with the text: the model can then say WHERE it read a
+// value. No page cap — a document contributes all of itself, as the Ollama desktop client's extractor also does.
 export async function extractPdfText(uri: string): Promise<PdfTextResult> {
   let pageCount = 0;
   try {
     pageCount = await getPageCount(uri);
   } catch (err) {
+    console.warn("pdfDocument: cannot read the page count", err);
     return { pages: [], pageCount: 0, failure: classifyFailure(err) };
   }
   const pages: PdfPageText[] = [];
@@ -68,8 +72,8 @@ export async function extractPdfText(uri: string): Promise<PdfTextResult> {
   return { pages, pageCount };
 }
 
-// One fold block per page, labelled with the file AND the page, so a reader of the prompt can cite the page. Kept apart
-// from the result shape because a replayed turn rebuilds the same blocks from the stored pages, not from an extraction.
+// One block per page, labelled with the file AND the page, so an answer can cite the page. Takes pages rather than a
+// result because a replayed turn rebuilds the same blocks from the stored pages, not from a fresh extraction.
 export function pdfPageBlocks(
   filename: string,
   pages: readonly PdfPageText[],
@@ -78,13 +82,6 @@ export function pdfPageBlocks(
     filename: `${filename}, page ${p.page}`,
     text: p.text,
   }));
-}
-
-export function pdfTextBlocks(
-  filename: string,
-  result: PdfTextResult,
-): TextBlockInput[] {
-  return pdfPageBlocks(filename, result.pages);
 }
 
 // Whether the pages ARE pictures rather than pages carrying pictures. A digital document averages thousands of
@@ -102,12 +99,12 @@ export function pagesToRender(result: PdfTextResult): number[] {
   return Array.from({ length: result.pageCount }, (_, i) => i + 1);
 }
 
-// Says what the model should be told when a PDF contributed nothing. Silence reads as an ignored attachment, which is
-// exactly the failure that makes a reader hunt for a value the model never received.
+// What the model is told when a PDF contributed nothing; silence reads as an ignored attachment. `hasPages` is whether
+// pages were persisted for it — asking whether THIS model has vision goes quiet the moment the chat moves to one.
 export function pdfPlaceholder(
   filename: string,
   result: PdfTextResult,
-  hasVision: boolean,
+  hasPages: boolean,
 ): string | null {
   if (result.failure === "password") {
     return `[${filename} — password protected, could not be read]`;
@@ -115,19 +112,18 @@ export function pdfPlaceholder(
   if (result.failure === "unreadable") {
     return `[${filename} — could not be read]`;
   }
-  if (result.pages.length === 0 && !hasVision) {
+  if (result.pages.length === 0 && !hasPages) {
     return `[${filename} — ${result.pageCount} pages with no text layer; this model cannot read images]`;
   }
   return null;
 }
 
-// Render the given pages to JPEG attachments that ride the existing vision images[] path. VISION ONLY — callers must
-// skip this for a model without it. There is no page-count limit: `budgetBytes`, the turn's REMAINING attachment
-// budget, is the only ceiling, because these pages are built past validateAttachment and nothing else bounds them.
+// Render the given pages to JPEG attachments for the vision images[] path. VISION ONLY. No page-count limit: these are
+// built past validateAttachment, so `budgetBytes` (the turn's remaining budget) is the only thing bounding them.
 export async function renderPdfPageImages(
   uri: string,
   filename: string,
-  sourceId: string,
+  sourceId: AttachmentId,
   pages: readonly number[],
   budgetBytes: number,
 ): Promise<UiAttachment[]> {

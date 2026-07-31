@@ -2,7 +2,7 @@ import {
   isPdf,
   pagesToRender,
   pdfPlaceholder,
-  pdfTextBlocks,
+  pdfPageBlocks,
   type PdfTextResult,
 } from "@/modules/chat/lib/pdfDocument";
 import { PDF_TEXT_THIN_CHARS_PER_PAGE } from "@/modules/chat/constants";
@@ -26,15 +26,15 @@ describe("isPdf", () => {
   });
 });
 
-describe("pdfTextBlocks", () => {
+describe("pdfPageBlocks", () => {
   it("labels every block with the file and the page it came from", () => {
     expect(
-      pdfTextBlocks("invoices.pdf", digital).map((b) => b.filename),
+      pdfPageBlocks("invoices.pdf", digital.pages).map((b) => b.filename),
     ).toEqual(["invoices.pdf, page 1", "invoices.pdf, page 3"]);
   });
 
   it("emits nothing for a document with no text layer", () => {
-    expect(pdfTextBlocks("scan.pdf", scan)).toEqual([]);
+    expect(pdfPageBlocks("scan.pdf", scan.pages)).toEqual([]);
   });
 });
 

@@ -10,7 +10,7 @@ import type { WireChatMessage } from "@/modules/chat/api/chat";
 import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import { attachmentTextBlocks } from "@/modules/chat/lib/attachmentText";
 import { bytesToBase64 } from "@/lib/encoding/base64";
-import { ATTACHMENT_MAX_TOTAL_BYTES } from "@/modules/chat/constants";
+import { ATTACHMENT_REPLAY_MAX_BYTES } from "@/modules/chat/constants";
 import { allocateBlocks, foldBlocks } from "@/modules/chat/lib/documentText";
 
 // Drops image attachments when the active model lacks vision so unsupported blobs never reach the DB write
@@ -23,14 +23,14 @@ export function gateVisionAttachments<T extends { mimeType?: string | null }>(
   return rows.filter((a) => a.mimeType?.startsWith("image/") !== true);
 }
 
-// Maps persisted rows to the stateless `/api/chat` wire conversation, keeping only user + assistant turns, and re-folds
-// each user turn's documents from their rows. Folding only the turn being sent left a document invisible from the second
-// question on: the model saw the question about a PDF with no PDF attached, and disowned its own correct answer.
 export interface WireHistory {
   messages: WireChatMessage[];
-  // True when the character budget forced a document to be cut, so the caller can say so instead of shipping a silent gap.
-  truncated: boolean;
+  // Set when the budget forced a document to be cut, so the caller can say so instead of shipping a silent gap.
+  isTruncated: boolean;
 }
+
+// Maps persisted rows to the stateless `/api/chat` conversation, re-folding each user turn's documents from its rows.
+// Folding only the turn being sent left a document invisible from the second question on.
 
 export function toWireHistory(
   messages: readonly DbMessage[],
@@ -42,24 +42,52 @@ export function toWireHistory(
   );
   const rowsOf = (m: DbMessage): DbAttachment[] =>
     m.role === "user" ? attachmentRows.filter((a) => a.messageId === m.id) : [];
-  const groups = turns.map((m) =>
-    rowsOf(m).flatMap((a) => attachmentTextBlocks(a, hasVision)),
-  );
-  const allocated = allocateBlocks(groups);
+  const groups = turns.map((m) => {
+    const rows = rowsOf(m);
+    // A rendered page is an image row whose filename carries the PDF's own, so a document knows whether its pages made
+    // it — asking only "is there an image here" would let the user's own photo answer for it.
+    return rows.flatMap((a) =>
+      attachmentTextBlocks(
+        a,
+        rows.some(
+          (p) =>
+            p.mimeType?.startsWith("image/") === true &&
+            p.filename.startsWith(`${a.filename} (page `),
+        ),
+      ),
+    );
+  });
   // Images ride each user turn, not only the last one: /api/chat is stateless, so a picture attached three questions ago
   // is gone from the model's view unless it is replayed. Newest first, since the byte budget bounds the whole payload.
-  let imageBudget = ATTACHMENT_MAX_TOTAL_BYTES;
+  let imageBudget = ATTACHMENT_REPLAY_MAX_BYTES;
   const imagesPerTurn = new Array<string[]>(turns.length).fill([]);
   for (let i = turns.length - 1; i >= 0; i -= 1) {
     const images: string[] = [];
+    let dropped = 0;
     for (const row of rowsOf(turns[i])) {
       if (row.mimeType?.startsWith("image/") !== true) continue;
-      if (!hasVision || row.data.byteLength > imageBudget) continue;
+      if (!hasVision) continue;
+      if (row.data.byteLength > imageBudget) {
+        dropped += 1;
+        continue;
+      }
       imageBudget -= row.data.byteLength;
       images.push(bytesToBase64(row.data));
     }
+    // Said out loud for the same reason a cut document is: a turn asking about a picture the model cannot see is worse
+    // than a turn that admits the picture is missing.
+    if (dropped > 0) {
+      groups[i] = [
+        ...(groups[i] ?? []),
+        {
+          filename: `${dropped} image${dropped > 1 ? "s" : ""}`,
+          text: "[... not sent: the image budget went to more recent messages ...]",
+        },
+      ];
+    }
     imagesPerTurn[i] = images;
   }
+  const allocated = allocateBlocks(groups);
   return {
     messages: turns.map((m, i) => {
       const wire: WireChatMessage = {
@@ -69,7 +97,7 @@ export function toWireHistory(
       const images = imagesPerTurn[i];
       return images.length > 0 ? { ...wire, images } : wire;
     }),
-    truncated: allocated.truncated,
+    isTruncated: allocated.isTruncated,
   };
 }
 

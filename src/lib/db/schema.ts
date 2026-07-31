@@ -75,11 +75,11 @@ const ADD_CHAT_USER = `
   ALTER TABLE chats ADD COLUMN user_id TEXT;
   CREATE INDEX IF NOT EXISTS idx_chats_user_updated ON chats(user_id, updated_at DESC);
 `;
-// A document's extracted text, stored once at send time so every later turn can replay it: re-extracting a PDF costs a
-// native pass per turn and depends on a picker URI iOS may have already reclaimed. Text documents leave this NULL and
-// are re-decoded from `data` instead. Holds JSON so a PDF keeps its per-page structure.
+// A PDF's extracted text (JSON, so the per-page structure survives), stored once so every later turn can replay it
+// without a native pass. NULL for anything re-decodable from `data`. The index serves the new per-chat attachment read.
 const ADD_ATTACHMENT_TEXT = `
   ALTER TABLE attachments ADD COLUMN text_content TEXT;
+  CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
 `;
 
 export const MIGRATIONS: readonly Migration[] = [

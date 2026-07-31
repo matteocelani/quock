@@ -1,6 +1,5 @@
-// The cloud `/api/chat` has no document slot (only content + images), so text/code attachments are read as UTF-8
-// on-device and folded into the message content. A PDF goes through a native extractor (see pdfDocument); docx and the
-// other Office formats are still refused, since each needs its own parser.
+// The cloud `/api/chat` has no document slot (only content + images), so a text attachment is read as UTF-8 on-device
+// and folded into the message. A PDF goes through a native extractor (pdfDocument); Office formats need their own.
 
 import {
   DOCUMENT_BINARY_REPLACEMENT_RATIO,
@@ -121,27 +120,27 @@ export function textDocBlocks(docs: TextDocInput[]): TextBlockInput[] {
   });
 }
 
-// Allocates the per-turn character budget across every group of blocks in the conversation, NEWEST FIRST: the document
-// just attached arrives whole and an older one yields, which is the opposite of what walking chronologically would do.
-// Groups come in and go out in chronological order; `truncated` says whether anything had to be cut.
 export interface BlockAllocation {
   groups: TextBlockInput[][];
-  truncated: boolean;
+  isTruncated: boolean;
 }
+
+// Allocates the character budget across the conversation NEWEST FIRST, so the document just attached arrives whole and
+// an older one yields. Groups come in and go out in chronological order.
 
 export function allocateBlocks(
   groups: readonly (readonly TextBlockInput[])[],
 ): BlockAllocation {
   const out: TextBlockInput[][] = groups.map(() => []);
   let remaining = DOCUMENT_TEXT_TOTAL_MAX_CHARS;
-  let truncated = false;
+  let isTruncated = false;
   for (let g = groups.length - 1; g >= 0; g -= 1) {
     const kept: TextBlockInput[] = [];
     let omitted = 0;
     for (const block of groups[g]) {
       const budget = Math.min(DOCUMENT_TEXT_MAX_CHARS, remaining);
       const text = block.text.slice(0, budget);
-      if (text.length < block.text.length) truncated = true;
+      if (text.length < block.text.length) isTruncated = true;
       if (text.length === 0) {
         if (block.text.length > 0) omitted += 1;
         continue;
@@ -164,7 +163,7 @@ export function allocateBlocks(
     }
     out[g] = kept;
   }
-  return { groups: out, truncated };
+  return { groups: out, isTruncated };
 }
 
 // Frames already-allocated blocks onto a message's text. Capping lives in allocateBlocks, so this never drops anything.

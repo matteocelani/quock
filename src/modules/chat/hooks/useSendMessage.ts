@@ -186,8 +186,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           if (ready.data === undefined) {
             throw new Error("attachment has no data after materialize");
           }
-          // A PDF is read BEFORE the insert so its row is written complete: that stored text is what every later turn
-          // replays, and re-extracting per turn would cost a native pass and a picker URI iOS may have reclaimed.
+          // Read BEFORE the insert so the row is written complete: that stored text is what every later turn replays.
           const pdfResult = isPdf(ready.mimeType, ready.filename)
             ? await extractPdfText(ready.uri)
             : null;
@@ -272,14 +271,18 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       // The user message is persisted above, so clear the draft regardless of the cache-patch outcome — gating it
       // on a found chat row would strand an already-sent draft; useChat re-reads from SQLite anyway.
       input.onPersisted?.();
-      // Vision only, and only for the pages the text layer could not carry: a document that already reads as text
-      // renders nothing at all, which is also the fast path. The pages are persisted like any image rather than slipped
-      // onto the wire, so a later turn still shows them to the model — and the bubble shows what the model was shown.
+      // Vision only, and only for the pages the text layer could not carry: a text-rich document renders nothing, which
+      // is the fast path. Pages are persisted like any image so a later turn still shows them, and so does the bubble.
       if (hasVision) {
-        let budget =
-          ATTACHMENT_MAX_TOTAL_BYTES -
-          insertedAttachments.reduce((sum, a) => sum + a.sizeBytes, 0);
-        for (const row of [...insertedAttachments]) {
+        // Only what actually rides the wire counts against the budget: a PDF's own blob is stored, never sent, so
+        // deducting it would leave a 12 MB scan just 8 MB to render into.
+        const wireBytes = insertedAttachments
+          .filter((a) => a.mimeType?.startsWith("image/") === true)
+          .reduce((sum, a) => sum + a.sizeBytes, 0);
+        let budget = Math.max(0, ATTACHMENT_MAX_TOTAL_BYTES - wireBytes);
+        const pageRows: DbAttachment[] = [];
+        let pagesCut = false;
+        for (const row of insertedAttachments) {
           const result = pdfResults.get(row.id);
           if (result === undefined) continue;
           const pagesForVision = pagesToRender(result);
@@ -287,36 +290,54 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           const pages = await renderPdfPageImages(
             row.uri ?? "",
             row.filename,
-            String(row.id),
+            row.id,
             pagesForVision,
             budget,
           );
-          budget -= pages.reduce((sum, p) => sum + p.sizeBytes, 0);
+          if (pages.length < pagesForVision.length) pagesCut = true;
+          budget = Math.max(
+            0,
+            budget - pages.reduce((sum, p) => sum + p.sizeBytes, 0),
+          );
           for (const page of pages) {
             if (page.data === undefined) continue;
-            insertedAttachments.push(
-              await attachments.add({
-                messageId: userMessage.id,
-                filename: page.filename,
-                mimeType: page.mimeType ?? null,
-                data: page.data,
-                uri: page.uri,
-                sizeBytes: page.sizeBytes,
-                textContent: null,
-              }),
-            );
+            try {
+              pageRows.push(
+                await attachments.add({
+                  messageId: userMessage.id,
+                  filename: page.filename,
+                  mimeType: page.mimeType ?? null,
+                  data: page.data,
+                  uri: page.uri,
+                  sizeBytes: page.sizeBytes,
+                  textContent: null,
+                }),
+              );
+            } catch (err) {
+              // Best-effort like the picks above: a failed page must not reject the send and strand the pending row.
+              console.error("useSendMessage: page write failed:", err);
+            }
           }
         }
-        // Second patch: the first one paints the bubble immediately, this one adds the pages once they exist.
-        if (insertedAttachments.length > 0) {
-          updatedAttachments.set(userMessage.id, insertedAttachments);
+        if (pagesCut) {
+          toast({
+            title: "Some pages were left out",
+            description: "The document is too large to send every page.",
+          });
+        }
+        // Fresh array and Map: the first patch handed the previous ones to the cache, and mutating those in place
+        // changes a cached snapshot behind React's back, so the memoised rows never notice the pages arriving.
+        if (pageRows.length > 0) {
+          const withPages = [...insertedAttachments, ...pageRows];
+          const patched = new Map(updatedAttachments);
+          patched.set(userMessage.id, withPages);
           await patchChatCache(
             queryClient,
             chats,
             chatId,
-            existing,
-            updatedMessages,
-            updatedAttachments,
+            queryClient.getQueryData<UseChatData>(queryKeys.chat(chatId)),
+            [...updatedMessages],
+            patched,
           );
         }
       }
@@ -325,14 +346,14 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       const dbForWire = await messages.listByChat(chatId);
       // Every user turn re-folds its own documents and re-attaches its own images from their rows, so the PDF asked
       // about three questions ago is still there. The current turn included: its rows were written above.
-      const attachmentRows = await attachments.listByChat(chatId);
+      const attachmentRows = await attachments.listByChatForWire(chatId);
       const wire = toWireHistory(
         dbForWire.filter((m) => m.id !== placeholderAssistant.id),
         attachmentRows,
         hasVision,
       );
       const wireMessages = wire.messages;
-      if (wire.truncated) {
+      if (wire.isTruncated) {
         toast({
           title: "Document trimmed",
           description:
@@ -415,11 +436,19 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       );
 
       // Wire history for regenerate: every turn UP TO AND INCLUDING the user message we're re-asking. `headSlice` already excludes the assistant turn being replaced.
-      const wireMessages = toWireHistory(
+      const wire = toWireHistory(
         headSlice,
-        await attachments.listByChat(chatId),
+        await attachments.listByChatForWire(chatId),
         hasVision,
-      ).messages;
+      );
+      const wireMessages = wire.messages;
+      if (wire.isTruncated) {
+        toast({
+          title: "Document trimmed",
+          description:
+            "Too much text to send in full; the newest parts were kept.",
+        });
+      }
       await runStreamWithContext(
         model.name,
         placeholderAssistant.id,
@@ -441,6 +470,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       model,
       queryClient,
       runStreamWithContext,
+      toast,
       webSearchEnabled,
     ],
   );
@@ -498,11 +528,19 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         preservedAttachments,
       );
 
-      const wireMessages = toWireHistory(
+      const wire = toWireHistory(
         headSlice,
-        await attachments.listByChat(chatId),
+        await attachments.listByChatForWire(chatId),
         hasVision,
-      ).messages;
+      );
+      const wireMessages = wire.messages;
+      if (wire.isTruncated) {
+        toast({
+          title: "Document trimmed",
+          description:
+            "Too much text to send in full; the newest parts were kept.",
+        });
+      }
       await runStreamWithContext(
         model.name,
         assistantMessageId,
@@ -524,6 +562,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       model,
       queryClient,
       runStreamWithContext,
+      toast,
       webSearchEnabled,
     ],
   );
@@ -594,15 +633,21 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         updatedMessages,
         preservedAttachments,
       );
-      // Wire history: every prior turn + the freshly-edited user content as the last entry.
-      const wireMessages: WireChatMessage[] = [
-        ...toWireHistory(
-          headSlice,
-          await attachments.listByChat(chatId),
-          hasVision,
-        ).messages,
-        { role: "user", content: newContent },
-      ];
+      // The edited turn goes THROUGH the builder rather than being appended by hand: hand-building it left its own
+      // documents and images out, so editing a prompt that carried a PDF re-asked the question without the PDF.
+      const editedWire = toWireHistory(
+        [...headSlice, { ...userMessage, content: newContent }],
+        await attachments.listByChatForWire(chatId),
+        hasVision,
+      );
+      const wireMessages: WireChatMessage[] = editedWire.messages;
+      if (editedWire.isTruncated) {
+        toast({
+          title: "Document trimmed",
+          description:
+            "Too much text to send in full; the newest parts were kept.",
+        });
+      }
       await runStreamWithContext(
         model.name,
         placeholderAssistant.id,
@@ -623,6 +668,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       model,
       queryClient,
       runStreamWithContext,
+      toast,
       webSearchEnabled,
     ],
   );

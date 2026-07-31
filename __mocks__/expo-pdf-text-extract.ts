@@ -1,41 +1,10 @@
-// Stub for `expo-pdf-text-extract` — text extraction runs on native PDFKit / PDFBox, which Jest cannot load.
-// Mirrors the package's named exports; the real extraction is covered by Maestro E2E on device.
+// Stub for `expo-pdf-text-extract` — text extraction runs on native PDFKit / PDFBox, which Jest cannot load. Stubs only
+// what the app imports, as the expo-image-manipulator shim does; the real extraction is exercised on device.
 
-export interface ExtractTextWithInfoResult {
-  text: string;
-  pageCount: number;
-  success: boolean;
-  isEncrypted: boolean;
-  passwordRequired?: boolean;
-  error?: string;
+export function getPageCount(): Promise<number> {
+  return Promise.resolve(0);
 }
 
-// Matches the real module's contract outside a dev client: no native module, so nothing is extractable.
-export function isAvailable(): boolean {
-  return false;
-}
-
-export async function extractText(): Promise<string> {
-  return "";
-}
-
-export async function getPageCount(): Promise<number> {
-  return 0;
-}
-
-export async function extractTextFromPage(): Promise<string> {
-  return "";
-}
-
-export async function isPasswordProtected(): Promise<boolean> {
-  return false;
-}
-
-export async function extractTextWithInfo(): Promise<ExtractTextWithInfoResult> {
-  return {
-    text: "",
-    pageCount: 0,
-    success: false,
-    isEncrypted: false,
-  };
+export function extractTextFromPage(): Promise<string> {
+  return Promise.resolve("");
 }

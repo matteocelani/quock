@@ -11,9 +11,9 @@ export interface PdfInfo {
   pageCount: number;
 }
 
-// Default export mirrors the real package's shape (a class of statics), which the import site depends on.
+// Default export mirrors the real package's shape (a class of statics), which the import site depends on. A render under
+// Jest returns zero-sized pages, so a test can reach the code path but can never assert on fabricated page bytes.
 export default class PdfPageImage {
-  // A zero page count makes the render loop a no-op, so a test never depends on fake page bytes.
   static async open(uri: string): Promise<PdfInfo> {
     return { uri, pageCount: 0 };
   }

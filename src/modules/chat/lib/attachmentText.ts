@@ -1,6 +1,5 @@
-// A document's text has to outlive the turn it was attached in: every later turn replays the conversation, so the text
-// is rebuilt from the persisted row. A PDF keeps its extraction (a native pass per turn would be wasteful, and the
-// picker URI may already be reclaimed); a text file is re-decoded from the bytes it already stores.
+// A document's text has to outlive its own turn, so every later turn rebuilds it from the persisted row: a PDF keeps its
+// extraction (re-reading costs a native pass and a URI iOS may have reclaimed), a text file re-decodes from its bytes.
 
 import type { DbAttachment } from "@/lib/db/types";
 import {
@@ -14,43 +13,49 @@ import {
   type PdfTextResult,
 } from "@/modules/chat/lib/pdfDocument";
 
-// The whole extraction result is stored, not just the text: the page numbers and the reason a document read as empty are
-// both part of what the model was told, so a replay has to be able to say the same thing.
+// The whole result is stored, not just the text: the page numbers and the reason a document read as empty are both part
+// of what the model was told, so a replay can say the same thing.
 export function serializePdfText(result: PdfTextResult): string {
   return JSON.stringify(result);
 }
 
 // Malformed stored text costs the document, never the send: an old or half-written row must not throw mid-turn.
 function parsePdfText(raw: string): PdfTextResult | null {
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(raw) as PdfTextResult;
-    if (!Array.isArray(parsed.pages) || typeof parsed.pageCount !== "number") {
-      return null;
-    }
-    return {
-      pageCount: parsed.pageCount,
-      pages: parsed.pages.filter(
-        (p) => typeof p.page === "number" && typeof p.text === "string",
-      ),
-      ...(parsed.failure !== undefined ? { failure: parsed.failure } : {}),
-    };
+    parsed = JSON.parse(raw);
   } catch (err) {
     console.warn("attachmentText: stored PDF text is not readable", err);
     return null;
   }
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const { pages, pageCount, failure } = parsed as Record<string, unknown>;
+  if (!Array.isArray(pages)) return null;
+  if (typeof pageCount !== "number" || !Number.isInteger(pageCount)) return null;
+  return {
+    pageCount: Math.max(0, pageCount),
+    pages: pages.filter(
+      (p): p is { page: number; text: string } =>
+        typeof p === "object" &&
+        p !== null &&
+        typeof (p as { page?: unknown }).page === "number" &&
+        typeof (p as { text?: unknown }).text === "string",
+    ),
+    ...(failure === "password" || failure === "unreadable" ? { failure } : {}),
+  };
 }
 
-// The blocks one persisted attachment contributes, identical whether this is its own turn or a replay of it.
-// `hasVision` is read live rather than stored, so moving the chat to a model that cannot see images starts saying so.
+// The blocks one attachment contributes, identical on its own turn and on a replay. `hasPages` is whether pages were
+// rendered for it at send time, which is what decides whether its emptiness needs explaining.
 export function attachmentTextBlocks(
   row: DbAttachment,
-  hasVision: boolean,
+  hasPages: boolean,
 ): TextBlockInput[] {
   if (row.textContent !== null) {
     const result = parsePdfText(row.textContent);
     if (result === null) return [];
     const blocks = pdfPageBlocks(row.filename, result.pages);
-    const note = pdfPlaceholder(row.filename, result, hasVision);
+    const note = pdfPlaceholder(row.filename, result, hasPages);
     return note === null
       ? blocks
       : [...blocks, { filename: row.filename, text: note }];

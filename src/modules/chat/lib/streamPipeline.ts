@@ -36,7 +36,6 @@ import type {
   ToolActivity,
 } from "@/modules/chat/stores/streaming.store";
 
-// API-side narrowed attachment shape (no `uri`). Used by both `send` and `regenerate` paths.
 
 // Per-call mutable buffer held in a closure so it survives every flush micro-task.
 interface StreamBuffers {
@@ -327,7 +326,6 @@ export async function runStream(
         chatId,
         messages: turnMessages,
         model: modelName,
-        // Images ride only on the first turn's user message; later turns end in tool results.
         think,
         tools,
         signal: controller.signal,

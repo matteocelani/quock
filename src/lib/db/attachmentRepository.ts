@@ -54,12 +54,14 @@ export class AttachmentRepository {
     );
     return rows.map(rowToAttachment);
   }
-  // Every attachment of a chat in ONE query: the wire history re-folds each turn's documents, and a query per message
-  // would put a round-trip on every turn of a long conversation.
-  async listByChat(chatId: ChatId): Promise<DbAttachment[]> {
+  // Every attachment of a chat in ONE query, for building the wire: a query per message would put a round-trip on every
+  // turn. `data` comes back EMPTY for a row that stores its text (a PDF), whose blob the wire never sends — loading up
+  // to 20 MB per document on every turn would be pure read amplification. Not for the UI, which needs the real bytes.
+  async listByChatForWire(chatId: ChatId): Promise<DbAttachment[]> {
     const rows = await this.db.getAllAsync<AttachmentRow>(
       `
-      SELECT a.id, a.message_id, a.filename, a.mime_type, a.data, a.uri, a.size_bytes, a.text_content
+      SELECT a.id, a.message_id, a.filename, a.mime_type, a.uri, a.size_bytes, a.text_content,
+             CASE WHEN a.text_content IS NULL THEN a.data ELSE x'' END AS data
       FROM attachments a
       JOIN messages m ON m.id = a.message_id
       WHERE m.chat_id = ?

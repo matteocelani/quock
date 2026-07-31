@@ -85,7 +85,7 @@ describe("allocateBlocks", () => {
   it("keeps a document that fits whole", () => {
     const alloc = allocateBlocks([[{ filename: "a.txt", text: "short" }]]);
     expect(alloc.groups[0][0].text).toBe("short");
-    expect(alloc.truncated).toBe(false);
+    expect(alloc.isTruncated).toBe(false);
   });
 
   it("caps a single document at the per-file limit and marks the cut in the text", () => {
@@ -93,7 +93,7 @@ describe("allocateBlocks", () => {
     const alloc = allocateBlocks([[{ filename: "big.txt", text: long }]]);
     expect(alloc.groups[0][0].text).toContain("cut here");
     expect(alloc.groups[0][0].text).toContain(`of ${long.length} characters`);
-    expect(alloc.truncated).toBe(true);
+    expect(alloc.isTruncated).toBe(true);
   });
 
   // A model asked for a value past the cut must not answer from a document it thinks it read whole.
@@ -127,7 +127,7 @@ describe("allocateBlocks", () => {
       DOCUMENT_TEXT_MAX_CHARS,
     );
     expect(alloc.groups[0][0].text).toContain("omitted");
-    expect(alloc.truncated).toBe(true);
+    expect(alloc.isTruncated).toBe(true);
   });
 
   it("drops an empty block instead of emitting an empty label", () => {

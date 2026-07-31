@@ -36,10 +36,12 @@ export const DOCUMENT_TEXT_TOTAL_MAX_CHARS = 200_000;
 // Binary sniff: a decoded doc with more than this ratio of U+FFFD chars in its first N chars is rejected as binary.
 export const DOCUMENT_BINARY_SNIFF_CHARS = 1000;
 export const DOCUMENT_BINARY_REPLACEMENT_RATIO = 0.1;
-// Average characters per page below which a PDF's pages ARE pictures (a scan) rather than pages carrying one: the text
-// layer cannot represent them, so the vision half earns its cost. A digital document averages thousands and renders
-// nothing. There is deliberately NO page-count cap on either half; the per-turn byte budget bounds the images.
+// Average characters per page below which a PDF's pages ARE pictures (a scan) and the vision half earns its cost; a
+// digital document averages thousands and renders nothing. No page-count cap on either half — bytes are the ceiling.
 export const PDF_TEXT_THIN_CHARS_PER_PAGE = 100;
+// Ceiling on the images REPLAYED across a whole conversation, kept apart from the per-message cap above: every turn
+// re-uploads them (the cloud is stateless), so without its own bound one fat turn would tax every turn after it.
+export const ATTACHMENT_REPLAY_MAX_BYTES = 20_000_000;
 // 2.5x takes an A4 page (595x842pt) just past IMAGE_MAX_UPLOAD_DIMENSION, so the downscale lands it exactly on the
 // 2048 ceiling — rendering at 1x leaves small digits and footnotes unreadable to the model.
 export const PDF_PAGE_RENDER_SCALE = 2.5;
