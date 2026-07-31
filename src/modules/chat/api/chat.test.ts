@@ -131,24 +131,28 @@ describe("chat API", () => {
     expect(body.messages[2]).toEqual({ role: "user", content: "again" });
   });
 
-  it("sendChatMessage encodes image attachments onto the last user message", async () => {
+  // Images travel on the turn they belong to, built by toWireHistory; this layer must forward them untouched, including
+  // on a turn that is not the last one — pinning them to the last user message hid every earlier picture.
+  it("sendChatMessage forwards per-message images verbatim", async () => {
     fetchMock.mockResolvedValueOnce(streamResponse([`{"done":true}\n`]));
 
-    const data = new Uint8Array([1, 2, 3, 4]);
     await drain(
       sendChatMessage(makeClient(), {
         chatId: "c1",
-        messages: [{ role: "user", content: "look" }],
+        messages: [
+          { role: "user", content: "look", images: ["AQIDBA=="] },
+          { role: "assistant", content: "seen" },
+          { role: "user", content: "and now?" },
+        ],
         model: "gpt-oss:120b-cloud",
-        attachments: [{ filename: "a.png", data, mimeType: "image/png" }],
       }),
     );
 
     const body = JSON.parse(fetchMock.mock.calls[0][1]?.body as string) as {
       messages: { role: string; content: string; images?: string[] }[];
     };
-    // base64("\x01\x02\x03\x04") === "AQIDBA=="
     expect(body.messages[0].images).toEqual(["AQIDBA=="]);
+    expect(body.messages[2].images).toBeUndefined();
   });
 
   it("sendChatMessage forwards an AbortSignal to fetch", async () => {

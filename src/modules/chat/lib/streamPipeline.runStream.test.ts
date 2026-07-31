@@ -107,7 +107,7 @@ function tailMessage(queryClient: QueryClient) {
 const USER_MESSAGES: WireChatMessage[] = [{ role: "user", content: "hi" }];
 
 function run(ctx: RunStreamContext): Promise<void> {
-  return runStream(ctx, "kimi", ASSISTANT_ID, USER_MESSAGES, [], undefined, undefined);
+  return runStream(ctx, "kimi", ASSISTANT_ID, USER_MESSAGES, undefined, undefined);
 }
 
 describe("runStream tool-round loop", () => {

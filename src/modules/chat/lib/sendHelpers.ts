@@ -8,9 +8,9 @@ import { queryKeys } from "@/lib/hooks/queryKeys";
 import type { ChatId, MessageId } from "@/lib/types/ids";
 import type { WireChatMessage } from "@/modules/chat/api/chat";
 import type { UseChatData } from "@/modules/chat/hooks/useChat";
-import type { ApiAttachment } from "@/modules/chat/lib/streamPipeline";
-import type { UiAttachment } from "@/modules/chat/types";
 import { attachmentTextBlocks } from "@/modules/chat/lib/attachmentText";
+import { bytesToBase64 } from "@/lib/encoding/base64";
+import { ATTACHMENT_MAX_TOTAL_BYTES } from "@/modules/chat/constants";
 import { allocateBlocks, foldBlocks } from "@/modules/chat/lib/documentText";
 
 // Drops image attachments when the active model lacks vision so unsupported blobs never reach the DB write
@@ -21,27 +21,6 @@ export function gateVisionAttachments<T extends { mimeType?: string | null }>(
 ): T[] {
   if (hasVision) return rows;
   return rows.filter((a) => a.mimeType?.startsWith("image/") !== true);
-}
-
-// Narrows persisted attachment rows to the wire shape: bytes only (the API serializes them), the local-only
-// `uri` is dropped, and `mimeType` is omitted entirely when absent rather than sent as null.
-export function narrowApiAttachments(rows: DbAttachment[]): ApiAttachment[] {
-  return rows.map((a) => {
-    const out: ApiAttachment = { filename: a.filename, data: a.data };
-    if (a.mimeType !== null) out.mimeType = a.mimeType;
-    return out;
-  });
-}
-
-// Same narrowing for attachments that never become rows — rendered PDF pages ride this turn's wire and are not
-// persisted, so they come from the UI shape, where `data` is optional and one without bytes has nothing to send.
-export function narrowUiAttachments(items: UiAttachment[]): ApiAttachment[] {
-  return items.flatMap((a) => {
-    if (a.data === undefined) return [];
-    const out: ApiAttachment = { filename: a.filename, data: a.data };
-    if (a.mimeType !== undefined) out.mimeType = a.mimeType;
-    return [out];
-  });
 }
 
 // Maps persisted rows to the stateless `/api/chat` wire conversation, keeping only user + assistant turns, and re-folds
@@ -61,19 +40,35 @@ export function toWireHistory(
   const turns = messages.filter(
     (m) => m.role === "user" || m.role === "assistant",
   );
+  const rowsOf = (m: DbMessage): DbAttachment[] =>
+    m.role === "user" ? attachmentRows.filter((a) => a.messageId === m.id) : [];
   const groups = turns.map((m) =>
-    m.role === "user"
-      ? attachmentRows
-          .filter((a) => a.messageId === m.id)
-          .flatMap((a) => attachmentTextBlocks(a, hasVision))
-      : [],
+    rowsOf(m).flatMap((a) => attachmentTextBlocks(a, hasVision)),
   );
   const allocated = allocateBlocks(groups);
+  // Images ride each user turn, not only the last one: /api/chat is stateless, so a picture attached three questions ago
+  // is gone from the model's view unless it is replayed. Newest first, since the byte budget bounds the whole payload.
+  let imageBudget = ATTACHMENT_MAX_TOTAL_BYTES;
+  const imagesPerTurn = new Array<string[]>(turns.length).fill([]);
+  for (let i = turns.length - 1; i >= 0; i -= 1) {
+    const images: string[] = [];
+    for (const row of rowsOf(turns[i])) {
+      if (row.mimeType?.startsWith("image/") !== true) continue;
+      if (!hasVision || row.data.byteLength > imageBudget) continue;
+      imageBudget -= row.data.byteLength;
+      images.push(bytesToBase64(row.data));
+    }
+    imagesPerTurn[i] = images;
+  }
   return {
-    messages: turns.map((m, i) => ({
-      role: m.role as "user" | "assistant",
-      content: foldBlocks(m.content, allocated.groups[i] ?? []),
-    })),
+    messages: turns.map((m, i) => {
+      const wire: WireChatMessage = {
+        role: m.role as "user" | "assistant",
+        content: foldBlocks(m.content, allocated.groups[i] ?? []),
+      };
+      const images = imagesPerTurn[i];
+      return images.length > 0 ? { ...wire, images } : wire;
+    }),
     truncated: allocated.truncated,
   };
 }

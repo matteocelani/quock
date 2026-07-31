@@ -20,16 +20,11 @@ import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import { useHaptics } from "@/lib/hooks/useHaptics";
 import { useToast } from "@/lib/hooks/useToast";
 import { useChatModel } from "@/modules/models/hooks/useChatModel";
-import {
-  runStream,
-  type ApiAttachment,
-} from "@/modules/chat/lib/streamPipeline";
+import { runStream } from "@/modules/chat/lib/streamPipeline";
 import {
   bumpSidebar,
   gateVisionAttachments,
   locateAssistantTurn,
-  narrowApiAttachments,
-  narrowUiAttachments,
   patchChatCache,
   pruneAttachmentMap,
   toWireHistory,
@@ -113,7 +108,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       modelName: string,
       assistantId: MessageId,
       wireMessages: WireChatMessage[],
-      apiAttachments: ApiAttachment[],
       think: boolean | undefined,
       tools: readonly ToolDefinition[] | undefined,
     ): Promise<void> => {
@@ -133,7 +127,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         modelName,
         assistantId,
         wireMessages,
-        apiAttachments,
         think,
         tools,
       );
@@ -279,14 +272,59 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       // The user message is persisted above, so clear the draft regardless of the cache-patch outcome — gating it
       // on a found chat row would strand an already-sent draft; useChat re-reads from SQLite anyway.
       input.onPersisted?.();
-      // Narrow to the wire shape from the SUCCESSFULLY-PERSISTED set (not the raw picks) so the API never
-      // receives an attachment the DB/cache lacks if an insert failed.
-      const apiAttachments = narrowApiAttachments(insertedAttachments);
+      // Vision only, and only for the pages the text layer could not carry: a document that already reads as text
+      // renders nothing at all, which is also the fast path. The pages are persisted like any image rather than slipped
+      // onto the wire, so a later turn still shows them to the model — and the bubble shows what the model was shown.
+      if (hasVision) {
+        let budget =
+          ATTACHMENT_MAX_TOTAL_BYTES -
+          insertedAttachments.reduce((sum, a) => sum + a.sizeBytes, 0);
+        for (const row of [...insertedAttachments]) {
+          const result = pdfResults.get(row.id);
+          if (result === undefined) continue;
+          const pagesForVision = pagesToRender(result);
+          if (pagesForVision.length === 0) continue;
+          const pages = await renderPdfPageImages(
+            row.uri ?? "",
+            row.filename,
+            String(row.id),
+            pagesForVision,
+            budget,
+          );
+          budget -= pages.reduce((sum, p) => sum + p.sizeBytes, 0);
+          for (const page of pages) {
+            if (page.data === undefined) continue;
+            insertedAttachments.push(
+              await attachments.add({
+                messageId: userMessage.id,
+                filename: page.filename,
+                mimeType: page.mimeType ?? null,
+                data: page.data,
+                uri: page.uri,
+                sizeBytes: page.sizeBytes,
+                textContent: null,
+              }),
+            );
+          }
+        }
+        // Second patch: the first one paints the bubble immediately, this one adds the pages once they exist.
+        if (insertedAttachments.length > 0) {
+          updatedAttachments.set(userMessage.id, insertedAttachments);
+          await patchChatCache(
+            queryClient,
+            chats,
+            chatId,
+            existing,
+            updatedMessages,
+            updatedAttachments,
+          );
+        }
+      }
       // Replay the full history each send (`/api/chat` is stateless). Read from SQLite, not the cache: a cold cache
       // (sending in a just-opened chat) would replay EMPTY history. Only the pending assistant row is excluded.
       const dbForWire = await messages.listByChat(chatId);
-      // Every user turn re-folds its own documents from their rows, so the PDF attached three questions ago is still
-      // there. The current turn included: its text was written with the row a few lines above.
+      // Every user turn re-folds its own documents and re-attaches its own images from their rows, so the PDF asked
+      // about three questions ago is still there. The current turn included: its rows were written above.
       const attachmentRows = await attachments.listByChat(chatId);
       const wire = toWireHistory(
         dbForWire.filter((m) => m.id !== placeholderAssistant.id),
@@ -301,33 +339,10 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
             "Too much text to send in full; the newest parts were kept.",
         });
       }
-      // Vision only, and only for the pages the text layer could not carry. A document that already reads as text
-      // renders nothing at all, which is also the fast path.
-      if (hasVision) {
-        let budget =
-          ATTACHMENT_MAX_TOTAL_BYTES -
-          insertedAttachments.reduce((sum, a) => sum + a.sizeBytes, 0);
-        for (const row of insertedAttachments) {
-          const result = pdfResults.get(row.id);
-          if (result === undefined) continue;
-          const pagesForVision = pagesToRender(result);
-          if (pagesForVision.length === 0) continue;
-          const pages = await renderPdfPageImages(
-            row.uri ?? "",
-            row.filename,
-            String(row.id),
-            pagesForVision,
-            budget,
-          );
-          budget -= pages.reduce((sum, p) => sum + p.sizeBytes, 0);
-          apiAttachments.push(...narrowUiAttachments(pages));
-        }
-      }
       await runStreamWithContext(
         model.name,
         placeholderAssistant.id,
         wireMessages,
-        apiAttachments,
         // Thinking is optional: force it on only when the chat's preference is on AND the model supports it; otherwise omit the flag so the model decides for itself.
         forceThink || undefined,
         // Grant the web tools when web search is on and the model supports tools.
@@ -399,9 +414,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         preservedAttachments,
       );
 
-      const apiAttachments = narrowApiAttachments(
-        gateVisionAttachments(persistedAttachments, hasVision),
-      );
       // Wire history for regenerate: every turn UP TO AND INCLUDING the user message we're re-asking. `headSlice` already excludes the assistant turn being replaced.
       const wireMessages = toWireHistory(
         headSlice,
@@ -412,7 +424,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         model.name,
         placeholderAssistant.id,
         wireMessages,
-        apiAttachments,
         // Thinking: force on only if the chat's preference is on and supported; otherwise omit so the model decides.
         forceThink || undefined,
         // Web search is sticky: regenerate with it when it's currently on (and supported), so retrying for a better answer keeps searching.
@@ -487,9 +498,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         preservedAttachments,
       );
 
-      const apiAttachments = narrowApiAttachments(
-        gateVisionAttachments(persistedAttachments, hasVision),
-      );
       const wireMessages = toWireHistory(
         headSlice,
         await attachments.listByChat(chatId),
@@ -499,7 +507,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         model.name,
         assistantMessageId,
         wireMessages,
-        apiAttachments,
         // Thinking: force on only if the chat's preference is on and supported; otherwise omit so the model decides.
         forceThink || undefined,
         // Web search is sticky: retry with it when it's currently on (and supported).
@@ -587,9 +594,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         updatedMessages,
         preservedAttachments,
       );
-      const apiAttachments = narrowApiAttachments(
-        gateVisionAttachments(persistedAttachments, hasVision),
-      );
       // Wire history: every prior turn + the freshly-edited user content as the last entry.
       const wireMessages: WireChatMessage[] = [
         ...toWireHistory(
@@ -603,7 +607,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         model.name,
         placeholderAssistant.id,
         wireMessages,
-        apiAttachments,
         // Edit re-runs honoring the chat's sticky modes (matches a fresh send): force think only if on+supported, web search when on+supported.
         forceThink || undefined,
         webSearchEnabled && hasTools ? WEB_TOOLS : undefined,

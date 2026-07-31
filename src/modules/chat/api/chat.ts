@@ -1,7 +1,6 @@
 import { ChatEvent, DownloadEvent, ErrorEvent } from "@/gotypes";
 import type { ApiClient } from "@/lib/api/client";
 import { CloudAPIError } from "@/lib/api/errors";
-import { bytesToBase64 } from "@/lib/encoding/base64";
 import { parseJsonlFromResponse } from "@/modules/chat/api/jsonl";
 import type { ToolDefinition, WireToolCall } from "@/modules/chat/lib/tools";
 
@@ -19,12 +18,6 @@ export type ChatEventUnion =
   | DownloadEvent
   | ErrorEvent
   | ToolCallEvent;
-// Wire-bound narrowing of `UiAttachment` (src/components/chat/types.ts): the API serializes bytes and does not carry the local `uri` preview field.
-export interface ChatAttachment {
-  filename: string;
-  data: Uint8Array;
-  mimeType?: string;
-}
 // One turn in the conversation history sent to `/api/chat`. Mirrors the standard Ollama API request shape. `tool_calls` rides on an assistant turn that invoked tools; the `tool` role carries a tool result back with its `tool_name`.
 export interface WireChatMessage {
   role: "user" | "assistant" | "system" | "tool";
@@ -40,8 +33,6 @@ export interface SendMessageOptions {
   // Full conversation history — the caller pre-builds this from local SQLite. The new user turn must already be the last entry. The cloud is stateless about chats; we replay the history each turn.
   messages: WireChatMessage[];
   model: string;
-  // Non-image attachments are dropped (the cloud `/api/chat` only accepts `images`). Image attachments are encoded onto the last user message.
-  attachments?: ChatAttachment[];
   // Forwarded verbatim to the request body. `think: false` is the explicit opt-out (Ollama defaults thinking ON when omitted); `think: true` must only be set on thinking-capable models or the server 400s.
   think?: boolean;
   // Tool schemas the model may call this turn (web search). Sent only when the user enabled web search; the pipeline runs the calls and re-streams.
@@ -53,23 +44,9 @@ export async function* sendChatMessage(
   client: ApiClient,
   opts: SendMessageOptions,
 ): AsyncGenerator<ChatEventUnion> {
-  // Image attachments ride on the last user message's `images` field per the Ollama API. Non-image attachments are silently dropped: `/api/chat` does not have a wire slot for arbitrary file blobs.
-  const imagesB64: string[] = [];
-  if (opts.attachments) {
-    for (const a of opts.attachments) {
-      if (a.mimeType?.startsWith("image/") === true) {
-        imagesB64.push(bytesToBase64(a.data));
-      }
-    }
-  }
-
-  const messages: WireChatMessage[] = opts.messages.map((m, idx) => {
-    const isLastUser =
-      idx === opts.messages.length - 1 &&
-      m.role === "user" &&
-      imagesB64.length > 0;
-    return isLastUser ? { ...m, images: imagesB64 } : m;
-  });
+  // Images already ride the turns they belong to (see toWireHistory): pinning them to the last user message hid every
+  // picture from an earlier turn, since /api/chat replays the whole conversation and keeps no state of its own.
+  const messages: WireChatMessage[] = opts.messages;
 
   // Forward `think` verbatim when specified — thinking-capable models treat a missing flag as ON, so the opt-out must be explicit.
   const body: {
