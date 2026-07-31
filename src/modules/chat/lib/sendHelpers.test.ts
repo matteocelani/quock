@@ -14,6 +14,7 @@ import {
   gateVisionAttachments,
   locateAssistantTurn,
   narrowApiAttachments,
+  narrowUiAttachments,
   patchChatCache,
   pruneAttachmentMap,
   toWireHistory,
@@ -240,5 +241,42 @@ describe("bumpSidebar", () => {
 
     expect(touchUpdated).toHaveBeenCalledWith(CHAT_ID);
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.chats() });
+  });
+});
+
+describe("narrowUiAttachments", () => {
+  it("carries filename, bytes and mime to the wire shape", () => {
+    const data = new Uint8Array([1, 2, 3]);
+    expect(
+      narrowUiAttachments([
+        {
+          id: "pdfpage-7-1",
+          filename: "invoices.pdf (page 1)",
+          uri: "file:///page1.jpg",
+          mimeType: "image/jpeg",
+          data,
+          sizeBytes: data.byteLength,
+          status: "ready",
+        },
+      ]),
+    ).toEqual([
+      { filename: "invoices.pdf (page 1)", data, mimeType: "image/jpeg" },
+    ]);
+  });
+
+  // A page that never produced bytes has nothing to send; passing it on would post an empty image to the model.
+  it("drops an attachment with no bytes", () => {
+    expect(
+      narrowUiAttachments([
+        {
+          id: "att-1",
+          filename: "photo.jpg",
+          uri: "file:///photo.jpg",
+          mimeType: "image/jpeg",
+          sizeBytes: 0,
+          status: "ready",
+        },
+      ]),
+    ).toEqual([]);
   });
 });

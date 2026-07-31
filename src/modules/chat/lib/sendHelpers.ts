@@ -9,6 +9,7 @@ import type { ChatId, MessageId } from "@/lib/types/ids";
 import type { WireChatMessage } from "@/modules/chat/api/chat";
 import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import type { ApiAttachment } from "@/modules/chat/lib/streamPipeline";
+import type { UiAttachment } from "@/modules/chat/types";
 
 // Drops image attachments when the active model lacks vision so unsupported blobs never reach the DB write
 // or the wire payload. Generic over Ui/Db attachment rows — both carry a `mimeType`.
@@ -27,6 +28,17 @@ export function narrowApiAttachments(rows: DbAttachment[]): ApiAttachment[] {
     const out: ApiAttachment = { filename: a.filename, data: a.data };
     if (a.mimeType !== null) out.mimeType = a.mimeType;
     return out;
+  });
+}
+
+// Same narrowing for attachments that never become rows — rendered PDF pages ride this turn's wire and are not
+// persisted, so they come from the UI shape, where `data` is optional and one without bytes has nothing to send.
+export function narrowUiAttachments(items: UiAttachment[]): ApiAttachment[] {
+  return items.flatMap((a) => {
+    if (a.data === undefined) return [];
+    const out: ApiAttachment = { filename: a.filename, data: a.data };
+    if (a.mimeType !== undefined) out.mimeType = a.mimeType;
+    return [out];
   });
 }
 

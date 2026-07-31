@@ -18,6 +18,7 @@ import {
 import { queryKeys } from "@/lib/hooks/queryKeys";
 import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import { useHaptics } from "@/lib/hooks/useHaptics";
+import { useToast } from "@/lib/hooks/useToast";
 import { useChatModel } from "@/modules/models/hooks/useChatModel";
 import {
   runStream,
@@ -28,17 +29,28 @@ import {
   gateVisionAttachments,
   locateAssistantTurn,
   narrowApiAttachments,
+  narrowUiAttachments,
   patchChatCache,
   pruneAttachmentMap,
   toWireHistory,
 } from "@/modules/chat/lib/sendHelpers";
 import { WEB_TOOLS, type ToolDefinition } from "@/modules/chat/lib/tools";
 import {
-  appendDocumentText,
+  appendTextBlocks,
   isTextDocument,
+  textDocBlocks,
+  type TextBlockInput,
 } from "@/modules/chat/lib/documentText";
+import {
+  extractPdfText,
+  isPdf,
+  renderPdfPageImages,
+} from "@/modules/chat/lib/pdfDocument";
 import { materializeImageAttachment } from "@/modules/chat/lib/imageUpload";
-import { CHAT_AUTO_TITLE_MAX_CHARS } from "@/modules/chat/constants";
+import {
+  ATTACHMENT_MAX_TOTAL_BYTES,
+  CHAT_AUTO_TITLE_MAX_CHARS,
+} from "@/modules/chat/constants";
 
 // Full UiAttachment in (carries `uri` for the DB write); API send narrows below.
 export interface SendMessageInput {
@@ -82,6 +94,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
   );
   const queryClient = useQueryClient();
   const haptics = useHaptics();
+  const toast = useToast();
   // Tracking the active controller keeps `abort` working even if the streaming map updates after capture.
   const controllerRef = React.useRef<AbortController | null>(null);
   // Auto-abort on unmount or chatId change so an in-flight stream cannot leak its reader. Reading `controllerRef.current` in the cleanup is intentional (we want the LATEST controller at unmount, not the one captured when the effect first mounted) — the linter cannot see the cross-file mutation in `runStream` now that the pipeline is a separate module.
@@ -264,10 +277,54 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       const textDocs = insertedAttachments.filter((a) =>
         isTextDocument(a.mimeType, a.filename),
       );
+      // A PDF's text layer is read natively from the file, not decoded from its bytes, so it is resolved here and then
+      // folded through the same caps as a text doc — one budget for the turn, not one per source.
+      const pdfs = insertedAttachments.filter(
+        (a) => isPdf(a.mimeType, a.filename) && a.uri !== null,
+      );
+      const pdfBlocks: TextBlockInput[] = [];
+      for (const pdf of pdfs) {
+        const result = await extractPdfText(pdf.uri ?? "");
+        if (result.text.length > 0) {
+          pdfBlocks.push({ filename: pdf.filename, text: result.text });
+        }
+        // A locked PDF reads as empty at every layer, so say so: silently sending nothing looks like the model ignored it.
+        if (result.failure === "password") {
+          toast({
+            title: `${pdf.filename} is password protected`,
+            description: "Quock can't read a locked PDF.",
+            tone: "error",
+          });
+        }
+      }
       const wireMessages: WireChatMessage[] = [
         ...wireHistory,
-        { role: "user", content: appendDocumentText(text, textDocs) },
+        {
+          role: "user",
+          content: appendTextBlocks(text, [
+            ...textDocBlocks(textDocs),
+            ...pdfBlocks,
+          ]),
+        },
       ];
+      // Vision only, and wire-only: the pages recover the tables and layout the text fold flattens, but the bubble and
+      // the DB keep just the PDF the user picked — the same treatment the folded document text already gets.
+      if (hasVision && pdfs.length > 0) {
+        let budget =
+          ATTACHMENT_MAX_TOTAL_BYTES -
+          insertedAttachments.reduce((sum, a) => sum + a.sizeBytes, 0);
+        for (const pdf of pdfs) {
+          const pages = await renderPdfPageImages(
+            pdf.uri ?? "",
+            pdf.filename,
+            String(pdf.id),
+            budget,
+          );
+          const wirePages = narrowUiAttachments(pages);
+          budget -= pages.reduce((sum, p) => sum + p.sizeBytes, 0);
+          apiAttachments.push(...wirePages);
+        }
+      }
       await runStreamWithContext(
         model.name,
         placeholderAssistant.id,
@@ -290,6 +347,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       model,
       queryClient,
       runStreamWithContext,
+      toast,
     ],
   );
   const regenerate = React.useCallback(

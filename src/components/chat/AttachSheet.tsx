@@ -16,6 +16,7 @@ import type {
   UiAttachmentInvalidReason,
 } from "@/modules/chat/types";
 import { isImageMime, isTextDocument } from "@/modules/chat/lib/documentText";
+import { isPdf } from "@/modules/chat/lib/pdfDocument";
 import { readUriAsBytes } from "@/modules/chat/lib/imageUpload";
 import { useToast } from "@/lib/hooks/useToast";
 import { componentLayout } from "@/lib/design/tokens";
@@ -65,8 +66,14 @@ function validateAttachment(
   filename: string,
 ): UiAttachmentInvalidReason | null {
   if (sizeBytes > ATTACHMENT_MAX_BYTES) return "too_large";
-  // Images ride the vision path; text/code docs are inlined on send. Everything else (pdf/docx/binary) is unsupported.
-  if (isImageMime(mimeType) || isTextDocument(mimeType, filename)) return null;
+  // Images ride the vision path; text/code docs are inlined on send; a PDF does both (text layer for every model,
+  // rendered pages for vision ones). Everything else (docx/binary) is unsupported.
+  if (
+    isImageMime(mimeType) ||
+    isTextDocument(mimeType, filename) ||
+    isPdf(mimeType, filename)
+  )
+    return null;
   return "unsupported_type";
 }
 // Monotonic per-session counter for unique attachment ids — survives duplicate-file picks (same uri).
