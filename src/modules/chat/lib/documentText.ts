@@ -105,27 +105,49 @@ export interface TextDocInput {
   data: Uint8Array;
 }
 
-// Folds each document's decoded text onto the user's typed message, capped per-file and in total so a
-// huge file can't blow the model context. Returns baseText unchanged when there is nothing to add.
-export function appendDocumentText(
+// Text already in hand: a decoded document, or a PDF's text layer, which arrives as a string from a native call.
+export interface TextBlockInput {
+  filename: string;
+  text: string;
+}
+
+// Decodes byte documents and drops the ones that turn out to be binary, so they can share one fold with text that
+// never was bytes.
+export function textDocBlocks(docs: TextDocInput[]): TextBlockInput[] {
+  return docs.flatMap((doc) => {
+    const text = decodeDocumentText(doc.data);
+    return isLikelyBinary(text) ? [] : [{ filename: doc.filename, text }];
+  });
+}
+
+// Folds each block onto the user's typed message, capped per-file and in total so a huge file can't blow the model
+// context. One call per turn across every source, or two sources would each get the whole total budget.
+export function appendTextBlocks(
   baseText: string,
-  docs: TextDocInput[],
+  inputs: TextBlockInput[],
 ): string {
-  if (docs.length === 0) return baseText;
+  if (inputs.length === 0) return baseText;
   const blocks: string[] = [];
   let total = 0;
-  for (const doc of docs) {
+  for (const input of inputs) {
     if (total >= DOCUMENT_TEXT_TOTAL_MAX_CHARS) break;
-    const decoded = decodeDocumentText(doc.data);
-    if (isLikelyBinary(decoded)) continue;
     const budget = Math.min(
       DOCUMENT_TEXT_MAX_CHARS,
       DOCUMENT_TEXT_TOTAL_MAX_CHARS - total,
     );
-    const text = decoded.slice(0, budget);
+    const text = input.text.slice(0, budget);
     if (text.length === 0) continue;
     total += text.length;
-    blocks.push(`\n\n--- ${doc.filename} ---\n${text}`);
+    blocks.push(`\n\n--- ${input.filename} ---\n${text}`);
   }
   return blocks.length > 0 ? baseText + blocks.join("") : baseText;
+}
+
+// Byte-document convenience wrapper: decode, then fold. A turn that also carries a PDF must call appendTextBlocks
+// directly with both sources, so the caps stay shared.
+export function appendDocumentText(
+  baseText: string,
+  docs: TextDocInput[],
+): string {
+  return appendTextBlocks(baseText, textDocBlocks(docs));
 }

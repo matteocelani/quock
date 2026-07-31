@@ -1,9 +1,15 @@
 import {
   appendDocumentText,
+  appendTextBlocks,
   decodeDocumentText,
   isImageMime,
   isTextDocument,
+  textDocBlocks,
 } from "@/modules/chat/lib/documentText";
+import {
+  DOCUMENT_TEXT_MAX_CHARS,
+  DOCUMENT_TEXT_TOTAL_MAX_CHARS,
+} from "@/modules/chat/constants";
 
 const bytes = (s: string): Uint8Array => new TextEncoder().encode(s);
 
@@ -76,5 +82,52 @@ describe("appendDocumentText", () => {
     expect(
       appendDocumentText("base", [{ filename: "blob.bin", data: garbage }]),
     ).toBe("base");
+  });
+});
+
+describe("textDocBlocks", () => {
+  it("decodes documents and drops the binary ones", () => {
+    const garbage = new Uint8Array(50).fill(0xff);
+    expect(
+      textDocBlocks([
+        { filename: "a.txt", data: bytes("hello") },
+        { filename: "blob.bin", data: garbage },
+      ]),
+    ).toEqual([{ filename: "a.txt", text: "hello" }]);
+  });
+});
+
+describe("appendTextBlocks", () => {
+  it("folds text that never was bytes, such as a PDF layer", () => {
+    expect(
+      appendTextBlocks("look", [
+        { filename: "invoices.pdf", text: "total 42" },
+      ]),
+    ).toBe("look\n\n--- invoices.pdf ---\ntotal 42");
+  });
+
+  // The reason both sources fold in ONE call: a per-call cap would let each source spend the whole total budget.
+  it("shares one total budget across sources", () => {
+    const long = "x".repeat(DOCUMENT_TEXT_MAX_CHARS);
+    const fillers = Array.from(
+      {
+        length: Math.ceil(
+          DOCUMENT_TEXT_TOTAL_MAX_CHARS / DOCUMENT_TEXT_MAX_CHARS,
+        ),
+      },
+      (_, i) => ({ filename: `fill${i}.txt`, text: long }),
+    );
+    const out = appendTextBlocks("base", [
+      ...fillers,
+      { filename: "extra.pdf", text: long },
+    ]);
+    expect(out).toContain("--- fill0.txt ---");
+    expect(out).not.toContain("--- extra.pdf ---");
+  });
+
+  it("skips an empty block instead of emitting an empty label", () => {
+    expect(appendTextBlocks("base", [{ filename: "scan.pdf", text: "" }])).toBe(
+      "base",
+    );
   });
 });
