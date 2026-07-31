@@ -7,6 +7,9 @@ settings:
 overrides:
   ws@7: 8.21.0
 
+patchedDependencies:
+  react-native-pdf-page-image@0.2.1: f92c7bc66c47c9503f78df7b3350c64e9bc90690ebb56052ec4639c91c8ea5b9
+
 importers:
 
   .:
@@ -68,6 +71,9 @@ importers:
       expo-linking:
         specifier: ~55.0.15
         version: 55.0.15(expo@55.0.26)(react-native@0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0))(react@19.2.0)
+      expo-pdf-text-extract:
+        specifier: ~1.1.0
+        version: 1.1.0(expo@55.0.26)(react-native@0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0))(react@19.2.0)
       expo-router:
         specifier: ~55.0.14
         version: 55.0.16(cd31e8ef3403edba5af462968b2501b9)
@@ -113,6 +119,9 @@ importers:
       react-native-mmkv:
         specifier: ~4.3.1
         version: 4.3.1(react-native-nitro-modules@0.35.9(react-native@0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0))(react@19.2.0))(react-native@0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0))(react@19.2.0)
+      react-native-pdf-page-image:
+        specifier: ~0.2.1
+        version: 0.2.1(patch_hash=f92c7bc66c47c9503f78df7b3350c64e9bc90690ebb56052ec4639c91c8ea5b9)(react-native@0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0))(react@19.2.0)
       react-native-reanimated:
         specifier: 4.3.1
         version: 4.3.1(react-native-worklets@0.8.3(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(react-native@0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0))(react@19.2.0))(react-native@0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0))(react@19.2.0)
@@ -2872,6 +2881,14 @@ packages:
       react-native-worklets:
         optional: true
 
+  expo-pdf-text-extract@1.1.0:
+    resolution: {integrity: sha512-LH0qNUZBTdIZ4EJUOHF+akqP0IgrlnLFM3skVlZxvyZFHJeU7LFGnr6eOSmRZ2PpTFUYsbs+aZSKmUdWPeSCYw==}
+    engines: {node: '>=16.0.0'}
+    peerDependencies:
+      expo: '>=49.0.0'
+      react: '>=18.0.0'
+      react-native: '>=0.72.0'
+
   expo-router@55.0.16:
     resolution: {integrity: sha512-xVwWsDz3Ar2+3hRpMMrZMYFzkJak322vCA5/XCP7WOL0hEXnWhgQGhv5IEYZyz/TXZbl2IYD6/1MnH9mBhjwKQ==}
     peerDependencies:
@@ -4614,6 +4631,12 @@ packages:
 
   react-native-nitro-modules@0.35.9:
     resolution: {integrity: sha512-yCO6eJ85SPPUo4a4an7H5oj6wPCSIT72fbjr5WZ/20n6zswaJ2gNNpnWtg2We0AZwkAOjSqkOJ0Vjc05p6kGiA==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
+
+  react-native-pdf-page-image@0.2.1:
+    resolution: {integrity: sha512-RCZPWsevbh8Z4ZtrvEvFTOXD84Be/8nmQ3zBFuwR5gQSBQFivAXfEoB0qONYMyWSB78ELbMmmgOI2P+aTbJKJA==}
     peerDependencies:
       react: '*'
       react-native: '*'
@@ -8901,6 +8924,12 @@ snapshots:
     optionalDependencies:
       react-native-worklets: 0.8.3(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(react-native@0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0))(react@19.2.0)
 
+  expo-pdf-text-extract@1.1.0(expo@55.0.26)(react-native@0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0))(react@19.2.0):
+    dependencies:
+      expo: 55.0.26(@babel/core@7.26.10)(@expo/dom-webview@55.0.6)(@expo/metro-runtime@55.0.11)(expo-router@55.0.16)(react-dom@19.2.0(react@19.2.0))(react-native-worklets@0.8.3(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(react-native@0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0))(react@19.2.0))(react-native@0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
+      react: 19.2.0
+      react-native: 0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0)
+
   expo-router@55.0.16(cd31e8ef3403edba5af462968b2501b9):
     dependencies:
       '@expo/log-box': 55.0.12(@expo/dom-webview@55.0.6)(expo@55.0.26)(react-native@0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0))(react@19.2.0)
@@ -11086,6 +11115,11 @@ snapshots:
       react-native-nitro-modules: 0.35.9(react-native@0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0))(react@19.2.0)
 
   react-native-nitro-modules@0.35.9(react-native@0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0))(react@19.2.0):
+    dependencies:
+      react: 19.2.0
+      react-native: 0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0)
+
+  react-native-pdf-page-image@0.2.1(patch_hash=f92c7bc66c47c9503f78df7b3350c64e9bc90690ebb56052ec4639c91c8ea5b9)(react-native@0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0))(react@19.2.0):
     dependencies:
       react: 19.2.0
       react-native: 0.83.6(@babel/core@7.26.10)(@react-native/metro-config@0.85.3(@babel/core@7.26.10))(@types/react@19.2.17)(react@19.2.0)

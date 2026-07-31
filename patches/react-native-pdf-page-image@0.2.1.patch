@@ -1,0 +1,26 @@
+diff --git a/react-native-pdf-page-image.podspec b/react-native-pdf-page-image.podspec
+index 9182f3eb35e90a2f754ecdbe7491ad5bba283ad9..1b3e64dcc9368bef88c2517a54e8d851c8587446 100644
+--- a/react-native-pdf-page-image.podspec
++++ b/react-native-pdf-page-image.podspec
+@@ -18,18 +18,7 @@ Pod::Spec.new do |s|
+ 
+   s.dependency "React-Core"
+ 
+-  # Don't install the dependencies when we run `pod install` in the old architecture.
+-  if ENV['RCT_NEW_ARCH_ENABLED'] == '1' then
+-    s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1"
+-    s.pod_target_xcconfig    = {
+-        "HEADER_SEARCH_PATHS" => "\"$(PODS_ROOT)/boost\"",
+-        "CLANG_CXX_LANGUAGE_STANDARD" => "c++17"
+-    }
+-
+-    s.dependency "React-Codegen"
+-    s.dependency "RCT-Folly"
+-    s.dependency "RCTRequired"
+-    s.dependency "RCTTypeSafety"
+-    s.dependency "ReactCommon/turbomodule/core"
+-  end
++  # Quock: dropped the RCT_NEW_ARCH_ENABLED block that depended on React-Codegen and RCT-Folly, pods React Native
++  # 0.83 no longer ships (renamed ReactCodegen, folded into ReactNativeDependencies), so `pod install` could not
++  # resolve them. This is a legacy bridge module (RCTBridgeModule + @objc), never a TurboModule: it needs neither.
+ end

@@ -13,3 +13,6 @@ allowBuilds:
 # one non-deterministically and Metro crashes. Pin ws@7 → 8.21.0 so the dev server is deterministic everywhere.
 overrides:
   ws@7: 8.21.0
+
+patchedDependencies:
+  react-native-pdf-page-image@0.2.1: patches/react-native-pdf-page-image@0.2.1.patch
