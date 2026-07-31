@@ -88,11 +88,29 @@ describe("allocateBlocks", () => {
     expect(alloc.truncated).toBe(false);
   });
 
-  it("caps a single document at the per-file limit and says it cut", () => {
+  it("caps a single document at the per-file limit and marks the cut in the text", () => {
     const long = "x".repeat(DOCUMENT_TEXT_MAX_CHARS * 2);
     const alloc = allocateBlocks([[{ filename: "big.txt", text: long }]]);
-    expect(alloc.groups[0][0].text).toHaveLength(DOCUMENT_TEXT_MAX_CHARS);
+    expect(alloc.groups[0][0].text).toContain("cut here");
+    expect(alloc.groups[0][0].text).toContain(`of ${long.length} characters`);
     expect(alloc.truncated).toBe(true);
+  });
+
+  // A model asked for a value past the cut must not answer from a document it thinks it read whole.
+  it("says a turn's document was omitted instead of dropping it in silence", () => {
+    const long = "x".repeat(DOCUMENT_TEXT_MAX_CHARS);
+    const fillers = Math.ceil(
+      DOCUMENT_TEXT_TOTAL_MAX_CHARS / DOCUMENT_TEXT_MAX_CHARS,
+    );
+    const groups = [
+      [{ filename: "oldest.txt", text: long }],
+      ...Array.from({ length: fillers }, (_, i) => [
+        { filename: `turn${i}.txt`, text: long },
+      ]),
+    ];
+    const alloc = allocateBlocks(groups);
+    expect(alloc.groups[0][0].filename).toBe("1 document part");
+    expect(alloc.groups[0][0].text).toContain("omitted");
   });
 
   // Newest first is the whole point: the document just attached must arrive whole, and an older one yields.
@@ -108,7 +126,7 @@ describe("allocateBlocks", () => {
     expect(alloc.groups[groups.length - 1][0].text).toHaveLength(
       DOCUMENT_TEXT_MAX_CHARS,
     );
-    expect(alloc.groups[0]).toEqual([]);
+    expect(alloc.groups[0][0].text).toContain("omitted");
     expect(alloc.truncated).toBe(true);
   });
 

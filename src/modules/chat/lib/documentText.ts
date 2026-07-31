@@ -137,13 +137,30 @@ export function allocateBlocks(
   let truncated = false;
   for (let g = groups.length - 1; g >= 0; g -= 1) {
     const kept: TextBlockInput[] = [];
+    let omitted = 0;
     for (const block of groups[g]) {
       const budget = Math.min(DOCUMENT_TEXT_MAX_CHARS, remaining);
       const text = block.text.slice(0, budget);
       if (text.length < block.text.length) truncated = true;
-      if (text.length === 0) continue;
+      if (text.length === 0) {
+        if (block.text.length > 0) omitted += 1;
+        continue;
+      }
       remaining -= text.length;
-      kept.push({ filename: block.filename, text });
+      // A cut has to be visible to the model: asked for a value that fell past the cut, it would otherwise answer from
+      // a document it believes it read whole. Worse on a table, where the rows simply stop.
+      const marked =
+        text.length < block.text.length
+          ? `${text}\n[... cut here: ${text.length} of ${block.text.length} characters sent ...]`
+          : text;
+      kept.push({ filename: block.filename, text: marked });
+    }
+    // One note per turn rather than per block: a spent budget usually drops a whole document, not a stray page.
+    if (omitted > 0) {
+      kept.push({
+        filename: `${omitted} document part${omitted > 1 ? "s" : ""}`,
+        text: "[... omitted: the character budget went to more recent messages ...]",
+      });
     }
     out[g] = kept;
   }

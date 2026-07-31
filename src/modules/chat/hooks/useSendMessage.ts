@@ -294,6 +294,13 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         hasVision,
       );
       const wireMessages = wire.messages;
+      if (wire.truncated) {
+        toast({
+          title: "Document trimmed",
+          description:
+            "Too much text to send in full; the newest parts were kept.",
+        });
+      }
       // Vision only, and only for the pages the text layer could not carry. A document that already reads as text
       // renders nothing at all, which is also the fast path.
       if (hasVision) {
