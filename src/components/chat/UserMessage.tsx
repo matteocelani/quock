@@ -19,12 +19,7 @@ import { Pressable } from "@/components/ui/Pressable";
 import { TextField } from "@/components/ui/TextField";
 import { surfaceSpring } from "@/lib/design/motion";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
-import {
-  componentLayout,
-  iconSize,
-  strokeWidth,
-  timingsNamed,
-} from "@/lib/design/tokens";
+import { iconSize, strokeWidth, timingsNamed } from "@/lib/design/tokens";
 import type { MessageId } from "@/lib/types/ids";
 import { USER_MESSAGE_EDIT_MAX_LINES, USER_MESSAGE_ENTER_FADE_MS, USER_MESSAGE_ENTER_TRANSLATE_Y, USER_MESSAGE_FRESH_WINDOW_MS } from "@/modules/chat/constants";
 
@@ -138,13 +133,7 @@ function UserMessageImpl({
             key={String(message.id)}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{
-              flexGrow: 1,
-              justifyContent: "flex-end",
-              paddingHorizontal: componentLayout.composer.chipScrollPadX,
-              paddingTop: componentLayout.composer.chipScrollPadTop,
-              gap: componentLayout.composer.chipScrollGap,
-            }}
+            contentContainerClassName="grow justify-end px-4 pt-2 gap-2"
           >
             {picked.map((a) => (
               <PersistedAttachmentChip key={String(a.id)} attachment={a} />
@@ -182,19 +171,13 @@ function UserMessageImpl({
   return (
     <Animated.View style={animatedStyle}>
       {hasAttachments ? (
-        /* One scrolling band, like the composer's draft chips: wrapping turned six attachments into a ragged staircase. It
-           right-anchors while it fits, and is keyed by message so a recycled FlashList row cannot inherit its scroll offset. */
+        /* One scrolling band instead of a wrap, which turned six attachments into a ragged staircase. Its gutter is the
+           bubble's own `px-4`, and it is keyed by message so a recycled row cannot inherit another's scroll offset. */
         <ScrollView
           key={String(message.id)}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            flexGrow: 1,
-            justifyContent: "flex-end",
-            paddingHorizontal: componentLayout.composer.chipScrollPadX,
-            paddingTop: componentLayout.composer.chipScrollPadTop,
-            gap: componentLayout.composer.chipScrollGap,
-          }}
+          contentContainerClassName="grow justify-end px-4 pt-2 gap-2"
         >
           {picked.map((a) => (
             <PersistedAttachmentChip key={String(a.id)} attachment={a} />
