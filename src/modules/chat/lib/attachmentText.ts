@@ -29,7 +29,10 @@ function parsePdfText(raw: string): PdfTextResult | null {
     return null;
   }
   if (typeof parsed !== "object" || parsed === null) return null;
-  const { pages, pageCount, failure } = parsed as Record<string, unknown>;
+  const { pages, pageCount, failure, fromOcr } = parsed as Record<
+    string,
+    unknown
+  >;
   if (!Array.isArray(pages)) return null;
   if (typeof pageCount !== "number" || !Number.isInteger(pageCount)) return null;
   return {
@@ -42,6 +45,7 @@ function parsePdfText(raw: string): PdfTextResult | null {
         typeof (p as { text?: unknown }).text === "string",
     ),
     ...(failure === "password" || failure === "unreadable" ? { failure } : {}),
+    ...(fromOcr === true ? { fromOcr: true } : {}),
   };
 }
 
@@ -54,7 +58,11 @@ export function attachmentTextBlocks(
   if (row.textContent !== null) {
     const result = parsePdfText(row.textContent);
     if (result === null) return [];
-    const blocks = pdfPageBlocks(row.filename, result.pages);
+    const blocks = pdfPageBlocks(
+      row.filename,
+      result.pages,
+      result.fromOcr === true,
+    );
     const note = pdfPlaceholder(row.filename, result, hasPages);
     return note === null
       ? blocks

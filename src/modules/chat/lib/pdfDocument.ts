@@ -3,7 +3,11 @@
 
 import PdfPageImage from "react-native-pdf-page-image";
 import { extractTextFromPage, getPageCount } from "expo-pdf-text-extract";
-import { readUriAsBytes, toJpegUri } from "@/modules/chat/lib/imageUpload";
+import {
+  deleteFileQuietly,
+  readUriAsBytes,
+  toJpegUri,
+} from "@/modules/chat/lib/imageUpload";
 import {
   PDF_PAGE_RENDER_SCALE,
   PDF_TEXT_THIN_CHARS_PER_PAGE,
@@ -33,6 +37,9 @@ export interface PdfTextResult {
   pages: PdfPageText[];
   pageCount: number;
   failure?: "password" | "unreadable";
+  // Set when the text was recognised from the rendered pages instead of read from the file's own layer. OCR misreads a
+  // digit now and then, and a model told where the text came from can hedge instead of asserting.
+  fromOcr?: boolean;
 }
 
 // The extractor throws with a `.code` for the cases it can name; everything else is just a broken file.
@@ -77,9 +84,11 @@ export async function extractPdfText(uri: string): Promise<PdfTextResult> {
 export function pdfPageBlocks(
   filename: string,
   pages: readonly PdfPageText[],
+  fromOcr = false,
 ): TextBlockInput[] {
+  const suffix = fromOcr ? " (text recognised from the scan)" : "";
   return pages.map((p) => ({
-    filename: `${filename}, page ${p.page}`,
+    filename: `${filename}, page ${p.page}${suffix}`,
     text: p.text,
   }));
 }
@@ -118,36 +127,37 @@ export function pdfPlaceholder(
   return null;
 }
 
-// Render the given pages to JPEG attachments for the vision images[] path. VISION ONLY. No page-count limit: these are
-// built past validateAttachment, so `budgetBytes` (the turn's remaining budget) is the only thing bounding them.
-export interface RenderedPages {
-  images: UiAttachment[];
-  // Why fewer pages came back than were asked for, so the caller can say the true reason instead of guessing one.
-  cutBy: "budget" | "error" | null;
+// Rendering and closing are separate on purpose: closing deletes the rendered files, and OCR has to read them first.
+// The caller owns the pair — render, use, close — because only it knows whether the pixels are also wanted for vision.
+export interface RenderedPage {
+  page: number;
+  uri: string;
+  width: number;
+  height: number;
 }
 
-export async function renderPdfPageImages(
+export interface RenderedPages {
+  pages: RenderedPage[];
+  // Set when fewer pages came back than were asked for, so the caller can say the true reason instead of guessing one.
+  cutBy: "error" | null;
+}
+
+export async function renderPdfPages(
   uri: string,
-  filename: string,
-  sourceId: AttachmentId,
   pages: readonly number[],
-  budgetBytes: number,
 ): Promise<RenderedPages> {
-  if (pages.length === 0) return { images: [], cutBy: null };
-  // Degrade like the text side does: a PDF that cannot be opened costs the vision half, never the send.
+  if (pages.length === 0) return { pages: [], cutBy: null };
+  // Degrade like the text side does: a PDF that cannot be opened costs the pages, never the send.
   try {
     await PdfPageImage.open(uri);
   } catch (err) {
     console.warn("pdfDocument: cannot open the PDF for rendering", err);
-    return { images: [], cutBy: "error" };
+    return { pages: [], cutBy: "error" };
   }
-  const images: UiAttachment[] = [];
-  let usedBytes = 0;
-  let cutBy: "budget" | "error" | null = null;
+  const out: RenderedPage[] = [];
+  let cutBy: "error" | null = null;
   try {
     for (const page of pages) {
-      // Render above 1x so small digits stay crisp, then re-encode: generate() writes PNG on both platforms, and these
-      // ride the images[] path as image/jpeg — the label has to match the bytes the chip and the DB row will carry.
       // The module indexes pages from zero (PDFKit `page(at:)`, Android `openPage`), while everything else here counts
       // from one, as the page numbers the model is shown. Asking for `page` directly renders the NEXT one and throws
       // on the last, which reads as a document that silently skips its first page.
@@ -156,44 +166,57 @@ export async function renderPdfPageImages(
         page - 1,
         PDF_PAGE_RENDER_SCALE,
       );
-      // generate() already returns the scaled pixel size, so size against those dims as-is (no re-multiply).
-      const jpegUri = await toJpegUri(
-        rendered.uri,
-        rendered.width,
-        rendered.height,
-      );
-      const data = await readUriAsBytes(jpegUri);
-      // Stop at the first page that would overflow rather than skipping it: dropping a middle page would leave the
-      // model a document with a hole in it, which is worse than a document that plainly ends early.
-      if (usedBytes + data.byteLength > budgetBytes) {
-        console.warn(
-          `pdfDocument: budget reached, sending ${images.length} of ${pages.length} pages`,
-        );
-        cutBy = "budget";
-        break;
-      }
-      usedBytes += data.byteLength;
-      // Key the id off sourceId (unique per pick), never filename — two same-named PDFs must not collide.
-      images.push({
-        id: `pdfpage-${sourceId}-${page}`,
-        filename: `${filename} (page ${page})`,
-        uri: jpegUri,
-        mimeType: "image/jpeg",
-        data,
-        sizeBytes: data.byteLength,
-        status: "ready",
+      out.push({
+        page,
+        uri: rendered.uri,
+        width: rendered.width,
+        height: rendered.height,
       });
     }
   } catch (err) {
-    // Keep the pages that did render: a document that stops early still shows the model something.
+    // Keep the pages that did render: a document that stops early still gives the model something.
     console.warn("pdfDocument: page render stopped early", err);
     cutBy = "error";
-  } finally {
-    // Always free the native document + its temp files, even if a page render threw mid-loop. A failed close only
-    // leaks a temp file, so it must never discard the pages that already rendered.
-    await PdfPageImage.close(uri).catch((err: unknown) => {
-      console.warn("pdfDocument: closing the PDF failed", err);
-    });
   }
-  return { images, cutBy };
+  return { pages: out, cutBy };
+}
+
+// Frees the native document and deletes every file it rendered. Call it once the pages have been read.
+export async function closePdfRender(uri: string): Promise<void> {
+  await PdfPageImage.close(uri).catch((err: unknown) => {
+    console.warn("pdfDocument: closing the PDF failed", err);
+  });
+}
+
+// Turns one rendered page into a wire attachment: JPEG for the size (a PNG page is ten times bigger and every turn
+// re-uploads it) and bytes because that is what the row stores. Only worth doing for a model that can see images.
+export async function pageToAttachment(
+  rendered: RenderedPage,
+  filename: string,
+  sourceId: AttachmentId,
+): Promise<UiAttachment | null> {
+  try {
+    const jpegUri = await toJpegUri(
+      rendered.uri,
+      rendered.width,
+      rendered.height,
+    );
+    const data = await readUriAsBytes(jpegUri);
+    // The JPEG is a means, not a keepsake: the row carries the bytes, and a derived page is never shown, so leaving the
+    // file behind would only fill the cache directory.
+    await deleteFileQuietly(jpegUri);
+    return {
+      // Key the id off sourceId (unique per pick), never filename — two same-named PDFs must not collide.
+      id: `pdfpage-${sourceId}-${rendered.page}`,
+      filename: `${filename} (page ${rendered.page})`,
+      uri: jpegUri,
+      mimeType: "image/jpeg",
+      data,
+      sizeBytes: data.byteLength,
+      status: "ready",
+    };
+  } catch (err) {
+    console.warn(`pdfDocument: page ${rendered.page} did not convert`, err);
+    return null;
+  }
 }

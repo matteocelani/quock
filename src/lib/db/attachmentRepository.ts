@@ -106,6 +106,14 @@ export class AttachmentRepository {
       derivedFrom,
     };
   }
+  // The OCR of a scan lands after the row exists (it needs the rendered pages), so its text is written back here
+  // rather than at insert time; every later turn then replays it like any other extracted text.
+  async setTextContent(id: AttachmentId, textContent: string): Promise<void> {
+    await this.db.runAsync(
+      "UPDATE attachments SET text_content = ? WHERE id = ?",
+      [textContent, id],
+    );
+  }
   async delete(id: AttachmentId): Promise<void> {
     await this.db.runAsync("DELETE FROM attachments WHERE id = ?", [id]);
   }

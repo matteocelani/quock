@@ -14,6 +14,15 @@ import {
   IMAGE_UPLOAD_COMPRESS,
 } from "@/modules/chat/constants";
 
+// A temp file that has served its purpose. Failing to delete it costs cache space, never the send.
+export async function deleteFileQuietly(uri: string): Promise<void> {
+  try {
+    new File(uri).delete();
+  } catch (err) {
+    console.warn("imageUpload: could not delete a temporary file", err);
+  }
+}
+
 // Read file bytes NATIVELY via expo-file-system's File.bytes() to keep large multi-MB reads off the JS thread.
 export async function readUriAsBytes(uri: string): Promise<Uint8Array> {
   return new File(uri).bytes();

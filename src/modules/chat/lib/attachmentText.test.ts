@@ -93,4 +93,21 @@ describe("attachmentTextBlocks", () => {
       attachmentTextBlocks(row({ textContent: "{not json" }), true),
     ).toEqual([]);
   });
+
+  // The model is told the text was recognised rather than read, because OCR misreads a digit now and then.
+  it("marks text that came from the scan, on the replay too", () => {
+    const blocks = attachmentTextBlocks(
+      row({
+        filename: "scan.pdf",
+        textContent: serializePdfText({
+          pageCount: 1,
+          pages: [{ page: 1, text: "SCAN-99417" }],
+          fromOcr: true,
+        }),
+      }),
+      true,
+    );
+    expect(blocks[0].filename).toBe("scan.pdf, page 1 (text recognised from the scan)");
+    expect(blocks[0].text).toBe("SCAN-99417");
+  });
 });

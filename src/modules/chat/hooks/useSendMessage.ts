@@ -31,17 +31,21 @@ import {
 } from "@/modules/chat/lib/sendHelpers";
 import { WEB_TOOLS, type ToolDefinition } from "@/modules/chat/lib/tools";
 import {
+  closePdfRender,
   extractPdfText,
   isPdf,
+  pageToAttachment,
   pagesToRender,
-  renderPdfPageImages,
+  renderPdfPages,
   type PdfTextResult,
 } from "@/modules/chat/lib/pdfDocument";
 import { serializePdfText } from "@/modules/chat/lib/attachmentText";
+import { ocrPages } from "@/modules/chat/lib/pdfOcr";
 import { materializeImageAttachment } from "@/modules/chat/lib/imageUpload";
 import {
   ATTACHMENT_MAX_TOTAL_BYTES,
   CHAT_AUTO_TITLE_MAX_CHARS,
+  PDF_OCR_MAX_PAGES,
 } from "@/modules/chat/constants";
 
 // Full UiAttachment in (carries `uri` for the DB write); API send narrows below.
@@ -300,11 +304,10 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       // The user message is persisted above, so clear the draft regardless of the cache-patch outcome — gating it
       // on a found chat row would strand an already-sent draft; useChat re-reads from SQLite anyway.
       input.onPersisted?.();
-      // Vision only, and only for the pages the text layer could not carry: a text-rich document renders nothing, which
-      // is the fast path. Pages are persisted like any image so a later turn still shows them, and so does the bubble.
-      if (hasVision) {
-        // Only what actually rides the wire counts against the budget: a PDF's own blob is stored, never sent, so
-        // deducting it would leave a 12 MB scan just 8 MB to render into.
+      // A document whose text layer already says everything skips all of this, which is the fast path. One whose pages
+      // ARE pictures gets rendered even without vision, because the render is what OCR reads to recover the text.
+      {
+        // Only what actually rides the wire counts against the budget: a PDF's own blob is stored, never sent.
         const wireBytes = insertedAttachments
           .filter((a) => a.mimeType?.startsWith("image/") === true)
           .reduce((sum, a) => sum + a.sizeBytes, 0);
@@ -314,40 +317,72 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         for (const row of insertedAttachments) {
           const result = pdfResults.get(row.id);
           if (result === undefined) continue;
-          const pagesForVision = pagesToRender(result);
-          if (pagesForVision.length === 0) continue;
-          const rendered = await renderPdfPageImages(
-            row.uri ?? "",
-            row.filename,
-            row.id,
-            pagesForVision,
-            budget,
-          );
-          if (rendered.cutBy !== null) pagesCut = rendered.cutBy;
-          budget = Math.max(
-            0,
-            budget - rendered.images.reduce((sum, p) => sum + p.sizeBytes, 0),
-          );
-          for (const page of rendered.images) {
-            if (page.data === undefined) continue;
-            try {
-              pageRows.push(
-                await attachments.add({
-                  messageId: userMessage.id,
-                  filename: page.filename,
-                  mimeType: page.mimeType ?? null,
-                  data: page.data,
-                  uri: page.uri,
-                  sizeBytes: page.sizeBytes,
-                  textContent: null,
-                  // Marks it as ours, not something the user picked: the bubble hides it, the wire keeps it.
-                  derivedFrom: row.id,
-                }),
-              );
-            } catch (err) {
-              // Best-effort like the picks above: a failed page must not reject the send and strand the pending row.
-              console.error("useSendMessage: page write failed:", err);
+          const scanned = pagesToRender(result);
+          if (scanned.length === 0) continue;
+          // A scan is bounded by pages, not by the image budget: that budget exists to cap what rides the wire, and
+          // capping the READING with it left a text-only model told less than we had actually extracted.
+          const toRead = scanned.slice(0, PDF_OCR_MAX_PAGES);
+          const rendered = await renderPdfPages(row.uri ?? "", toRead);
+          try {
+            if (rendered.cutBy !== null) pagesCut = rendered.cutBy;
+            if (toRead.length < scanned.length) pagesCut = "budget";
+            // Read the pixels back as text: this is the whole reason a scan is rendered even for a model without
+            // vision, and it turns "I cannot read images" into an answer.
+            const recognised = await ocrPages(rendered.pages);
+            if (recognised.length > 0) {
+              const ocrResult: PdfTextResult = {
+                pages: recognised,
+                pageCount: result.pageCount,
+                fromOcr: true,
+              };
+              try {
+                await attachments.setTextContent(
+                  row.id,
+                  serializePdfText(ocrResult),
+                );
+              } catch (err) {
+                console.warn("useSendMessage: could not store the OCR text", err);
+              }
             }
+            // The pixels are only worth keeping for a model that can see them; otherwise the render was just the means
+            // to the text, and converting it to JPEG and back through JS would be work nobody reads.
+            if (!hasVision) continue;
+            for (const page of rendered.pages) {
+              const attachment = await pageToAttachment(
+                page,
+                row.filename,
+                row.id,
+              );
+              if (attachment?.data === undefined) continue;
+              if (attachment.sizeBytes > budget) {
+                pagesCut = "budget";
+                break;
+              }
+              budget -= attachment.sizeBytes;
+              try {
+                pageRows.push(
+                  await attachments.add({
+                    messageId: userMessage.id,
+                    filename: attachment.filename,
+                    mimeType: attachment.mimeType ?? null,
+                    data: attachment.data,
+                    // The JPEG behind it is deleted once read: a derived page is never shown, so a path to a file that
+                    // no longer exists would only be a trap for the next reader.
+                    uri: null,
+                    sizeBytes: attachment.sizeBytes,
+                    textContent: null,
+                    // Marks it as ours, not something the user picked: the bubble hides it, the wire keeps it.
+                    derivedFrom: row.id,
+                  }),
+                );
+              } catch (err) {
+                // Best-effort like the picks above: a failed page must not reject the send and strand the pending row.
+                console.error("useSendMessage: page write failed:", err);
+              }
+            }
+          } finally {
+            // Deletes the rendered files too, which is why it can only happen once OCR and the conversion are done.
+            await closePdfRender(row.uri ?? "");
           }
         }
         if (pagesCut !== null) {
@@ -355,7 +390,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
             title: "Some pages were left out",
             description:
               pagesCut === "budget"
-                ? "The document is too large to send every page."
+                ? `Only the first ${PDF_OCR_MAX_PAGES} pages of a scan are read.`
                 : "Some pages of this document could not be prepared.",
           });
         }
