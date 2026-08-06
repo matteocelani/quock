@@ -1,12 +1,30 @@
+import PdfPageImage from "react-native-pdf-page-image";
+import { extractTextFromPage, getPageCount } from "expo-pdf-text-extract";
 import {
+  extractPdfText,
   isPdf,
   mergeOcrPages,
   pagesToRender,
   pdfPlaceholder,
   pdfPageBlocks,
+  renderPdfPages,
   type PdfTextResult,
 } from "@/modules/chat/lib/pdfDocument";
-import { PDF_TEXT_THIN_CHARS_PER_PAGE } from "@/modules/chat/constants";
+import {
+  PDF_PAGE_RENDER_SCALE,
+  PDF_TEXT_THIN_CHARS_PER_PAGE,
+} from "@/modules/chat/constants";
+
+// The root `__mocks__` shims are plain stubs, so the extractor is re-mocked here as spies: what these tests assert is
+// WHICH page the native call was asked for, which is where a silent off-by-one lives.
+jest.mock("expo-pdf-text-extract", () => ({
+  getPageCount: jest.fn(),
+  extractTextFromPage: jest.fn(),
+}));
+const mockPageCount = getPageCount as jest.MockedFunction<typeof getPageCount>;
+const mockPageText = extractTextFromPage as jest.MockedFunction<
+  typeof extractTextFromPage
+>;
 
 // A digital page carries far more than the threshold; a scanned one carries nothing.
 const RICH = "x".repeat(PDF_TEXT_THIN_CHARS_PER_PAGE * 10);
@@ -67,6 +85,116 @@ describe("mergeOcrPages", () => {
   it("carries the failure through, so a locked document stays locked", () => {
     const merged = mergeOcrPages({ ...scan, failure: "password" }, []);
     expect(merged.failure).toBe("password");
+  });
+});
+
+describe("extractPdfText", () => {
+  beforeEach(() => {
+    mockPageCount.mockReset();
+    mockPageText.mockReset();
+  });
+
+  it("carries the page number with the text, so an answer can cite it", async () => {
+    mockPageCount.mockResolvedValue(2);
+    mockPageText.mockImplementation((_uri: string, page: number) =>
+      Promise.resolve(`page ${page} text`),
+    );
+    const result = await extractPdfText("file:///doc.pdf");
+    expect(mockPageText.mock.calls.map((c) => c[1])).toEqual([1, 2]);
+    expect(result).toEqual({
+      pageCount: 2,
+      pages: [
+        { page: 1, text: "page 1 text" },
+        { page: 2, text: "page 2 text" },
+      ],
+    });
+  });
+
+  // One unreadable page must not cost the others, while a password stops the whole document — the two are told apart by
+  // the extractor's error code, and only the second one has a toast to fire.
+  it("keeps the pages that did extract when one throws", async () => {
+    mockPageCount.mockResolvedValue(3);
+    mockPageText.mockImplementation((_uri: string, page: number) =>
+      page === 2
+        ? Promise.reject(new Error("bad page"))
+        : Promise.resolve(`p${page}`),
+    );
+    const result = await extractPdfText("file:///doc.pdf");
+    expect(result.pages.map((p) => p.page)).toEqual([1, 3]);
+    expect(result.failure).toBeUndefined();
+  });
+
+  it("stops the whole document on a password, and names the reason", async () => {
+    mockPageCount.mockResolvedValue(3);
+    mockPageText.mockRejectedValue(
+      Object.assign(new Error("locked"), { code: "PASSWORD_REQUIRED" }),
+    );
+    const result = await extractPdfText("file:///doc.pdf");
+    expect(result).toEqual({ pageCount: 3, pages: [], failure: "password" });
+  });
+
+  it("blames the file, not the password, when the count cannot be read", async () => {
+    mockPageCount.mockRejectedValue(new Error("not a pdf"));
+    const result = await extractPdfText("file:///doc.pdf");
+    expect(result).toEqual({ pageCount: 0, pages: [], failure: "unreadable" });
+  });
+
+  it("skips a page whose text is only whitespace", async () => {
+    mockPageCount.mockResolvedValue(2);
+    mockPageText.mockImplementation((_uri: string, page: number) =>
+      Promise.resolve(page === 1 ? "   \n " : "real"),
+    );
+    const result = await extractPdfText("file:///doc.pdf");
+    expect(result.pages).toEqual([{ page: 2, text: "real" }]);
+  });
+});
+
+describe("renderPdfPages", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  // The module counts pages from zero while the rest of the app counts from one. Asking for the page number directly
+  // rendered the NEXT page and threw on the last, which shipped once as a document that silently lost page 1.
+  it("asks the native module for the zero-based index of every page", async () => {
+    const generate = jest.spyOn(PdfPageImage, "generate");
+    const rendered = await renderPdfPages("file:///doc.pdf", [1, 2, 11]);
+    expect(generate.mock.calls.map((c) => c[1])).toEqual([0, 1, 10]);
+    expect(rendered.pages.map((p) => p.page)).toEqual([1, 2, 11]);
+    expect(rendered.isCutShort).toBe(false);
+    // The scale has to reach the native call: the patched renderer is what turns it into real resolution, and a page
+    // rendered at 1x reaches the model too soft for OCR to read a digit.
+    expect(generate.mock.calls.map((c) => c[2])).toEqual([
+      PDF_PAGE_RENDER_SCALE,
+      PDF_PAGE_RENDER_SCALE,
+      PDF_PAGE_RENDER_SCALE,
+    ]);
+  });
+
+  it("keeps what rendered and flags the cut when a page throws", async () => {
+    jest
+      .spyOn(PdfPageImage, "generate")
+      .mockImplementation((uri: string, page: number) =>
+        page === 1
+          ? Promise.reject(new Error("render failed"))
+          : Promise.resolve({ uri, width: 10, height: 20 }),
+      );
+    const rendered = await renderPdfPages("file:///doc.pdf", [1, 2, 3]);
+    expect(rendered.pages.map((p) => p.page)).toEqual([1]);
+    expect(rendered.isCutShort).toBe(true);
+  });
+
+  it("flags the cut when the document will not open at all", async () => {
+    jest.spyOn(PdfPageImage, "open").mockRejectedValue(new Error("locked"));
+    const rendered = await renderPdfPages("file:///doc.pdf", [1]);
+    expect(rendered).toEqual({ pages: [], isCutShort: true });
+  });
+
+  it("renders nothing, and opens nothing, for an empty page list", async () => {
+    const open = jest.spyOn(PdfPageImage, "open");
+    const rendered = await renderPdfPages("file:///doc.pdf", []);
+    expect(rendered).toEqual({ pages: [], isCutShort: false });
+    expect(open).not.toHaveBeenCalled();
   });
 });
 
