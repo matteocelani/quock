@@ -31,7 +31,9 @@ export async function ocrPages(
       const text = joinRecognisedLines(
         await extractTextFromImage(nativePath(source.uri)),
       );
-      if (text.length > 0) pages.push({ page: source.page, text });
+      if (text.length > 0) {
+        pages.push({ page: source.page, text, isFromOcr: true });
+      }
     } catch (err) {
       console.warn(`pdfOcr: page ${source.page} did not recognise`, err);
     }

@@ -10,6 +10,7 @@ import {
 import {
   pdfPageBlocks,
   pdfPlaceholder,
+  type PdfPageText,
   type PdfTextResult,
 } from "@/modules/chat/lib/pdfDocument";
 
@@ -17,6 +18,17 @@ import {
 // of what the model was told, so a replay can say the same thing.
 export function serializePdfText(result: PdfTextResult): string {
   return JSON.stringify(result);
+}
+
+// One stored page, or nothing: a malformed entry costs its own page instead of the whole document. `wasOcr` carries the
+// flag rows written before it moved per page, so a scan read yesterday still tells the model its text was recognised.
+function toPageText(raw: unknown, wasOcr: boolean): PdfPageText | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const { page, text, isFromOcr } = raw as Record<string, unknown>;
+  if (typeof page !== "number" || typeof text !== "string") return null;
+  return isFromOcr === true || wasOcr
+    ? { page, text, isFromOcr: true }
+    : { page, text };
 }
 
 // Malformed stored text costs the document, never the send: an old or half-written row must not throw mid-turn.
@@ -37,15 +49,8 @@ function parsePdfText(raw: string): PdfTextResult | null {
   if (typeof pageCount !== "number" || !Number.isInteger(pageCount)) return null;
   return {
     pageCount: Math.max(0, pageCount),
-    pages: pages.filter(
-      (p): p is { page: number; text: string } =>
-        typeof p === "object" &&
-        p !== null &&
-        typeof (p as { page?: unknown }).page === "number" &&
-        typeof (p as { text?: unknown }).text === "string",
-    ),
+    pages: pages.flatMap((p) => toPageText(p, fromOcr === true) ?? []),
     ...(failure === "password" || failure === "unreadable" ? { failure } : {}),
-    ...(fromOcr === true ? { fromOcr: true } : {}),
   };
 }
 
@@ -58,11 +63,7 @@ export function attachmentTextBlocks(
   if (row.textContent !== null) {
     const result = parsePdfText(row.textContent);
     if (result === null) return [];
-    const blocks = pdfPageBlocks(
-      row.filename,
-      result.pages,
-      result.fromOcr === true,
-    );
+    const blocks = pdfPageBlocks(row.filename, result.pages);
     const note = pdfPlaceholder(row.filename, result, hasPages);
     return note === null
       ? blocks

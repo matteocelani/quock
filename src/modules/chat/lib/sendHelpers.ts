@@ -5,13 +5,21 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { ChatRepository } from "@/lib/db/chatRepository";
 import type { DbAttachment, DbMessage } from "@/lib/db/types";
 import { queryKeys } from "@/lib/hooks/queryKeys";
+import type { ToastTone } from "@/lib/stores/toast.store";
 import type { ChatId, MessageId } from "@/lib/types/ids";
 import type { WireChatMessage } from "@/modules/chat/api/chat";
 import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import { attachmentTextBlocks } from "@/modules/chat/lib/attachmentText";
 import { encodeAttachmentBase64 } from "@/modules/chat/lib/attachmentBase64";
-import { ATTACHMENT_REPLAY_MAX_BYTES } from "@/modules/chat/constants";
-import { allocateBlocks, foldBlocks } from "@/modules/chat/lib/documentText";
+import {
+  ATTACHMENT_REPLAY_MAX_BYTES,
+  PDF_OCR_MAX_PAGES,
+} from "@/modules/chat/constants";
+import {
+  allocateBlocks,
+  foldBlocks,
+  type TextBlockInput,
+} from "@/modules/chat/lib/documentText";
 
 // Drops image attachments when the active model lacks vision so unsupported blobs never reach the DB write
 // or the wire payload. Generic over Ui/Db attachment rows — both carry a `mimeType`.
@@ -29,9 +37,55 @@ export interface WireHistory {
   isTruncated: boolean;
 }
 
+// Three unrelated reasons a scan can lose pages, kept apart because one toast claiming the wrong one is worse than no
+// toast: the page cap is a design limit, the byte budget depends on the rest of the message, an error is a bug.
+export type PageCutCause = "pages" | "bytes" | "error";
+
+// Kept short on purpose: the toast body is clamped to two lines, so a long sentence would clip the one after it.
+const CUT_REASONS: readonly (readonly [PageCutCause, string])[] = [
+  ["pages", `Only the first ${PDF_OCR_MAX_PAGES} pages of a scan are read.`],
+  ["bytes", "Some pages were too large to send."],
+  ["error", "Some pages could not be prepared."],
+];
+
+// One sentence per cause that actually happened, in the order above. Two documents in one turn can cut for two reasons.
+export function describePageCuts(causes: ReadonlySet<PageCutCause>): string {
+  return CUT_REASONS.filter(([cause]) => causes.has(cause))
+    .map(([, text]) => text)
+    .join(" ");
+}
+
+export interface SendNotice {
+  title: string;
+  description?: string;
+  tone?: ToastTone;
+}
+
+const TONE_RANK: Record<ToastTone, number> = {
+  error: 3,
+  warning: 2,
+  success: 1,
+  info: 0,
+};
+
+// The toast store is latest-wins, so a send with more than one thing to say leaves only the last notice on screen — and
+// the gravest (a document that could not be read at all) is the first to fire. Say the worst one instead of the newest.
+export function topNotice(notices: readonly SendNotice[]): SendNotice | null {
+  let top: SendNotice | null = null;
+  for (const notice of notices) {
+    const rank = TONE_RANK[notice.tone ?? "info"];
+    if (top === null || rank > TONE_RANK[top.tone ?? "info"]) top = notice;
+  }
+  return top;
+}
+
+// Named by count, not by file: the note stands for pictures the turn had and the model will not get.
+function imageNote(count: number, text: string): TextBlockInput {
+  return { filename: `${count} image${count > 1 ? "s" : ""}`, text };
+}
+
 // Maps persisted rows to the stateless `/api/chat` conversation, re-folding each user turn's documents from its rows.
 // Folding only the turn being sent left a document invisible from the second question on.
-
 export function toWireHistory(
   messages: readonly DbMessage[],
   attachmentRows: readonly DbAttachment[] = [],
@@ -59,9 +113,15 @@ export function toWireHistory(
   for (let i = turns.length - 1; i >= 0; i -= 1) {
     const images: string[] = [];
     let dropped = 0;
+    let unseen = 0;
     for (const row of rowsOf(turns[i])) {
       if (row.mimeType?.startsWith("image/") !== true) continue;
-      if (!hasVision) continue;
+      // A chat that moves to a text-only model keeps its pictures in the DB; the note is the only thing left to send. A
+      // page rendered from a document is not one of them: its text rides this turn, so counting it would invent a loss.
+      if (!hasVision) {
+        if (row.derivedFrom === null) unseen += 1;
+        continue;
+      }
       if (row.data.byteLength > imageBudget) {
         dropped += 1;
         continue;
@@ -71,15 +131,21 @@ export function toWireHistory(
     }
     // Said out loud for the same reason a cut document is: a turn asking about a picture the model cannot see is worse
     // than a turn that admits the picture is missing.
+    const notes: TextBlockInput[] = [];
     if (dropped > 0) {
-      groups[i] = [
-        ...(groups[i] ?? []),
-        {
-          filename: `${dropped} image${dropped > 1 ? "s" : ""}`,
-          text: "[... not sent: the image budget went to more recent messages ...]",
-        },
-      ];
+      notes.push(
+        imageNote(
+          dropped,
+          "[... not sent: the image budget went to more recent messages ...]",
+        ),
+      );
     }
+    if (unseen > 0) {
+      notes.push(
+        imageNote(unseen, "[... not sent: this model cannot read images ...]"),
+      );
+    }
+    if (notes.length > 0) groups[i] = [...(groups[i] ?? []), ...notes];
     imagesPerTurn[i] = images;
   }
   const allocated = allocateBlocks(groups);

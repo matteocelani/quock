@@ -11,12 +11,15 @@ import {
 import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import {
   bumpSidebar,
+  describePageCuts,
   gateVisionAttachments,
   locateAssistantTurn,
   patchChatCache,
   pruneAttachmentMap,
   toWireHistory,
+  topNotice,
 } from "@/modules/chat/lib/sendHelpers";
+import { PDF_OCR_MAX_PAGES } from "@/modules/chat/constants";
 
 const CHAT_ID = asChatId("chat-1");
 
@@ -134,9 +137,31 @@ describe("toWireHistory", () => {
     expect(wire.messages[2].images).toBeUndefined();
   });
 
-  it("sends no images to a model without vision", () => {
+  // Silently sending nothing let a text-only model answer as if the picture had never been attached.
+  it("sends no images to a model without vision, and says so", () => {
     const wire = toWireHistory([dbMsg(1, "user", "look")], [dbAtt(1, "image/png")], false);
     expect(wire.messages[0].images).toBeUndefined();
+    expect(wire.messages[0].content).toContain("this model cannot read images");
+  });
+
+  // The pages of a scan rendered under a vision model stay in the DB. Moving the chat to a text-only model must not
+  // announce them as lost pictures: the text recognised from them is what this turn carries.
+  it("says nothing about the pages it rendered from a document", () => {
+    const pdf = {
+      ...dbAtt(1, "application/pdf"),
+      filename: "scan.pdf",
+      textContent: JSON.stringify({
+        pageCount: 1,
+        pages: [{ page: 1, text: "SCAN-99417", isFromOcr: true }],
+      }),
+    };
+    const rows = [
+      pdf,
+      { ...dbAtt(1, "image/jpeg"), filename: "scan.pdf (page 1)", derivedFrom: pdf.id },
+    ];
+    const wire = toWireHistory([dbMsg(1, "user", "read this")], rows, false);
+    expect(wire.messages[0].content).toContain("SCAN-99417");
+    expect(wire.messages[0].content).not.toContain("cannot read images");
   });
 
   // A scan attached under a non-vision model persisted no pages, so its emptiness has to keep being explained even after
@@ -174,6 +199,51 @@ describe("toWireHistory", () => {
     const messages = [dbMsg(1, "user", "look at this")];
     const wire = toWireHistory(messages, [dbAtt(1, "image/png")], true);
     expect(wire.messages[0].content).toBe("look at this");
+  });
+});
+
+describe("describePageCuts", () => {
+  // One label for two causes told a 12-page scan that only its first 30 pages were read, which never happened.
+  it("names the cause that actually happened", () => {
+    expect(describePageCuts(new Set(["bytes"]))).toBe(
+      "Some pages were too large to send.",
+    );
+    expect(describePageCuts(new Set(["error"]))).toContain("could not be prepared");
+    expect(describePageCuts(new Set(["pages"]))).toContain(
+      `first ${PDF_OCR_MAX_PAGES} pages`,
+    );
+  });
+
+  // The toast clamps its body to two lines, so two reasons have to fit in a description that can still be read.
+  it("says both when two documents cut for different reasons, and stays readable", () => {
+    const description = describePageCuts(new Set(["error", "pages"]));
+    expect(description).toContain(`first ${PDF_OCR_MAX_PAGES} pages`);
+    expect(description).toContain("could not be prepared");
+    expect(description.length).toBeLessThanOrEqual(80);
+  });
+
+  it("says nothing when nothing was cut", () => {
+    expect(describePageCuts(new Set())).toBe("");
+  });
+});
+
+describe("topNotice", () => {
+  // The store is latest-wins, so the password failure used to be wiped by the trim notice that followed it.
+  it("keeps the gravest notice, not the newest", () => {
+    const notice = topNotice([
+      { title: "locked.pdf is password protected", tone: "error" },
+      { title: "Document trimmed" },
+    ]);
+    expect(notice?.title).toBe("locked.pdf is password protected");
+  });
+
+  it("keeps the first of equal weight, so the earliest cause is the one shown", () => {
+    const notice = topNotice([{ title: "Some pages were left out" }, { title: "Document trimmed" }]);
+    expect(notice?.title).toBe("Some pages were left out");
+  });
+
+  it("returns null when the send had nothing to say", () => {
+    expect(topNotice([])).toBeNull();
   });
 });
 

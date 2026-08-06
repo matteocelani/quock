@@ -1,5 +1,6 @@
 import {
   isPdf,
+  mergeOcrPages,
   pagesToRender,
   pdfPlaceholder,
   pdfPageBlocks,
@@ -35,6 +36,37 @@ describe("pdfPageBlocks", () => {
 
   it("emits nothing for a document with no text layer", () => {
     expect(pdfPageBlocks("scan.pdf", scan.pages)).toEqual([]);
+  });
+});
+
+describe("mergeOcrPages", () => {
+  // The bug this exists for: a hybrid document (mostly scans, a few real text pages) had its whole extraction
+  // overwritten by the OCR of the first 30 pages, so every text page the extractor had already read was thrown away.
+  it("keeps the pages the extractor read and adds the recognised ones", () => {
+    const merged = mergeOcrPages(
+      { pageCount: 40, pages: [{ page: 40, text: "signed" }] },
+      [{ page: 1, text: "recognised", isFromOcr: true }],
+    );
+    expect(merged.pages).toEqual([
+      { page: 1, text: "recognised", isFromOcr: true },
+      { page: 40, text: "signed" },
+    ]);
+    expect(merged.pageCount).toBe(40);
+  });
+
+  it("lets OCR win the page it read, since a scan's own layer has nothing to lose", () => {
+    const merged = mergeOcrPages(
+      { pageCount: 1, pages: [{ page: 1, text: "fig. 1" }] },
+      [{ page: 1, text: "the whole invoice", isFromOcr: true }],
+    );
+    expect(merged.pages).toEqual([
+      { page: 1, text: "the whole invoice", isFromOcr: true },
+    ]);
+  });
+
+  it("carries the failure through, so a locked document stays locked", () => {
+    const merged = mergeOcrPages({ ...scan, failure: "password" }, []);
+    expect(merged.failure).toBe("password");
   });
 });
 

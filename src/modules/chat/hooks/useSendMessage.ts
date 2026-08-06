@@ -23,17 +23,22 @@ import { useChatModel } from "@/modules/models/hooks/useChatModel";
 import { runStream } from "@/modules/chat/lib/streamPipeline";
 import {
   bumpSidebar,
+  describePageCuts,
   gateVisionAttachments,
   locateAssistantTurn,
   patchChatCache,
   pruneAttachmentMap,
   toWireHistory,
+  topNotice,
+  type PageCutCause,
+  type SendNotice,
 } from "@/modules/chat/lib/sendHelpers";
 import { WEB_TOOLS, type ToolDefinition } from "@/modules/chat/lib/tools";
 import {
   closePdfRender,
   extractPdfText,
   isPdf,
+  mergeOcrPages,
   pageToAttachment,
   pagesToRender,
   renderPdfPages,
@@ -158,7 +163,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           errorCode: "unknown",
         });
       } catch (writeErr) {
-        console.error("useSendMessage: could not mark the turn failed:", writeErr);
+        console.warn("useSendMessage: could not mark the turn failed:", writeErr);
       }
       queryClient.setQueryData<UseChatData>(queryKeys.chat(chatId), (prev) =>
         prev === undefined
@@ -211,6 +216,10 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       // Kept for this turn only: the render decision and the password toast are send-time concerns, while the wire
       // content is rebuilt from the rows so a later turn needs no side channel.
       const pdfResults = new Map<AttachmentId, PdfTextResult>();
+      // A failure is said the instant it happens — a locked document must not wait for another attachment's OCR — while
+      // the quieter outcomes are collected and said once, since the store keeps only the last and must not bury it.
+      let hasSaidFailure = false;
+      const notices: SendNotice[] = [];
       for (const att of inputAttachments) {
         try {
           // Optimistically-attached images carry no bytes yet (downscale + byte read were deferred off the attach
@@ -237,6 +246,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
             pdfResults.set(row.id, pdfResult);
             // A locked PDF reads as empty at every layer, so say so: silently sending nothing looks like the model ignored it.
             if (pdfResult.failure === "password") {
+              hasSaidFailure = true;
               toast({
                 title: `${ready.filename} is password protected`,
                 description: "Quock can't read a locked PDF.",
@@ -247,7 +257,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           insertedAttachments.push(row);
         } catch (err) {
           // Attachment writes are best-effort so one bad blob cannot block the rest of the turn.
-          console.error("useSendMessage: attachment write failed:", err);
+          console.warn("useSendMessage: attachment write failed:", err);
         }
       }
 
@@ -313,7 +323,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           .reduce((sum, a) => sum + a.sizeBytes, 0);
         let budget = Math.max(0, ATTACHMENT_MAX_TOTAL_BYTES - wireBytes);
         const pageRows: DbAttachment[] = [];
-        let pagesCut: "budget" | "error" | null = null;
+        const cutCauses = new Set<PageCutCause>();
         for (const row of insertedAttachments) {
           const result = pdfResults.get(row.id);
           if (result === undefined) continue;
@@ -324,21 +334,16 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           const toRead = scanned.slice(0, PDF_OCR_MAX_PAGES);
           const rendered = await renderPdfPages(row.uri ?? "", toRead);
           try {
-            if (rendered.cutBy !== null) pagesCut = rendered.cutBy;
-            if (toRead.length < scanned.length) pagesCut = "budget";
+            if (rendered.isCutShort) cutCauses.add("error");
+            if (toRead.length < scanned.length) cutCauses.add("pages");
             // Read the pixels back as text: this is the whole reason a scan is rendered even for a model without
             // vision, and it turns "I cannot read images" into an answer.
             const recognised = await ocrPages(rendered.pages);
             if (recognised.length > 0) {
-              const ocrResult: PdfTextResult = {
-                pages: recognised,
-                pageCount: result.pageCount,
-                fromOcr: true,
-              };
               try {
                 await attachments.setTextContent(
                   row.id,
-                  serializePdfText(ocrResult),
+                  serializePdfText(mergeOcrPages(result, recognised)),
                 );
               } catch (err) {
                 console.warn("useSendMessage: could not store the OCR text", err);
@@ -348,14 +353,14 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
             // to the text, and converting it to JPEG and back through JS would be work nobody reads.
             if (!hasVision) continue;
             for (const page of rendered.pages) {
-              const attachment = await pageToAttachment(
-                page,
-                row.filename,
-                row.id,
-              );
-              if (attachment?.data === undefined) continue;
+              const attachment = await pageToAttachment(page, row.filename);
+              // A page that would not convert is a page the model never sees, which is exactly what the toast is for.
+              if (attachment === null) {
+                cutCauses.add("error");
+                continue;
+              }
               if (attachment.sizeBytes > budget) {
-                pagesCut = "budget";
+                cutCauses.add("bytes");
                 break;
               }
               budget -= attachment.sizeBytes;
@@ -364,10 +369,9 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
                   await attachments.add({
                     messageId: userMessage.id,
                     filename: attachment.filename,
-                    mimeType: attachment.mimeType ?? null,
+                    mimeType: attachment.mimeType,
                     data: attachment.data,
-                    // The JPEG behind it is deleted once read: a derived page is never shown, so a path to a file that
-                    // no longer exists would only be a trap for the next reader.
+                    // Its JPEG is already deleted and a derived page is never shown, so there is no path worth storing.
                     uri: null,
                     sizeBytes: attachment.sizeBytes,
                     textContent: null,
@@ -377,7 +381,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
                 );
               } catch (err) {
                 // Best-effort like the picks above: a failed page must not reject the send and strand the pending row.
-                console.error("useSendMessage: page write failed:", err);
+                console.warn("useSendMessage: page write failed:", err);
               }
             }
           } finally {
@@ -385,13 +389,10 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
             await closePdfRender(row.uri ?? "");
           }
         }
-        if (pagesCut !== null) {
-          toast({
+        if (cutCauses.size > 0) {
+          notices.push({
             title: "Some pages were left out",
-            description:
-              pagesCut === "budget"
-                ? `Only the first ${PDF_OCR_MAX_PAGES} pages of a scan are read.`
-                : "Some pages of this document could not be prepared.",
+            description: describePageCuts(cutCauses),
           });
         }
         // Fresh array and Map: the first patch handed the previous ones to the cache, and mutating those in place
@@ -410,14 +411,15 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           );
         }
       }
-      // Replay the full history each send (`/api/chat` is stateless). Read from SQLite, not the cache: a cold cache
-      // (sending in a just-opened chat) would replay EMPTY history. Only the pending assistant row is excluded.
-      // Every user turn re-folds its own documents and re-attaches its own images from their rows, so the PDF asked
-      // about three questions ago is still there. The current turn included: its rows were written above.
+      // Replay the full history each send (`/api/chat` is stateless), read from SQLite because a cold cache (sending in a
+      // just-opened chat) would replay EMPTY. Every user turn re-folds its own rows, so a PDF three questions back is there.
       let wireMessages: WireChatMessage[];
       try {
         const dbForWire = await messages.listByChat(chatId);
-        const attachmentRows = await attachments.listByChatForWire(chatId);
+        const attachmentRows = await attachments.listByChatForWire(
+          chatId,
+          hasVision,
+        );
         const wire = toWireHistory(
           dbForWire.filter((m) => m.id !== placeholderAssistant.id),
           attachmentRows,
@@ -425,7 +427,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         );
         wireMessages = wire.messages;
         if (wire.isTruncated) {
-          toast({
+          notices.push({
             title: "Document trimmed",
             description:
               "Too much text to send in full; the newest parts were kept.",
@@ -435,6 +437,9 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         await failPending(placeholderAssistant.id, err);
         return;
       }
+      // Nothing quiet may overwrite a failure the user has already been shown.
+      const notice = hasSaidFailure ? null : topNotice(notices);
+      if (notice !== null) toast(notice);
       await runStreamWithContext(
         model.name,
         placeholderAssistant.id,
@@ -516,7 +521,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       try {
         const wire = toWireHistory(
           headSlice,
-          await attachments.listByChatForWire(chatId),
+          await attachments.listByChatForWire(chatId, hasVision),
           hasVision,
         );
         wireMessages = wire.messages;
@@ -615,7 +620,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       try {
         const wire = toWireHistory(
           headSlice,
-          await attachments.listByChatForWire(chatId),
+          await attachments.listByChatForWire(chatId, hasVision),
           hasVision,
         );
         wireMessages = wire.messages;
@@ -679,8 +684,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       });
       await messages.deleteAfter(chatId, userMessageId);
       // Attachments stay bound to the user message; vision-gating mirrors `send`.
-      const persistedAttachments =
-        await attachments.listByMessage(userMessageId);
+      const persistedAttachments = await attachments.listByMessage(userMessageId);
       const placeholderAssistant = await messages.append({
         chatId,
         role: "assistant",
@@ -729,7 +733,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       try {
         const editedWire = toWireHistory(
           [...headSlice, { ...userMessage, content: newContent }],
-          await attachments.listByChatForWire(chatId),
+          await attachments.listByChatForWire(chatId, hasVision),
           hasVision,
         );
         wireMessages = editedWire.messages;

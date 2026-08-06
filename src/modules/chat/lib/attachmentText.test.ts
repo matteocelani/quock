@@ -101,6 +101,22 @@ describe("attachmentTextBlocks", () => {
         filename: "scan.pdf",
         textContent: serializePdfText({
           pageCount: 1,
+          pages: [{ page: 1, text: "SCAN-99417", isFromOcr: true }],
+        }),
+      }),
+      true,
+    );
+    expect(blocks[0].filename).toBe("scan.pdf, page 1 (text recognised from the scan)");
+    expect(blocks[0].text).toBe("SCAN-99417");
+  });
+
+  // The flag used to sit on the document. A device that OCR'd a scan under that build must keep saying so on replay.
+  it("still reads the flag from rows written before it moved per page", () => {
+    const blocks = attachmentTextBlocks(
+      row({
+        filename: "scan.pdf",
+        textContent: JSON.stringify({
+          pageCount: 1,
           pages: [{ page: 1, text: "SCAN-99417" }],
           fromOcr: true,
         }),
@@ -108,6 +124,26 @@ describe("attachmentTextBlocks", () => {
       true,
     );
     expect(blocks[0].filename).toBe("scan.pdf, page 1 (text recognised from the scan)");
-    expect(blocks[0].text).toBe("SCAN-99417");
+  });
+
+  // A hybrid document mixes the two, and only the recognised pages carry the hedge.
+  it("labels page by page, not by document", () => {
+    const blocks = attachmentTextBlocks(
+      row({
+        filename: "mixed.pdf",
+        textContent: serializePdfText({
+          pageCount: 2,
+          pages: [
+            { page: 1, text: "read from the layer" },
+            { page: 2, text: "recognised", isFromOcr: true },
+          ],
+        }),
+      }),
+      true,
+    );
+    expect(blocks.map((b) => b.filename)).toEqual([
+      "mixed.pdf, page 1",
+      "mixed.pdf, page 2 (text recognised from the scan)",
+    ]);
   });
 });

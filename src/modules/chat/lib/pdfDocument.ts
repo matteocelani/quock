@@ -13,8 +13,6 @@ import {
   PDF_TEXT_THIN_CHARS_PER_PAGE,
 } from "@/modules/chat/constants";
 import type { TextBlockInput } from "@/modules/chat/lib/documentText";
-import type { AttachmentId } from "@/lib/types/ids";
-import type { UiAttachment } from "@/modules/chat/types";
 
 const PDF_MIME = "application/pdf";
 
@@ -28,22 +26,24 @@ export function isPdf(
 
 // Why not just a string: no text has three causes the caller must tell apart. A locked PDF can never be read and the
 // user has to hear that; a document whose pages are pictures needs the vision half; anything else is a broken file.
+export type PdfFailure = "password" | "unreadable";
+
 export interface PdfPageText {
   page: number;
   text: string;
+  // Set when THIS page's characters were recognised from its pixels rather than read from the file's own text layer. Per
+  // page, because a hybrid document mixes the two and OCR — which misreads a digit now and then — should not taint both.
+  isFromOcr?: boolean;
 }
 export interface PdfTextResult {
   // Only pages that carry text, so a blank page costs nothing downstream.
   pages: PdfPageText[];
   pageCount: number;
-  failure?: "password" | "unreadable";
-  // Set when the text was recognised from the rendered pages instead of read from the file's own layer. OCR misreads a
-  // digit now and then, and a model told where the text came from can hedge instead of asserting.
-  fromOcr?: boolean;
+  failure?: PdfFailure;
 }
 
 // The extractor throws with a `.code` for the cases it can name; everything else is just a broken file.
-function classifyFailure(err: unknown): "password" | "unreadable" {
+function classifyFailure(err: unknown): PdfFailure {
   if (typeof err !== "object" || err === null || !("code" in err)) {
     return "unreadable";
   }
@@ -84,13 +84,28 @@ export async function extractPdfText(uri: string): Promise<PdfTextResult> {
 export function pdfPageBlocks(
   filename: string,
   pages: readonly PdfPageText[],
-  fromOcr = false,
 ): TextBlockInput[] {
-  const suffix = fromOcr ? " (text recognised from the scan)" : "";
   return pages.map((p) => ({
-    filename: `${filename}, page ${p.page}${suffix}`,
+    filename: `${filename}, page ${p.page}${
+      p.isFromOcr === true ? " (text recognised from the scan)" : ""
+    }`,
     text: p.text,
   }));
+}
+
+// OCR wins per page (a scan's own layer has nothing to lose) while every page the extractor already read survives: a
+// hybrid document must keep its real text pages, and so must the pages past the OCR cap.
+export function mergeOcrPages(
+  result: PdfTextResult,
+  recognised: readonly PdfPageText[],
+): PdfTextResult {
+  const byPage = new Map<number, PdfPageText>();
+  for (const p of result.pages) byPage.set(p.page, p);
+  for (const p of recognised) byPage.set(p.page, p);
+  return {
+    ...result,
+    pages: [...byPage.values()].sort((a, b) => a.page - b.page),
+  };
 }
 
 // Whether the pages ARE pictures rather than pages carrying pictures. A digital document averages thousands of
@@ -138,29 +153,28 @@ export interface RenderedPage {
 
 export interface RenderedPages {
   pages: RenderedPage[];
-  // Set when fewer pages came back than were asked for, so the caller can say the true reason instead of guessing one.
-  cutBy: "error" | null;
+  // Set when fewer pages came back than were asked for, so the caller can say so instead of shipping a silent gap.
+  isCutShort: boolean;
 }
 
 export async function renderPdfPages(
   uri: string,
   pages: readonly number[],
 ): Promise<RenderedPages> {
-  if (pages.length === 0) return { pages: [], cutBy: null };
+  if (pages.length === 0) return { pages: [], isCutShort: false };
   // Degrade like the text side does: a PDF that cannot be opened costs the pages, never the send.
   try {
     await PdfPageImage.open(uri);
   } catch (err) {
     console.warn("pdfDocument: cannot open the PDF for rendering", err);
-    return { pages: [], cutBy: "error" };
+    return { pages: [], isCutShort: true };
   }
   const out: RenderedPage[] = [];
-  let cutBy: "error" | null = null;
+  let isCutShort = false;
   try {
     for (const page of pages) {
-      // The module indexes pages from zero (PDFKit `page(at:)`, Android `openPage`), while everything else here counts
-      // from one, as the page numbers the model is shown. Asking for `page` directly renders the NEXT one and throws
-      // on the last, which reads as a document that silently skips its first page.
+      // The module indexes pages from zero (PDFKit `page(at:)`, Android `openPage`) while everything here counts from one:
+      // asking for `page` directly renders the NEXT one, throws on the last, and silently drops page 1.
       const rendered = await PdfPageImage.generate(
         uri,
         page - 1,
@@ -176,9 +190,9 @@ export async function renderPdfPages(
   } catch (err) {
     // Keep the pages that did render: a document that stops early still gives the model something.
     console.warn("pdfDocument: page render stopped early", err);
-    cutBy = "error";
+    isCutShort = true;
   }
-  return { pages: out, cutBy };
+  return { pages: out, isCutShort };
 }
 
 // Frees the native document and deletes every file it rendered. Call it once the pages have been read.
@@ -188,13 +202,21 @@ export async function closePdfRender(uri: string): Promise<void> {
   });
 }
 
+// Deliberately not a `UiAttachment`: the JPEG behind a derived page is deleted as soon as its bytes are read, so a shape
+// carrying a `uri` would advertise a path to a file that no longer exists. The row keeps the bytes; nothing shows a page.
+export interface RenderedPageAttachment {
+  filename: string;
+  mimeType: string;
+  data: Uint8Array;
+  sizeBytes: number;
+}
+
 // Turns one rendered page into a wire attachment: JPEG for the size (a PNG page is ten times bigger and every turn
 // re-uploads it) and bytes because that is what the row stores. Only worth doing for a model that can see images.
 export async function pageToAttachment(
   rendered: RenderedPage,
   filename: string,
-  sourceId: AttachmentId,
-): Promise<UiAttachment | null> {
+): Promise<RenderedPageAttachment | null> {
   try {
     const jpegUri = await toJpegUri(
       rendered.uri,
@@ -202,18 +224,13 @@ export async function pageToAttachment(
       rendered.height,
     );
     const data = await readUriAsBytes(jpegUri);
-    // The JPEG is a means, not a keepsake: the row carries the bytes, and a derived page is never shown, so leaving the
-    // file behind would only fill the cache directory.
+    // The JPEG is a means, not a keepsake: the row carries the bytes, so leaving the file behind would only fill the cache.
     await deleteFileQuietly(jpegUri);
     return {
-      // Key the id off sourceId (unique per pick), never filename — two same-named PDFs must not collide.
-      id: `pdfpage-${sourceId}-${rendered.page}`,
       filename: `${filename} (page ${rendered.page})`,
-      uri: jpegUri,
       mimeType: "image/jpeg",
       data,
       sizeBytes: data.byteLength,
-      status: "ready",
     };
   } catch (err) {
     console.warn(`pdfDocument: page ${rendered.page} did not convert`, err);

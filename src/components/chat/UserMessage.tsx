@@ -135,6 +135,7 @@ function UserMessageImpl({
       <Animated.View style={animatedStyle}>
         {hasAttachments ? (
           <ScrollView
+            key={String(message.id)}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{
@@ -181,9 +182,10 @@ function UserMessageImpl({
   return (
     <Animated.View style={animatedStyle}>
       {hasAttachments ? (
-        /* One scrolling band, as the composer already does with the draft chips: wrapping turned six attachments into
-           a ragged staircase that pushed the message down the screen. Anchored right so one chip sits under the bubble. */
+        /* One scrolling band, like the composer's draft chips: wrapping turned six attachments into a ragged staircase. It
+           right-anchors while it fits, and is keyed by message so a recycled FlashList row cannot inherit its scroll offset. */
         <ScrollView
+          key={String(message.id)}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{

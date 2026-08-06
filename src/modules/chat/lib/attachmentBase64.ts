@@ -41,7 +41,8 @@ export function encodeAttachmentBase64(
   return encoded;
 }
 
-// Test seam: the cache is module state, and a suite that asserts on hits must be able to start from empty.
+// Called when the rows themselves are wiped, since the keys point at ids that no longer exist. Also the seam a suite
+// asserting on hits needs to start from empty.
 export function clearAttachmentBase64Cache(): void {
   cache.clear();
   cachedChars = 0;
