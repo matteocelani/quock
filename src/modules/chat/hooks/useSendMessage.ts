@@ -143,6 +143,35 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       updateProgress,
     ],
   );
+  // A throw between the placeholder row and the stream leaves that row `pending` forever: the chat sits on the typing
+  // dots with nothing to retry and no reason shown. Mark the turn failed instead, so the failure is visible and retryable.
+  const failPending = React.useCallback(
+    async (assistantId: MessageId, err: unknown): Promise<void> => {
+      console.error("useSendMessage: failed before the stream started:", err);
+      try {
+        await messages.update(assistantId, {
+          status: "error",
+          errorCode: "unknown",
+        });
+      } catch (writeErr) {
+        console.error("useSendMessage: could not mark the turn failed:", writeErr);
+      }
+      queryClient.setQueryData<UseChatData>(queryKeys.chat(chatId), (prev) =>
+        prev === undefined
+          ? prev
+          : {
+              ...prev,
+              messages: prev.messages.map((m) =>
+                m.id === assistantId
+                  ? { ...m, status: "error" as const, errorCode: "unknown" as const }
+                  : m,
+              ),
+            },
+      );
+      toast({ title: "Couldn't send", tone: "error" });
+    },
+    [chatId, messages, queryClient, toast],
+  );
   const send = React.useCallback(
     async (input: SendMessageInput): Promise<void> => {
       if (!model) {
@@ -343,22 +372,28 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       }
       // Replay the full history each send (`/api/chat` is stateless). Read from SQLite, not the cache: a cold cache
       // (sending in a just-opened chat) would replay EMPTY history. Only the pending assistant row is excluded.
-      const dbForWire = await messages.listByChat(chatId);
       // Every user turn re-folds its own documents and re-attaches its own images from their rows, so the PDF asked
       // about three questions ago is still there. The current turn included: its rows were written above.
-      const attachmentRows = await attachments.listByChatForWire(chatId);
-      const wire = toWireHistory(
-        dbForWire.filter((m) => m.id !== placeholderAssistant.id),
-        attachmentRows,
-        hasVision,
-      );
-      const wireMessages = wire.messages;
-      if (wire.isTruncated) {
-        toast({
-          title: "Document trimmed",
-          description:
-            "Too much text to send in full; the newest parts were kept.",
-        });
+      let wireMessages: WireChatMessage[];
+      try {
+        const dbForWire = await messages.listByChat(chatId);
+        const attachmentRows = await attachments.listByChatForWire(chatId);
+        const wire = toWireHistory(
+          dbForWire.filter((m) => m.id !== placeholderAssistant.id),
+          attachmentRows,
+          hasVision,
+        );
+        wireMessages = wire.messages;
+        if (wire.isTruncated) {
+          toast({
+            title: "Document trimmed",
+            description:
+              "Too much text to send in full; the newest parts were kept.",
+          });
+        }
+      } catch (err) {
+        await failPending(placeholderAssistant.id, err);
+        return;
       }
       await runStreamWithContext(
         model.name,
@@ -374,6 +409,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       attachments,
       chatId,
       chats,
+      failPending,
       forceThink,
       hasTools,
       hasVision,
@@ -436,18 +472,24 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       );
 
       // Wire history for regenerate: every turn UP TO AND INCLUDING the user message we're re-asking. `headSlice` already excludes the assistant turn being replaced.
-      const wire = toWireHistory(
-        headSlice,
-        await attachments.listByChatForWire(chatId),
-        hasVision,
-      );
-      const wireMessages = wire.messages;
-      if (wire.isTruncated) {
-        toast({
-          title: "Document trimmed",
-          description:
-            "Too much text to send in full; the newest parts were kept.",
-        });
+      let wireMessages: WireChatMessage[];
+      try {
+        const wire = toWireHistory(
+          headSlice,
+          await attachments.listByChatForWire(chatId),
+          hasVision,
+        );
+        wireMessages = wire.messages;
+        if (wire.isTruncated) {
+          toast({
+            title: "Document trimmed",
+            description:
+              "Too much text to send in full; the newest parts were kept.",
+          });
+        }
+      } catch (err) {
+        await failPending(placeholderAssistant.id, err);
+        return;
       }
       await runStreamWithContext(
         model.name,
@@ -463,6 +505,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       attachments,
       chatId,
       chats,
+      failPending,
       forceThink,
       hasTools,
       hasVision,
@@ -528,18 +571,24 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         preservedAttachments,
       );
 
-      const wire = toWireHistory(
-        headSlice,
-        await attachments.listByChatForWire(chatId),
-        hasVision,
-      );
-      const wireMessages = wire.messages;
-      if (wire.isTruncated) {
-        toast({
-          title: "Document trimmed",
-          description:
-            "Too much text to send in full; the newest parts were kept.",
-        });
+      let wireMessages: WireChatMessage[];
+      try {
+        const wire = toWireHistory(
+          headSlice,
+          await attachments.listByChatForWire(chatId),
+          hasVision,
+        );
+        wireMessages = wire.messages;
+        if (wire.isTruncated) {
+          toast({
+            title: "Document trimmed",
+            description:
+              "Too much text to send in full; the newest parts were kept.",
+          });
+        }
+      } catch (err) {
+        await failPending(assistantMessageId, err);
+        return;
       }
       await runStreamWithContext(
         model.name,
@@ -555,6 +604,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       attachments,
       chatId,
       chats,
+      failPending,
       forceThink,
       hasTools,
       hasVision,
@@ -635,18 +685,24 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       );
       // The edited turn goes THROUGH the builder rather than being appended by hand: hand-building it left its own
       // documents and images out, so editing a prompt that carried a PDF re-asked the question without the PDF.
-      const editedWire = toWireHistory(
-        [...headSlice, { ...userMessage, content: newContent }],
-        await attachments.listByChatForWire(chatId),
-        hasVision,
-      );
-      const wireMessages: WireChatMessage[] = editedWire.messages;
-      if (editedWire.isTruncated) {
-        toast({
-          title: "Document trimmed",
-          description:
-            "Too much text to send in full; the newest parts were kept.",
-        });
+      let wireMessages: WireChatMessage[];
+      try {
+        const editedWire = toWireHistory(
+          [...headSlice, { ...userMessage, content: newContent }],
+          await attachments.listByChatForWire(chatId),
+          hasVision,
+        );
+        wireMessages = editedWire.messages;
+        if (editedWire.isTruncated) {
+          toast({
+            title: "Document trimmed",
+            description:
+              "Too much text to send in full; the newest parts were kept.",
+          });
+        }
+      } catch (err) {
+        await failPending(placeholderAssistant.id, err);
+        return;
       }
       await runStreamWithContext(
         model.name,
@@ -661,6 +717,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       attachments,
       chatId,
       chats,
+      failPending,
       forceThink,
       hasTools,
       hasVision,

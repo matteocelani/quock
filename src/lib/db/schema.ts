@@ -77,6 +77,8 @@ const ADD_CHAT_USER = `
 `;
 // A PDF's extracted text (JSON, so the per-page structure survives), stored once so every later turn can replay it
 // without a native pass. NULL for anything re-decodable from `data`. The index serves the new per-chat attachment read.
+// Numbered 10, not 9: a build carrying a DIFFERENT migration 9 shipped to a device and stamped user_version = 9 there,
+// so 9 is burned forever. An id is spent the moment any install runs it, even if the migration is deleted before merge.
 const ADD_ATTACHMENT_TEXT = `
   ALTER TABLE attachments ADD COLUMN text_content TEXT;
   CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
@@ -91,7 +93,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { id: 6, up: ADD_CHAT_COMPOSER_MODES },
   { id: 7, up: ADD_MESSAGE_SENT_MODES },
   { id: 8, up: ADD_CHAT_USER },
-  { id: 9, up: ADD_ATTACHMENT_TEXT },
+  { id: 10, up: ADD_ATTACHMENT_TEXT },
 ];
 export const CURRENT_VERSION: number =
   MIGRATIONS.length > 0
