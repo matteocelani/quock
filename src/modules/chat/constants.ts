@@ -45,6 +45,9 @@ export const ATTACHMENT_REPLAY_MAX_BYTES = 20_000_000;
 // 2048 / 842pt (A4's long edge): the render lands ON the upload ceiling instead of 57px past it, so the resize pass —
 // which decodes and redraws the whole page just to shave those pixels — never runs for A4 or Letter.
 export const PDF_PAGE_RENDER_SCALE = 2.43;
+// Filenames a failure toast spells out before falling back to "and N more": its body is clamped to two lines, and a
+// third name pushes the count past what fits.
+export const TOAST_MAX_NAMED_FILES = 2;
 // Pages of a SCAN that get rendered and read. A scan costs a render plus a recognition per page — around a second each
 // — so this bounds the wait, not the payload; a document that reads as text has no cap at all.
 export const PDF_OCR_MAX_PAGES = 30;

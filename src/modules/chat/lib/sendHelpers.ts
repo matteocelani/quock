@@ -14,6 +14,7 @@ import { encodeAttachmentBase64 } from "@/modules/chat/lib/attachmentBase64";
 import {
   ATTACHMENT_REPLAY_MAX_BYTES,
   PDF_OCR_MAX_PAGES,
+  TOAST_MAX_NAMED_FILES,
 } from "@/modules/chat/constants";
 import {
   allocateBlocks,
@@ -67,6 +68,52 @@ const TONE_RANK: Record<ToastTone, number> = {
   success: 1,
   info: 0,
 };
+
+// Why a picked file never made it into the turn. `write` is the row itself failing, which costs the attachment entirely.
+export type PickFailureReason = "password" | "unreadable" | "write";
+
+export interface PickFailure {
+  filename: string;
+  reason: PickFailureReason;
+}
+
+const PICK_FAILURE_TEXT: Record<PickFailureReason, string> = {
+  password: "Quock can't read a locked PDF.",
+  unreadable: "The file is damaged, or it is not really a PDF.",
+  // Says nothing about the message itself: whatever stopped the row from being written usually stops the send too.
+  write: "It couldn't be saved with the message.",
+};
+
+// One notice for every file that did not make it, because the store keeps only the last: two damaged documents in one
+// send used to bury each other, and the first was never named while the model got an empty placeholder for it.
+export function describePickFailures(
+  failures: readonly PickFailure[],
+): SendNotice | null {
+  if (failures.length === 0) return null;
+  if (failures.length === 1) {
+    const only = failures[0];
+    return {
+      title:
+        only.reason === "password"
+          ? `${only.filename} is password protected`
+          : `${only.filename} couldn't be used`,
+      description: PICK_FAILURE_TEXT[only.reason],
+      tone: "error",
+    };
+  }
+  // Only the first names: the toast body is two lines, and eight joined filenames would clip away the very part that
+  // makes it actionable. The count in the title always survives.
+  const named = failures
+    .slice(0, TOAST_MAX_NAMED_FILES)
+    .map((f) => f.filename)
+    .join(", ");
+  const rest = failures.length - TOAST_MAX_NAMED_FILES;
+  return {
+    title: `${failures.length} attachments couldn't be used`,
+    description: rest > 0 ? `${named} and ${rest} more` : named,
+    tone: "error",
+  };
+}
 
 // The toast store is latest-wins, so a send with more than one thing to say leaves only the last notice on screen — and
 // the gravest (a document that could not be read at all) is the first to fire. Say the worst one instead of the newest.

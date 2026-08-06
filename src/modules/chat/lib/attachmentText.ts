@@ -20,33 +20,46 @@ export function serializePdfText(result: PdfTextResult): string {
   return JSON.stringify(result);
 }
 
-// One stored page, or nothing: a malformed entry costs its own page instead of the whole document. `wasOcr` carries the
-// flag rows written before it moved per page, so a scan read yesterday still tells the model its text was recognised.
-function toPageText(raw: unknown, wasOcr: boolean): PdfPageText | null {
+// One stored page, or nothing: a malformed entry costs its own page instead of the whole document. The document-level
+// flag is honoured for rows written before it moved per page, so a scan read yesterday still says its text was recognised.
+function toPageText(
+  raw: unknown,
+  isDocumentFromOcr: boolean,
+): PdfPageText | null {
   if (typeof raw !== "object" || raw === null) return null;
   const { page, text, isFromOcr } = raw as Record<string, unknown>;
   if (typeof page !== "number" || typeof text !== "string") return null;
-  return isFromOcr === true || wasOcr
+  return isFromOcr === true || isDocumentFromOcr
     ? { page, text, isFromOcr: true }
     : { page, text };
 }
 
-// Malformed stored text costs the document, never the send: an old or half-written row must not throw mid-turn.
-function parsePdfText(raw: string): PdfTextResult | null {
+// Malformed stored text costs the document, never the send: an old or half-written row must not throw mid-turn. Named in
+// the log because a document dropped from a turn is otherwise indistinguishable from one the model chose to ignore.
+function parsePdfText(raw: string, filename: string): PdfTextResult | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch (err) {
-    console.warn("attachmentText: stored PDF text is not readable", err);
+    console.warn(`attachmentText: ${filename} has unreadable stored text`, err);
     return null;
   }
-  if (typeof parsed !== "object" || parsed === null) return null;
-  const { pages, pageCount, failure, fromOcr } = parsed as Record<
+  const { pages, pageCount, failure, fromOcr } = (parsed ?? {}) as Record<
     string,
     unknown
   >;
-  if (!Array.isArray(pages)) return null;
-  if (typeof pageCount !== "number" || !Number.isInteger(pageCount)) return null;
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    !Array.isArray(pages) ||
+    typeof pageCount !== "number" ||
+    !Number.isInteger(pageCount)
+  ) {
+    console.warn(
+      `attachmentText: ${filename} has stored text of an unexpected shape`,
+    );
+    return null;
+  }
   return {
     pageCount: Math.max(0, pageCount),
     pages: pages.flatMap((p) => toPageText(p, fromOcr === true) ?? []),
@@ -61,8 +74,17 @@ export function attachmentTextBlocks(
   hasPages: boolean,
 ): TextBlockInput[] {
   if (row.textContent !== null) {
-    const result = parsePdfText(row.textContent);
-    if (result === null) return [];
+    const result = parsePdfText(row.textContent, row.filename);
+    // Returning nothing would let the model answer about a document it never received. Said out loud instead, which is
+    // the same contract as a document that could not be read in the first place.
+    if (result === null) {
+      return [
+        {
+          filename: row.filename,
+          text: `[${row.filename} — its stored text could not be read back]`,
+        },
+      ];
+    }
     const blocks = pdfPageBlocks(row.filename, result.pages);
     const note = pdfPlaceholder(row.filename, result, hasPages);
     return note === null

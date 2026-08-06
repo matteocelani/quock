@@ -88,10 +88,14 @@ describe("attachmentTextBlocks", () => {
     ).toEqual([]);
   });
 
-  it("survives stored text that is not readable", () => {
-    expect(
-      attachmentTextBlocks(row({ textContent: "{not json" }), true),
-    ).toEqual([]);
+  // Returning nothing would let the model answer about a document it never received, confidently and wrongly.
+  it("says so when the stored text cannot be read back", () => {
+    const blocks = attachmentTextBlocks(
+      row({ textContent: "{not json" }),
+      true,
+    );
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].text).toContain("could not be read back");
   });
 
   // The model is told the text was recognised rather than read, because OCR misreads a digit now and then.

@@ -24,6 +24,7 @@ import { runStream } from "@/modules/chat/lib/streamPipeline";
 import {
   bumpSidebar,
   describePageCuts,
+  describePickFailures,
   gateVisionAttachments,
   locateAssistantTurn,
   patchChatCache,
@@ -31,6 +32,7 @@ import {
   toWireHistory,
   topNotice,
   type PageCutCause,
+  type PickFailure,
   type SendNotice,
 } from "@/modules/chat/lib/sendHelpers";
 import { WEB_TOOLS, type ToolDefinition } from "@/modules/chat/lib/tools";
@@ -156,7 +158,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
   // dots with nothing to retry and no reason shown. Mark the turn failed instead, so the failure is visible and retryable.
   const failPending = React.useCallback(
     async (assistantId: MessageId, err: unknown): Promise<void> => {
-      console.error("useSendMessage: failed before the stream started:", err);
+      console.warn("useSendMessage: failed before the stream started:", err);
       try {
         await messages.update(assistantId, {
           status: "error",
@@ -220,6 +222,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       // the quieter outcomes are collected and said once, since the store keeps only the last and must not bury it.
       let hasSaidFailure = false;
       const notices: SendNotice[] = [];
+      const pickFailures: PickFailure[] = [];
       for (const att of inputAttachments) {
         try {
           // Optimistically-attached images carry no bytes yet (downscale + byte read were deferred off the attach
@@ -244,21 +247,29 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           });
           if (pdfResult !== null) {
             pdfResults.set(row.id, pdfResult);
-            // A locked PDF reads as empty at every layer, so say so: silently sending nothing looks like the model ignored it.
-            if (pdfResult.failure === "password") {
-              hasSaidFailure = true;
-              toast({
-                title: `${ready.filename} is password protected`,
-                description: "Quock can't read a locked PDF.",
-                tone: "error",
+            // A PDF that could not be read is empty at every layer, so say so: sending nothing in silence looks exactly
+            // like a model that ignored the attachment, and only the prompt would carry the reason.
+            if (pdfResult.failure !== undefined) {
+              pickFailures.push({
+                filename: ready.filename,
+                reason: pdfResult.failure,
               });
             }
           }
           insertedAttachments.push(row);
         } catch (err) {
-          // Attachment writes are best-effort so one bad blob cannot block the rest of the turn.
+          // Best-effort so one bad blob cannot block the rest of the turn, but never silent: the file would otherwise
+          // vanish from its own bubble, and the question would be asked about a document the model never got.
           console.warn("useSendMessage: attachment write failed:", err);
+          pickFailures.push({ filename: att.filename, reason: "write" });
         }
+      }
+      // Said before the render phase, so a locked document is named the moment it is picked rather than after a scan's
+      // OCR, and said once, because a toast per file would leave only the last one on screen.
+      const pickNotice = describePickFailures(pickFailures);
+      if (pickNotice !== null) {
+        hasSaidFailure = true;
+        toast(pickNotice);
       }
 
       const placeholderAssistant = await messages.append({
@@ -346,12 +357,35 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
                   serializePdfText(mergeOcrPages(result, recognised)),
                 );
               } catch (err) {
+                // The wire is rebuilt from the row, so text that failed to store is text this turn does not carry
+                // either — and for a vision model the pages hide it, so nothing else would report the loss.
                 console.warn("useSendMessage: could not store the OCR text", err);
+                notices.push({
+                  title: `Couldn't keep the text read from ${row.filename}`,
+                  description: "Attach it again to have it read once more.",
+                  tone: "warning",
+                });
               }
             }
             // The pixels are only worth keeping for a model that can see them; otherwise the render was just the means
             // to the text, and converting it to JPEG and back through JS would be work nobody reads.
-            if (!hasVision) continue;
+            if (!hasVision) {
+              // Pages rendered but nothing recognised in them, and no text layer either: the document reaches the model
+              // empty. Only when pages DID render, because otherwise the reason is the render and the cut notice says it.
+              if (
+                rendered.pages.length > 0 &&
+                recognised.length === 0 &&
+                result.pages.length === 0
+              ) {
+                notices.push({
+                  title: `No text could be read from ${row.filename}`,
+                  description:
+                    "Attach it again with a model that can read images.",
+                  tone: "warning",
+                });
+              }
+              continue;
+            }
             for (const page of rendered.pages) {
               const attachment = await pageToAttachment(page, row.filename);
               // A page that would not convert is a page the model never sees, which is exactly what the toast is for.
@@ -381,7 +415,9 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
                 );
               } catch (err) {
                 // Best-effort like the picks above: a failed page must not reject the send and strand the pending row.
+                // It still counts as a page the model will not see, which is what the cut toast exists to say.
                 console.warn("useSendMessage: page write failed:", err);
+                cutCauses.add("error");
               }
             }
           } finally {
@@ -401,14 +437,20 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           const withPages = [...insertedAttachments, ...pageRows];
           const patched = new Map(updatedAttachments);
           patched.set(userMessage.id, withPages);
-          await patchChatCache(
-            queryClient,
-            chats,
-            chatId,
-            queryClient.getQueryData<UseChatData>(queryKeys.chat(chatId)),
-            [...updatedMessages],
-            patched,
-          );
+          try {
+            await patchChatCache(
+              queryClient,
+              chats,
+              chatId,
+              queryClient.getQueryData<UseChatData>(queryKeys.chat(chatId)),
+              [...updatedMessages],
+              patched,
+            );
+          } catch (err) {
+            // The rows are already written, so a failed patch costs a redraw, never the turn: rejecting here would
+            // strand the pending assistant row on the typing dots with nothing to retry.
+            console.warn("useSendMessage: could not show the pages", err);
+          }
         }
       }
       // Replay the full history each send (`/api/chat` is stateless), read from SQLite because a cold cache (sending in a

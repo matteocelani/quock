@@ -255,23 +255,46 @@ export function AttachSheet({
         return;
       }
       // The OS picker has no per-trip limit for documents, so the slots left are enforced here.
-      for (const asset of result.assets.slice(0, remaining)) {
-        const bytes = await readUriAsBytes(asset.uri);
-        onAttach(
-          buildAttachment(
-            {
-              filename: asset.name,
-              uri: asset.uri,
-              data: bytes,
-              ...(asset.mimeType !== undefined
-                ? { mimeType: asset.mimeType }
-                : {}),
-            },
-            bytes.byteLength,
-          ),
-        );
+      const attempted = Math.min(result.assets.length, remaining);
+      let unread = 0;
+      for (const asset of result.assets.slice(0, attempted)) {
+        // Per file, not per trip: one unreadable pick used to abort the loop and drop every file chosen after it.
+        try {
+          const bytes = await readUriAsBytes(asset.uri);
+          onAttach(
+            buildAttachment(
+              {
+                filename: asset.name,
+                uri: asset.uri,
+                data: bytes,
+                ...(asset.mimeType !== undefined
+                  ? { mimeType: asset.mimeType }
+                  : {}),
+              },
+              bytes.byteLength,
+            ),
+          );
+        } catch (err) {
+          console.warn("AttachSheet: could not read a picked file", err);
+          unread += 1;
+        }
       }
-      if (result.assets.length > remaining) {
+      // One toast, because the store keeps only the last: two calls here meant the dropped file was announced and then
+      // instantly overwritten by the softer cap warning, which is the silence this branch exists to remove.
+      // Counted, not assumed: a pick can lose files two ways at once — unreadable, and past the slots left — and the
+      // description has to hold for both, since the store shows one toast and this is the only account of the pick.
+      const attached = attempted - unread;
+      const overCap = result.assets.length - attempted;
+      const capNote = ` ${overCap} more didn't fit — a message carries up to ${ATTACHMENT_SELECTION_LIMIT}.`;
+      if (unread > 0) {
+        toast({
+          title: `${unread} file${unread > 1 ? "s" : ""} couldn't be read`,
+          description: `${
+            attached > 0 ? `${attached} attached.` : "Nothing was attached."
+          }${overCap > 0 ? capNote : ""}`,
+          tone: "error",
+        });
+      } else if (overCap > 0) {
         toast({
           title: `Only ${remaining} more file${remaining > 1 ? "s" : ""} fit`,
           description: `A message carries up to ${ATTACHMENT_SELECTION_LIMIT} attachments.`,
@@ -279,7 +302,7 @@ export function AttachSheet({
         });
       }
     } catch (err) {
-      console.error("AttachSheet: document picker failed", err);
+      console.warn("AttachSheet: document picker failed", err);
     }
   }, [currentCount, onAttach, onClose, onReopen, toast]);
   return (

@@ -12,6 +12,7 @@ import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import {
   bumpSidebar,
   describePageCuts,
+  describePickFailures,
   gateVisionAttachments,
   locateAssistantTurn,
   patchChatCache,
@@ -114,7 +115,7 @@ describe("toWireHistory", () => {
       filename: "invoices.pdf",
       textContent: JSON.stringify({
         pageCount: 1,
-        pages: [{ page: 6, text: "Codice Id. Azienda Creditrice IT3600..." }],
+        pages: [{ page: 6, text: "Creditor identifier IT3600..." }],
       }),
     };
     const wire = toWireHistory(messages, [withPdf], false);
@@ -227,6 +228,46 @@ describe("describePageCuts", () => {
   });
 });
 
+describe("describePickFailures", () => {
+  it("names the one file, and why", () => {
+    expect(
+      describePickFailures([{ filename: "locked.pdf", reason: "password" }]),
+    ).toEqual({
+      title: "locked.pdf is password protected",
+      description: "Quock can't read a locked PDF.",
+      tone: "error",
+    });
+  });
+
+  // Two damaged documents in one send used to fire two toasts, and the store keeps only the last: the first was never
+  // named while the model still received an empty placeholder for it.
+  it("folds several failures into one notice, counting them all", () => {
+    const notice = describePickFailures([
+      { filename: "a.pdf", reason: "unreadable" },
+      { filename: "b.pdf", reason: "password" },
+    ]);
+    expect(notice?.title).toBe("2 attachments couldn't be used");
+    expect(notice?.description).toBe("a.pdf, b.pdf");
+    expect(notice?.tone).toBe("error");
+  });
+
+  // The toast body is two lines: eight joined filenames would clip away the part that makes it actionable.
+  it("stops naming past the second file and counts the rest", () => {
+    const notice = describePickFailures([
+      { filename: "a.pdf", reason: "unreadable" },
+      { filename: "b.pdf", reason: "password" },
+      { filename: "c.jpg", reason: "write" },
+      { filename: "d.pdf", reason: "unreadable" },
+    ]);
+    expect(notice?.title).toBe("4 attachments couldn't be used");
+    expect(notice?.description).toBe("a.pdf, b.pdf and 2 more");
+  });
+
+  it("stays quiet when every pick made it", () => {
+    expect(describePickFailures([])).toBeNull();
+  });
+});
+
 describe("topNotice", () => {
   // The store is latest-wins, so the password failure used to be wiped by the trim notice that followed it.
   it("keeps the gravest notice, not the newest", () => {
@@ -332,19 +373,10 @@ describe("patchChatCache", () => {
     const updated = [dbMsg(1, "user")];
     const attachmentsByMessage = new Map<MessageId, DbAttachment[]>();
 
-    await patchChatCache(
-      queryClient,
-      chats,
-      CHAT_ID,
-      existing,
-      updated,
-      attachmentsByMessage,
-    );
+    await patchChatCache(queryClient, chats, CHAT_ID, existing, updated, attachmentsByMessage);
 
     expect(chats.get).not.toHaveBeenCalled();
-    expect(
-      queryClient.getQueryData<UseChatData>(queryKeys.chat(CHAT_ID)),
-    ).toEqual({
+    expect(queryClient.getQueryData<UseChatData>(queryKeys.chat(CHAT_ID))).toEqual({
       chat: existing.chat,
       messages: updated,
       attachmentsByMessage,
