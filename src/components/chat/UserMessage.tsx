@@ -3,7 +3,7 @@
 import { Brain, Check, Copy, Globe, Pencil } from "lucide-react-native";
 import * as Clipboard from "expo-clipboard";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -19,7 +19,12 @@ import { Pressable } from "@/components/ui/Pressable";
 import { TextField } from "@/components/ui/TextField";
 import { surfaceSpring } from "@/lib/design/motion";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
-import { iconSize, strokeWidth, timingsNamed } from "@/lib/design/tokens";
+import {
+  componentLayout,
+  iconSize,
+  strokeWidth,
+  timingsNamed,
+} from "@/lib/design/tokens";
 import type { MessageId } from "@/lib/types/ids";
 import { USER_MESSAGE_EDIT_MAX_LINES, USER_MESSAGE_ENTER_FADE_MS, USER_MESSAGE_ENTER_TRANSLATE_Y, USER_MESSAGE_FRESH_WINDOW_MS } from "@/modules/chat/constants";
 
@@ -129,13 +134,21 @@ function UserMessageImpl({
     return (
       <Animated.View style={animatedStyle}>
         {hasAttachments ? (
-          <View className="px-4 pt-2 items-end">
-            <View className="flex-row flex-wrap gap-2 justify-end">
-              {picked.map((a) => (
-                <PersistedAttachmentChip key={String(a.id)} attachment={a} />
-              ))}
-            </View>
-          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              flexGrow: 1,
+              justifyContent: "flex-end",
+              paddingHorizontal: componentLayout.composer.chipScrollPadX,
+              paddingTop: componentLayout.composer.chipScrollPadTop,
+              gap: componentLayout.composer.chipScrollGap,
+            }}
+          >
+            {picked.map((a) => (
+              <PersistedAttachmentChip key={String(a.id)} attachment={a} />
+            ))}
+          </ScrollView>
         ) : null}
         <View className="px-4 py-2">
           <TextField
@@ -168,13 +181,23 @@ function UserMessageImpl({
   return (
     <Animated.View style={animatedStyle}>
       {hasAttachments ? (
-        <View className="px-4 pt-2 items-end">
-          <View className="flex-row flex-wrap gap-2 justify-end">
-            {picked.map((a) => (
-              <PersistedAttachmentChip key={String(a.id)} attachment={a} />
-            ))}
-          </View>
-        </View>
+        /* One scrolling band, as the composer already does with the draft chips: wrapping turned six attachments into
+           a ragged staircase that pushed the message down the screen. Anchored right so one chip sits under the bubble. */
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: "flex-end",
+            paddingHorizontal: componentLayout.composer.chipScrollPadX,
+            paddingTop: componentLayout.composer.chipScrollPadTop,
+            gap: componentLayout.composer.chipScrollGap,
+          }}
+        >
+          {picked.map((a) => (
+            <PersistedAttachmentChip key={String(a.id)} attachment={a} />
+          ))}
+        </ScrollView>
       ) : null}
       <MessageBubble role="user">
         <Text className="font-sans text-body text-primary-foreground">
