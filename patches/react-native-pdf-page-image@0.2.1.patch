@@ -1,5 +1,48 @@
+diff --git a/ios/PdfFlyweight.swift b/ios/PdfFlyweight.swift
+index c17614935aec755587f5bd1ae7be4cf7fce3aea0..b3454094d49459c616c0ea4524f57b715d2355e4 100644
+--- a/ios/PdfFlyweight.swift
++++ b/ios/PdfFlyweight.swift
+@@ -101,8 +101,11 @@ class PdfFlyweight {
+             width: pageRect.width * scale,
+             height: pageRect.height * scale)
+         
+-        // Utilizar UIGraphicsImageRenderer para manejar el escalado y la creación de la imagen
+-        let renderer = UIGraphicsImageRenderer(size: scaledSize)
++        // Quock: the default format takes UIScreen.main.scale, so on a 3x iPhone the bitmap came out three times
++        // scaledSize on each axis — nine times the pixels, every one of them thrown away by the caller's downscale.
++        let format = UIGraphicsImageRendererFormat.default()
++        format.scale = 1
++        let renderer = UIGraphicsImageRenderer(size: scaledSize, format: format)
+         
+         // Renderizar la imagen utilizando el bloque de UIGraphicsImageRenderer
+         let scaledImage = renderer.image { context in
+@@ -115,7 +118,10 @@ class PdfFlyweight {
+             // Dibujar la página en el contexto
+             context.cgContext.saveGState()
+             context.cgContext.translateBy(x: 0, y: scaledSize.height)
+-            context.cgContext.scaleBy(x: 1.0, y: -1.0) // Invertir la imagen en el eje y
++            // Quock: `scale` also has to reach the drawing. PDFPage.draw applies the page's own transform and nothing
++            // else, so without this the page was painted at its original size in the corner of a larger white canvas —
++            // at scale 2.5 it covered 40% of each axis and the other 84% of the image was blank.
++            context.cgContext.scaleBy(x: scale, y: -scale) // Invertir la imagen en el eje y
+             
+             // Especificar claramente cómo debe manejarse el renderizado del PDF
+             pdfPage.draw(with: .mediaBox, to: context.cgContext)
+@@ -180,8 +186,10 @@ class PdfFlyweight {
+         let uuidString = UUID().uuidString
+         
+         // Obtener el directorio de documentos de la aplicación
+-        guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+-            fatalError("Error obteniendo el directorio de documentos.")
++        // Quock: caches, not documents. These are temporary renders; in Documents they are user-visible, backed up to
++        // iCloud, and never reclaimed by the OS when a crash strands them. Android already uses its cache dir.
++        guard let documentsDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
++            fatalError("Error obteniendo el directorio de caché.")
+         }
+         
+         // Construir el nombre del archivo con el UUID y una extensión
 diff --git a/react-native-pdf-page-image.podspec b/react-native-pdf-page-image.podspec
-index 9182f3eb35e90a2f754ecdbe7491ad5bba283ad9..1b3e64dcc9368bef88c2517a54e8d851c8587446 100644
+index 9182f3eb35e90a2f754ecdbe7491ad5bba283ad9..0a7318b7a9fbd08ee460779d4b4c5a875b53c721 100644
 --- a/react-native-pdf-page-image.podspec
 +++ b/react-native-pdf-page-image.podspec
 @@ -18,18 +18,7 @@ Pod::Spec.new do |s|

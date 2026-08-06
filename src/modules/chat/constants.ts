@@ -42,9 +42,12 @@ export const PDF_TEXT_THIN_CHARS_PER_PAGE = 100;
 // Ceiling on the images REPLAYED across a whole conversation, kept apart from the per-message cap above: every turn
 // re-uploads them (the cloud is stateless), so without its own bound one fat turn would tax every turn after it.
 export const ATTACHMENT_REPLAY_MAX_BYTES = 20_000_000;
-// 2.5x takes an A4 page (595x842pt) just past IMAGE_MAX_UPLOAD_DIMENSION, so the downscale lands it exactly on the
-// 2048 ceiling — rendering at 1x leaves small digits and footnotes unreadable to the model.
-export const PDF_PAGE_RENDER_SCALE = 2.5;
+// 2048 / 842pt (A4's long edge): the render lands ON the upload ceiling instead of 57px past it, so the resize pass —
+// which decodes and redraws the whole page just to shave those pixels — never runs for A4 or Letter.
+export const PDF_PAGE_RENDER_SCALE = 2.43;
+// Pages of a SCAN that get rendered and read. A scan costs a render plus a recognition per page — around a second each
+// — so this bounds the wait, not the payload; a document that reads as text has no cap at all.
+export const PDF_OCR_MAX_PAGES = 30;
 
 // ThinkingDots cadence: each dot loops opacity over DURATION_MS with STAGGER_MS lag so the trio reads as a wave.
 export const THINKING_DOT_DURATION_MS = 900;
