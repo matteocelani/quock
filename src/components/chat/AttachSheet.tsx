@@ -231,9 +231,12 @@ export function AttachSheet({
     }
   }, [currentCount, onAttach, onClose, onReopen, toast]);
   const handleFile = useCallback(async (): Promise<void> => {
-    if (currentCount >= ATTACHMENT_SELECTION_LIMIT) {
+    // Same running-total guard the photo picker uses: the OS limit only bounds one trip, so reopening the sheet would
+    // otherwise stack past the cap.
+    const remaining = ATTACHMENT_SELECTION_LIMIT - currentCount;
+    if (remaining <= 0) {
       toast({
-        title: `You can attach up to ${ATTACHMENT_SELECTION_LIMIT} images`,
+        title: `You can attach up to ${ATTACHMENT_SELECTION_LIMIT} files`,
         tone: "error",
       });
       return;
@@ -241,28 +244,40 @@ export function AttachSheet({
     onClose();
     await delay(ATTACH_PICKER_PRESENT_DELAY_MS);
     try {
-      // Accept any type; the chip itself flags unsupported mimes and Composer disables Send.
+      // Accept any type; the chip itself flags unsupported mimes and Composer disables Send. Several at once, because
+      // a question is often about two documents — a bill and the one before it, a contract and its annex.
       const result = await DocumentPicker.getDocumentAsync({
         copyToCacheDirectory: true,
+        multiple: true,
       });
       if (result.canceled) {
         onReopen?.();
         return;
       }
-      const asset = result.assets[0];
-      if (!asset) return;
-      const bytes = await readUriAsBytes(asset.uri);
-      onAttach(
-        buildAttachment(
-          {
-            filename: asset.name,
-            uri: asset.uri,
-            data: bytes,
-            ...(asset.mimeType !== undefined ? { mimeType: asset.mimeType } : {}),
-          },
-          bytes.byteLength,
-        ),
-      );
+      // The OS picker has no per-trip limit for documents, so the slots left are enforced here.
+      for (const asset of result.assets.slice(0, remaining)) {
+        const bytes = await readUriAsBytes(asset.uri);
+        onAttach(
+          buildAttachment(
+            {
+              filename: asset.name,
+              uri: asset.uri,
+              data: bytes,
+              ...(asset.mimeType !== undefined
+                ? { mimeType: asset.mimeType }
+                : {}),
+            },
+            bytes.byteLength,
+          ),
+        );
+      }
+      if (result.assets.length > remaining) {
+        toast({
+          title: `Only ${remaining} more file${remaining > 1 ? "s" : ""} fit`,
+          description: `A message carries up to ${ATTACHMENT_SELECTION_LIMIT} attachments.`,
+          tone: "warning",
+        });
+      }
     } catch (err) {
       console.error("AttachSheet: document picker failed", err);
     }
