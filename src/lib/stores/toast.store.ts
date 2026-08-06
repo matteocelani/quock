@@ -20,6 +20,15 @@ export interface ToastItem {
 }
 
 const DEFAULT_DURATION_MS = 3000;
+// A failure takes longer to read than a confirmation: it names a file, says what went wrong, and often asks for a
+// decision. Three seconds is enough to notice a success and not enough to finish reading an error.
+const ERROR_DURATION_MS = 6000;
+
+function defaultDurationFor(tone: ToastTone): number {
+  return tone === "error" || tone === "warning"
+    ? ERROR_DURATION_MS
+    : DEFAULT_DURATION_MS;
+}
 
 interface ToastState {
   items: readonly ToastItem[];
@@ -34,11 +43,12 @@ export const useToastStore = create<ToastState>((set, get) => ({
   items: [],
   show: (options): void => {
     const id = nextId++;
+    const tone = options.tone ?? "info";
     const item: ToastItem = {
       id,
       title: options.title,
-      tone: options.tone ?? "info",
-      duration: options.duration ?? DEFAULT_DURATION_MS,
+      tone,
+      duration: options.duration ?? defaultDurationFor(tone),
     };
     if (options.description !== undefined) {
       item.description = options.description;
