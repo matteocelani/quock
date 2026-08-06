@@ -14,5 +14,7 @@ allowBuilds:
 overrides:
   ws@7: 8.21.0
 
+# The renderer's podspec asks for pods RN 0.83 no longer ships, and its Swift draws the page into a 9x oversized
+# canvas. package.json pins the version EXACTLY: a 0.2.2 would silently resolve unpatched and break the iOS build.
 patchedDependencies:
   react-native-pdf-page-image@0.2.1: patches/react-native-pdf-page-image@0.2.1.patch

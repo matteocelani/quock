@@ -20,13 +20,13 @@ Maestro Studio (`maestro studio`) is useful for authoring new flows and inspecti
 
 ## Manual: document attachments
 
-Sending anything needs a bound account and a picked model, and the OS document picker is a separate process, so this flow stays manual for the same reason the rest of the chat does. Run it on the simulator before a release touching attachments. The four fixtures cover the four paths a document can take; `pdf-fixtures/` in the task scratchpad builds them, or make your own to the same shapes.
+Sending anything needs a bound account and a picked model, and the OS document picker is a separate process, so this flow stays manual for the same reason the rest of the chat does. Run it on the simulator before a release touching attachments. The four fixtures cover the four paths a document can take — build your own to these shapes, any PDF toolchain will do.
 
 | Fixture | Shape | Expected |
 |---|---|---|
-| a text-rich PDF (e.g. an 11-page bill) | ~2.800 characters per page | text only, **zero** pages rendered; the answer cites a page number |
+| a text-rich PDF (e.g. an 11-page bill) | ~2,800 characters per page | text only, **zero** pages rendered; the answer cites a page number |
 | an image-only PDF, 2 pages, a distinct code on each | no text layer | on a vision model both codes come back; the second proves the render did not stop at page 1 |
-| the same image-only PDF | — | on a NON-vision model the reply says the document has no text layer, and invents nothing |
+| the same image-only PDF | — | on a NON-vision model the codes still come back, recognised on-device by OCR; nothing is invented |
 | a password-protected PDF | encrypted | red toast "… is password protected", and the model says it could not read it |
 
 Two checks that catch the failures worth catching:

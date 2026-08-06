@@ -36,7 +36,6 @@ import type {
   ToolActivity,
 } from "@/modules/chat/stores/streaming.store";
 
-
 // Per-call mutable buffer held in a closure so it survives every flush micro-task.
 interface StreamBuffers {
   // Visible answer (inline <think> stripped out); derived from `rawContent` on each chat event.

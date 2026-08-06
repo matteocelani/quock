@@ -152,8 +152,8 @@ export function AttachmentChip({
                 isInvalid ? "text-destructive" : "text-foreground",
               )}
               numberOfLines={1}
-              // Middle, not tail: two attachments called "Attestato Formazione generale…" differ only in the part a
-              // tail ellipsis eats. iOS honours it; Android falls back to tail, which is what it does today anyway.
+              // Middle, not tail: two files sharing a long prefix ("Invoice 2026 Q1 — …") differ only in the part a tail
+              // ellipsis eats. iOS honours it; Android falls back to tail, which is what it does today anyway.
               ellipsizeMode="middle"
             >
               {filename}
