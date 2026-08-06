@@ -111,21 +111,21 @@ const light = {
   ...fillLight,
   // Shadcn-style semantic layer — every component consumes these.
   // Body sits on systemGroupedBackground (gray6) so Glass surfaces + cards stand out.
-  background: grayLight.gray6,                  // #F2F2F7
-  foreground: "#1C1C1E",                        // text on background
-  card: "#FFFFFF",                              // sheets / rows surface
+  background: grayLight.gray6, // #F2F2F7
+  foreground: "#1C1C1E", // text on background
+  card: "#FFFFFF", // sheets / rows surface
   cardForeground: "#1C1C1E",
   popover: "#FFFFFF",
   popoverForeground: "#1C1C1E",
-  primary: appleLight.blue,                     // #0088FF
+  primary: appleLight.blue, // #0088FF
   primaryForeground: "#FFFFFF",
   // `secondary` = neutral button surface. Bumped to gray4 so it reads against the white card body.
-  secondary: grayLight.gray4,                   // #D1D1D6
+  secondary: grayLight.gray4, // #D1D1D6
   secondaryForeground: "#1C1C1E",
-  muted: grayLight.gray5,                       // search/input fields (kept softer than `secondary` so inputs blend with their card)
+  muted: grayLight.gray5, // search/input fields (kept softer than `secondary` so inputs blend with their card)
   // iOS secondaryLabel — translucent so secondary text adapts to whichever surface hosts it.
   mutedForeground: labelLight.labelSecondary,
-  accent: grayLight.gray5,                      // interactive neutral surface
+  accent: grayLight.gray5, // interactive neutral surface
   accentForeground: "#1C1C1E",
   destructive: appleLight.red,
   destructiveForeground: "#FFFFFF",
@@ -139,6 +139,11 @@ const light = {
   scrim: "rgba(0,0,0,0.4)",
   // Sheet scrim is lighter than the dialog scrim — iOS 27 kit overlay value.
   scrimSheet: "rgba(0,0,0,0.2)",
+  // Excerpt menu dims less than a sheet because it also blurs, and the blur separates the surround on its own.
+  scrimExcerpt: "rgba(0,0,0,0.08)",
+  // Excerpt spotlight rim ONLY — the ported BorderGlow mesh hues. Never an app accent: they live outside the Apple HIG
+  // set on purpose and must not leak into general use. The rim's warm edge light lives in boxShadow.excerptRim.
+  excerptRimMesh: ["#c084fc", "#f472b6", "#38bdf8"],
   shadow: "#000000",
   // Theme-stable: iOS UISwitch thumb is white on both themes (Apple system convention).
   thumbFill: "#FFFFFF",
@@ -154,18 +159,18 @@ const dark = {
   ...labelDark,
   ...separatorDark,
   ...fillDark,
-  background: "#000000",                        // systemGroupedBackground dark
+  background: "#000000", // systemGroupedBackground dark
   foreground: "#FFFFFF",
-  card: grayDark.gray6,                         // #1C1C1E — elevated surface
+  card: grayDark.gray6, // #1C1C1E — elevated surface
   cardForeground: "#FFFFFF",
   popover: grayDark.gray6,
   popoverForeground: "#FFFFFF",
-  primary: appleDark.blue,                      // #0091FF
+  primary: appleDark.blue, // #0091FF
   primaryForeground: "#FFFFFF",
   // Neutral button surface bumped to gray4 dark so Button.secondary separates from the gray6-dark card body.
-  secondary: grayDark.gray4,                    // #3A3A3C
+  secondary: grayDark.gray4, // #3A3A3C
   secondaryForeground: "#FFFFFF",
-  muted: grayDark.gray5,                        // #2C2C2E — search bg
+  muted: grayDark.gray5, // #2C2C2E — search bg
   // iOS secondaryLabel dark — translucent so secondary text adapts to whichever surface hosts it.
   mutedForeground: labelDark.labelSecondary,
   accent: grayDark.gray5,
@@ -180,6 +185,10 @@ const dark = {
   scrim: "rgba(0,0,0,0.6)",
   // Same value both themes — the kit overlay does not deepen for dark.
   scrimSheet: "rgba(0,0,0,0.2)",
+  // Deeper than light: over a near-black body a 0.08 wash does not separate the surround at all.
+  scrimExcerpt: "rgba(0,0,0,0.16)",
+  // Same rim palette as light — the effect sits on the dimmed surround, which is neutral in both themes.
+  excerptRimMesh: ["#c084fc", "#f472b6", "#38bdf8"],
   shadow: "#000000",
   // Same as light — Apple system convention.
   thumbFill: "#FFFFFF",

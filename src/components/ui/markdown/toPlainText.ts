@@ -8,30 +8,30 @@ import {
 } from "@/components/ui/markdown/parseMarkdown";
 
 // Every inline node carries the raw `value`; concatenating them drops the styling and keeps the words.
-function inlineText(nodes: InlineNode[]): string {
+export function inlineToPlainText(nodes: InlineNode[]): string {
   return nodes.map((n) => n.value).join("");
 }
 
-function blockText(node: BlockNode): string {
+export function blockToPlainText(node: BlockNode): string {
   switch (node.type) {
     case "paragraph":
     case "heading":
-      return inlineText(node.children);
+      return inlineToPlainText(node.children);
     case "code":
       return node.value;
     case "list":
-      return node.items.map((item) => `• ${inlineText(item)}`).join("\n");
+      return node.items.map((item) => `• ${inlineToPlainText(item)}`).join("\n");
     case "orderedList":
       return node.items
-        .map((item, idx) => `${node.start + idx}. ${inlineText(item)}`)
+        .map((item, idx) => `${node.start + idx}. ${inlineToPlainText(item)}`)
         .join("\n");
     case "blockquote":
-      return node.children.map(blockText).join("\n\n");
+      return node.children.map(blockToPlainText).join("\n\n");
     case "rule":
       return "———";
     case "table": {
-      const headers = node.headers.map(inlineText);
-      const rows = node.rows.map((row) => row.map(inlineText));
+      const headers = node.headers.map(inlineToPlainText);
+      const rows = node.rows.map((row) => row.map(inlineToPlainText));
       // Tab-separated cells don't align in a proportional font, so flatten to labelled text instead.
       // Two-column tables read as key/value pairs; the generic header row (e.g. "Parameter | Value") is dropped.
       if (headers.length === 2) {
@@ -50,7 +50,7 @@ function blockText(node: BlockNode): string {
 // Blocks are separated by a blank line so paragraphs, headings and lists stay visually apart.
 export function markdownToPlainText(source: string): string {
   return parseMarkdown(source)
-    .map(blockText)
+    .map(blockToPlainText)
     .filter((block) => block.length > 0)
     .join("\n\n");
 }

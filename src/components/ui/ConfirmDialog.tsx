@@ -2,7 +2,12 @@
 
 import clsx from "clsx";
 import React, { useEffect } from "react";
-import { Pressable as RNPressable, Text, View } from "react-native";
+import {
+  Pressable as RNPressable,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import Animated, {
   FadeIn,
   FadeOut,
@@ -14,7 +19,12 @@ import Animated, {
 import { useTheme } from "@/lib/theme/ThemeContext";
 import { baseAnimationDurationMs, surfaceSpring } from "@/lib/design/motion";
 import { Pressable } from "@/components/ui/Pressable";
-import { boxShadow, componentLayout, motion, zLayer } from "@/lib/design/tokens";
+import {
+  boxShadow,
+  componentLayout,
+  motion,
+  zLayer,
+} from "@/lib/design/tokens";
 import { TextField } from "@/components/ui/TextField";
 
 export interface ConfirmDialogProps {
@@ -30,6 +40,7 @@ export interface ConfirmDialogProps {
   inputValue?: string;
   onChangeInput?: (value: string) => void;
   inputPlaceholder?: string;
+  inputMaxLength?: number;
   confirmDisabled?: boolean;
   testID?: string;
 }
@@ -81,10 +92,12 @@ export function ConfirmDialog({
   inputValue,
   onChangeInput,
   inputPlaceholder,
+  inputMaxLength,
   confirmDisabled = false,
   testID,
 }: ConfirmDialogProps): React.ReactElement | null {
   const { resolved } = useTheme();
+  const { width: windowWidth } = useWindowDimensions();
   // Card scales from motion.scaleDialogFrom to 1 on a spring, giving the modal a confident pop on entrance.
   const scale = useSharedValue(visible ? 1 : motion.scaleDialogFrom);
   const cardOpacity = useSharedValue(visible ? 1 : 0);
@@ -109,6 +122,9 @@ export function ConfirmDialog({
       className="absolute inset-0 items-center justify-center px-6"
       style={{ zIndex: zLayer.dialog }}
       pointerEvents="auto"
+      // On the card this only hid the scrim; the sheet behind stayed in the VoiceOver tree.
+      accessibilityViewIsModal
+      accessibilityLiveRegion="polite"
       testID={testID}
     >
       <RNPressable
@@ -122,15 +138,19 @@ export function ConfirmDialog({
         style={[
           {
             width: "100%",
-            maxWidth: componentLayout.alertDialog.width,
+            maxWidth: Math.min(
+              Math.max(
+                windowWidth * componentLayout.alertDialog.widthRatio,
+                componentLayout.alertDialog.widthMin,
+              ),
+              componentLayout.alertDialog.widthMax,
+            ),
             borderRadius: componentLayout.alertDialog.cornerRadius,
             boxShadow: boxShadow.sheet[resolved],
           },
           cardAnimatedStyle,
         ]}
         pointerEvents="box-none"
-        accessibilityViewIsModal
-        accessibilityLiveRegion="polite"
       >
         {/* Near-opaque card material — iOS 27 alerts stay readable over any underlying content (sheets, screens, photos); a frosted blur inside a Modal added weight without payoff. */}
         <View
@@ -146,7 +166,10 @@ export function ConfirmDialog({
               style={{
                 paddingTop: componentLayout.alertDialog.blockPaddingTop,
                 paddingHorizontal: componentLayout.alertDialog.blockPaddingX,
-                paddingBottom: componentLayout.alertDialog.blockPaddingBottom,
+                paddingBottom:
+                  onChangeInput === undefined
+                    ? componentLayout.alertDialog.blockPaddingBottom
+                    : componentLayout.alertDialog.blockGap,
                 gap: componentLayout.alertDialog.blockGap,
               }}
             >
@@ -161,28 +184,38 @@ export function ConfirmDialog({
                   {message}
                 </Text>
               ) : null}
-              {onChangeInput !== undefined ? (
-                <View className="w-full">
-                  {/* Multiline (maxLines=3) instead of single-line: a long pre-filled value on iOS Fabric renders as a static UILabel (which wraps) until the input is focused, then snaps back to single-line — we couldn't stop it across three rewrites. Multiline lets the box grow with the content so the title is fully visible without that flicker. */}
-                  <TextField
-                    value={inputValue ?? ""}
-                    onChangeText={onChangeInput}
-                    placeholder={inputPlaceholder}
-                    autoCapitalize="sentences"
-                    multiline
-                    maxLines={3}
-                    testID="confirm-dialog-input"
-                    // iOS 27 alert field: system-fill capsule at the alert geometry; grows past minHeight up to maxLines.
-                    containerClassName="bg-fill-secondary justify-center"
-                    containerStyle={{
-                      borderRadius: componentLayout.alertDialog.textFieldRadius,
-                      minHeight: componentLayout.alertDialog.textFieldHeight,
-                    }}
-                    className="text-body font-medium px-4"
-                  />
-                </View>
-              ) : null}
             </View>
+            {/* Outside the text block on purpose: Apple lines the field up with the action row, and matching that inset
+                is what makes the concentric corner (card 34 − padding 14 = 20) correct instead of merely chosen. */}
+            {onChangeInput !== undefined ? (
+              <View
+                style={{
+                  paddingBottom: componentLayout.alertDialog.blockPaddingBottom,
+                }}
+              >
+                {/* Multiline (maxLines=3) instead of single-line: a long pre-filled value on iOS Fabric renders as a static UILabel (which wraps) until the input is focused, then snaps back to single-line — we couldn't stop it across three rewrites. Multiline lets the box grow with the content so the title is fully visible without that flicker. */}
+                <TextField
+                  value={inputValue ?? ""}
+                  onChangeText={onChangeInput}
+                  placeholder={inputPlaceholder}
+                  {...(inputMaxLength !== undefined
+                    ? { maxLength: inputMaxLength }
+                    : {})}
+                  autoCapitalize="sentences"
+                  multiline
+                  maxLines={3}
+                  testID="confirm-dialog-input"
+                  // Padding on the container, not the input: it insets the TextInput frame so the scroll indicator
+                  // rides 14pt inside the 20pt curve instead of on top of it.
+                  containerClassName="bg-fill-secondary justify-center px-4"
+                  containerStyle={{
+                    borderRadius: componentLayout.alertDialog.textAreaRadius,
+                    minHeight: componentLayout.alertDialog.textAreaMinHeight,
+                  }}
+                  className="text-body font-medium"
+                />
+              </View>
+            ) : null}
             <View
               className="flex-row"
               style={{ gap: componentLayout.alertDialog.buttonGap }}

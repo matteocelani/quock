@@ -24,9 +24,23 @@ import { useUIStore } from "@/lib/stores/ui.store";
 import type { ChatId, MessageId } from "@/lib/types/ids";
 import { Composer } from "@/components/chat/Composer";
 import { EmptyState } from "@/components/chat/EmptyState";
-import { MessageList, type MessageListHandle } from "@/components/chat/MessageList";
+import {
+  MessageList,
+  type MessageListHandle,
+} from "@/components/chat/MessageList";
 import type { UiAttachment } from "@/modules/chat/types";
 import { SelectTextSheet } from "@/components/chat/SelectTextSheet";
+import { ExcerptMenu } from "@/components/chat/ExcerptMenu";
+import { useChatComposerModes } from "@/modules/chat/hooks/useChatComposerModes";
+import { useChatModel } from "@/modules/models/hooks/useChatModel";
+import { useHasToolsCapability } from "@/modules/models/hooks/useModelCapabilities";
+import {
+  DEFAULT_DEEP_DIVE_INSTRUCTION,
+  DEFAULT_WEB_SEARCH_INSTRUCTION,
+  excerptPrompt,
+} from "@/modules/chat/lib/selectionPrompts";
+import { resolveExcerpt } from "@/modules/chat/lib/excerptSelection";
+import { useSettingsStore } from "@/lib/stores/settings.store";
 
 export interface ChatHomeProps {
   chatId: ChatId;
@@ -42,9 +56,8 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const keyboardHeight = useKeyboardState((s) => s.height);
   // Measured composer height so the list inset tracks the bar as it grows (attachment/chip rows); seeded with
   // the static default for the first paint before onLayout reports the real size.
-  const [composerHeight, setComposerHeight] = useState<number>(
-    DEFAULT_BOTTOM_INSET,
-  );
+  const [composerHeight, setComposerHeight] =
+    useState<number>(DEFAULT_BOTTOM_INSET);
   const listBottomInset = isKeyboardVisible
     ? composerHeight + keyboardHeight
     : composerHeight;
@@ -64,6 +77,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const selectTextOpen = useUIStore((s) => s.selectTextOpen);
   const selectTextMessageId = useUIStore((s) => s.selectTextMessageId);
   const closeSelectText = useUIStore((s) => s.closeSelectText);
+  const closeExcerptMenu = useUIStore((s) => s.closeExcerptMenu);
   // Attachment draft lives here because it is composer-scoped, not navigation state.
   const [attachments, setAttachments] = useState<UiAttachment[]>([]);
   // Scroll-to-latest button lives in the composer (rides its keyboard lift); the list reports visibility here and is driven via ref.
@@ -77,7 +91,14 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     if (chatGone) router.replace("/c");
   }, [chatGone, router]);
   const isStreaming = useIsStreaming(chatId);
-  const { regenerate, retry, editAndResend, abort } = useSendMessage(chatId);
+  const { regenerate, retry, editAndResend, abort, send } =
+    useSendMessage(chatId);
+  const { model } = useChatModel(chatId);
+  const canWebSearch = useHasToolsCapability(model?.name);
+  const { webSearchEnabled } = useChatComposerModes(chatId);
+  // Null means the user never reworded it, so the shipped default applies.
+  const deepDiveInstruction = useSettingsStore((s) => s.deepDiveInstruction);
+  const webSearchInstruction = useSettingsStore((s) => s.webSearchInstruction);
   const toast = useToast();
   const handleRegenerate = useCallback(
     (assistantMessageId: MessageId): void => {
@@ -124,6 +145,86 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
       });
     },
     [abort, editAndResend, isStreaming, toast],
+  );
+  // Both actions resolve the same way, and an unresolvable key means the renderer and the cache disagree — worth a log,
+  // not just a toast, since the key was emitted from this very array a frame earlier.
+  const resolveOrToast = useCallback(
+    (unitKey: string): string | null => {
+      const excerpt = resolveExcerpt(data?.messages ?? [], unitKey);
+      if (excerpt.length > 0) return excerpt;
+      console.warn("ChatHome: no excerpt text for", unitKey);
+      toast({ title: "Couldn't read that part", tone: "error" });
+      return null;
+    },
+    [data?.messages, toast],
+  );
+  const handleDeepDive = useCallback(
+    (unitKey: string): void => {
+      // Guard before closing, or a refusal costs the user the selection. Sending mid-stream would also overwrite the
+      // chat's single AbortController and orphan the running stream — the same guard regenerate and retry use.
+      if (isStreaming) {
+        toast({
+          title: "Already streaming",
+          description: "Stop the current response before asking for more.",
+        });
+        return;
+      }
+      const excerpt = resolveOrToast(unitKey);
+      if (excerpt === null) return;
+      closeExcerptMenu();
+      void send({
+        text: excerptPrompt(
+          deepDiveInstruction ?? DEFAULT_DEEP_DIVE_INSTRUCTION,
+          excerpt,
+        ),
+        // `send` grants tools off this flag only, so omitting it made deep dive the one path that ignored the globe.
+        webSearch: webSearchEnabled,
+      }).catch((err: unknown) => {
+        console.warn("ChatHome: deep dive failed", err);
+        toast({ title: "Couldn't send", tone: "error" });
+      });
+    },
+    [
+      closeExcerptMenu,
+      deepDiveInstruction,
+      isStreaming,
+      resolveOrToast,
+      send,
+      toast,
+      webSearchEnabled,
+    ],
+  );
+  const handleWebSearch = useCallback(
+    (unitKey: string): void => {
+      if (isStreaming) {
+        toast({
+          title: "Already streaming",
+          description: "Stop the current response before asking for more.",
+        });
+        return;
+      }
+      const excerpt = resolveOrToast(unitKey);
+      if (excerpt === null) return;
+      closeExcerptMenu();
+      void send({
+        text: excerptPrompt(
+          webSearchInstruction ?? DEFAULT_WEB_SEARCH_INSTRUCTION,
+          excerpt,
+        ),
+        webSearch: true,
+      }).catch((err: unknown) => {
+        console.warn("ChatHome: web search failed", err);
+        toast({ title: "Couldn't send", tone: "error" });
+      });
+    },
+    [
+      closeExcerptMenu,
+      isStreaming,
+      resolveOrToast,
+      send,
+      toast,
+      webSearchInstruction,
+    ],
   );
   const handleSelectChat = useCallback(
     (selectedId: ChatId) => {
@@ -234,6 +335,13 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         visible={selectTextOpen}
         content={selectTextContent}
         onClose={closeSelectText}
+      />
+      <ExcerptMenu
+        canWebSearch={canWebSearch}
+        topInset={listTopInset}
+        bottomInset={listBottomInset}
+        onDeepDive={handleDeepDive}
+        onWebSearch={handleWebSearch}
       />
     </View>
   );

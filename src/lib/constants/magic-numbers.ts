@@ -6,3 +6,7 @@ export const QUERY_STALE_TIME_MS = 30_000;
 // DB layer.
 export const EXCERPT_LENGTH = 80;
 export const INITIAL_USER_VERSION = 0;
+
+// Web search is on for every new chat row: the globe reads active from the first frame, and it is capability-gated
+// downstream so a model without tools ignores it. Existing chats keep whatever they already had.
+export const WEB_SEARCH_DEFAULT_ON = true;

@@ -81,3 +81,7 @@ export const USER_MESSAGE_EDIT_MAX_LINES = 6;
 
 // First-message preview used to auto-title a brand-new chat in the sidebar list.
 export const CHAT_AUTO_TITLE_MAX_CHARS = 60;
+
+// Excerpt spotlight rim: one lap of the edge light. Slow enough to read as drift, and long enough that a menu open for
+// two or three seconds never shows the light repeat.
+export const EXCERPT_GLOW_LAP_MS = 3200;

@@ -12,15 +12,28 @@ interface SettingsState {
   hapticsEnabled: boolean;
   // Apple 5.1.2(i): epoch ms when the user explicitly consented to sending messages to Ollama Cloud, null until then.
   aiConsentAcceptedAt: number | null;
+  // Excerpt-action instructions the user can reword. Null means "use the shipped default", so improving a default
+  // reaches everyone instead of being shadowed by a copy written into storage on first launch.
+  deepDiveInstruction: string | null;
+  webSearchInstruction: string | null;
   setThemeMode: (mode: ThemeMode) => void;
   setSelectedModelName: (name: string | null) => void;
   setHapticsEnabled: (enabled: boolean) => void;
   acceptAiConsent: () => void;
   revokeAiConsent: () => void;
+  /** Null (or blank) restores the shipped wording. */
+  setDeepDiveInstruction: (instruction: string | null) => void;
+  setWebSearchInstruction: (instruction: string | null) => void;
 }
 
 const DEFAULT_THEME: ThemeMode = "system";
 const DEFAULT_HAPTICS = true;
+
+// An instruction the user has blanked is not a valid prompt, so it collapses back to null = the shipped default.
+export function normaliseInstruction(instruction: string | null): string | null {
+  const trimmed = instruction?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : null;
+}
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
@@ -29,6 +42,8 @@ export const useSettingsStore = create<SettingsState>()(
       selectedModelName: null,
       hapticsEnabled: DEFAULT_HAPTICS,
       aiConsentAcceptedAt: null,
+      deepDiveInstruction: null,
+      webSearchInstruction: null,
       setThemeMode: (themeMode): void => {
         set({ themeMode });
       },
@@ -44,6 +59,12 @@ export const useSettingsStore = create<SettingsState>()(
       revokeAiConsent: (): void => {
         set({ aiConsentAcceptedAt: null });
       },
+      setDeepDiveInstruction: (instruction): void => {
+        set({ deepDiveInstruction: normaliseInstruction(instruction) });
+      },
+      setWebSearchInstruction: (instruction): void => {
+        set({ webSearchInstruction: normaliseInstruction(instruction) });
+      },
     }),
     {
       name: "quock.settings",
@@ -55,6 +76,8 @@ export const useSettingsStore = create<SettingsState>()(
         selectedModelName: state.selectedModelName,
         hapticsEnabled: state.hapticsEnabled,
         aiConsentAcceptedAt: state.aiConsentAcceptedAt,
+        deepDiveInstruction: state.deepDiveInstruction,
+        webSearchInstruction: state.webSearchInstruction,
       }),
     },
   ),

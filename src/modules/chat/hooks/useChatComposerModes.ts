@@ -5,6 +5,7 @@ import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDb } from "@/lib/contexts/DbContext";
 import { queryKeys } from "@/lib/hooks/queryKeys";
+import { WEB_SEARCH_DEFAULT_ON } from "@/lib/constants/magic-numbers";
 import type { ChatId } from "@/lib/types/ids";
 
 interface ComposerModes {
@@ -17,7 +18,11 @@ export interface UseChatComposerModesResult extends ComposerModes {
   setWebSearchEnabled: (enabled: boolean) => void;
 }
 
-const MODES_OFF: ComposerModes = { thinkEnabled: false, webSearchEnabled: false };
+// Mirrors the row default, so the globe reads right before the chat row resolves and for a chat that has no row.
+const MODES_DEFAULT: ComposerModes = {
+  thinkEnabled: false,
+  webSearchEnabled: WEB_SEARCH_DEFAULT_ON,
+};
 
 export function useChatComposerModes(
   chatId: ChatId,
@@ -26,13 +31,13 @@ export function useChatComposerModes(
   const queryClient = useQueryClient();
   // staleTime Infinity (same guard as useChatModel): the setters below patch this cache, so a mount refetch
   // must not re-read the DB and revert an optimistic flip before its write commits.
-  const { data: modes = MODES_OFF } = useQuery<ComposerModes>({
+  const { data: modes = MODES_DEFAULT } = useQuery<ComposerModes>({
     queryKey: queryKeys.chatComposerModes(chatId),
     queryFn: async (): Promise<ComposerModes> => {
       const chat = await chats.get(chatId);
       return {
         thinkEnabled: chat?.thinkEnabled ?? false,
-        webSearchEnabled: chat?.webSearchEnabled ?? false,
+        webSearchEnabled: chat?.webSearchEnabled ?? WEB_SEARCH_DEFAULT_ON,
       };
     },
     staleTime: Infinity,
@@ -43,7 +48,13 @@ export function useChatComposerModes(
   const patch = React.useCallback(
     (next: Partial<ComposerModes>, persist: () => Promise<void>): void => {
       const key = queryKeys.chatComposerModes(chatId);
-      const before = queryClient.getQueryData<ComposerModes>(key) ?? MODES_OFF;
+      // staleTime stops refetches, not the first fetch: a read issued at mount can resolve after this write and put
+      // the old value back, which with the new default lands on the permissive side.
+      queryClient.cancelQueries({ queryKey: key }).catch((err: unknown) => {
+        console.warn("useChatComposerModes: failed to cancel in-flight read", err);
+      });
+      const before =
+        queryClient.getQueryData<ComposerModes>(key) ?? MODES_DEFAULT;
       const revert: Partial<ComposerModes> = {};
       if (next.thinkEnabled !== undefined) {
         revert.thinkEnabled = before.thinkEnabled;
@@ -52,13 +63,13 @@ export function useChatComposerModes(
         revert.webSearchEnabled = before.webSearchEnabled;
       }
       queryClient.setQueryData<ComposerModes>(key, (c) => ({
-        ...(c ?? MODES_OFF),
+        ...(c ?? MODES_DEFAULT),
         ...next,
       }));
       void persist().catch((err: unknown) => {
         console.error("useChatComposerModes: failed to persist mode", err);
         queryClient.setQueryData<ComposerModes>(key, (c) => ({
-          ...(c ?? MODES_OFF),
+          ...(c ?? MODES_DEFAULT),
           ...revert,
         }));
       });
@@ -90,6 +101,11 @@ export function useChatComposerModes(
       setThinkEnabled,
       setWebSearchEnabled,
     }),
-    [modes.thinkEnabled, modes.webSearchEnabled, setThinkEnabled, setWebSearchEnabled],
+    [
+      modes.thinkEnabled,
+      modes.webSearchEnabled,
+      setThinkEnabled,
+      setWebSearchEnabled,
+    ],
   );
 }

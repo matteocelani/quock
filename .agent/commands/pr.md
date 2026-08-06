@@ -59,9 +59,30 @@ AI-made PR → end the body with the assisting tool's attribution footer (e.g. `
 
 ### Step 7 — Open the PR
 
+A maintainer-opened PR carries an **assignee** and exactly **one type label**, both set here and not remembered later. The assignee is the human accountable for the work; the tool that helped is credited in the body footer instead.
+
+First match wins:
+
+| Branch | Label |
+| --- | --- |
+| `chore/release-*` | `release` |
+| `feat/` | `feature` |
+| `fix/` | `bug` |
+| `chore/` · `refactor/` · `docs/` | `chore` |
+| anything else | from the title's type: `feat` → `feature`, `fix` → `bug`, otherwise `chore` |
+
+Shipping a release line is not this procedure's job — `release/X.Y.Z` targets `main` and belongs to [`release.md`](./release.md).
+
+Add `needs-device` **alongside** the type label when the change is one CI cannot judge — anything native, anything only a device or simulator can exercise. CI here runs lint, typecheck and Jest; it never builds the app, so green says nothing about whether the thing runs.
+
 ```bash
-gh pr create --base develop --head "$(git branch --show-current)" --title "..." --body "..."
+gh pr create --base develop --head "$(git branch --show-current)" \
+  --title "..." --body "..." \
+  --assignee @me \
+  --label "<type-label>"            # --label "<type-label>,needs-device" when it applies
 ```
+
+`@me` is whoever owns the token, which on a CI or agent token is not the human — check it, and pass the maintainer's login instead when it is not. A label missing from the repo is not invented on the spot: **STOP** and ask for it. From a fork GitHub allows neither flag, so a contributor PR is exempt and gets labelled on arrival.
 
 ### Step 8 — Announce the URL and STOP
 
@@ -82,6 +103,7 @@ git remote prune origin
 - Force-push without `--force-with-lease`.
 - Merge own PR.
 - Title-only PRs (body required).
+- Open a maintainer PR with no assignee, or without its type label.
 - Use any language other than English in the PR body.
 - Mix scopes (one PR = one logical concern).
 - Target `main` directly — PRs go into `develop`.

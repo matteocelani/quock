@@ -31,6 +31,7 @@ export interface TextFieldProps {
   autoComplete?: TextInputProps["autoComplete"];
   keyboardType?: TextInputProps["keyboardType"];
   multiline?: boolean;
+  maxLength?: number;
   /** Max number of lines the multi-line field grows to. Default 8. */
   maxLines?: number;
   /** Override the multi-line row height when the caller's typography differs from the default (22 = IBM Plex Sans 16pt). */
@@ -60,6 +61,7 @@ export function TextField({
   autoComplete,
   keyboardType,
   multiline = false,
+  maxLength,
   maxLines = 8,
   // 22 = IBM Plex Sans 16pt rendered line-height; callers (e.g. Composer) override.
   lineHeight = componentLayout.composer.inputLineHeight,
@@ -101,7 +103,8 @@ export function TextField({
     ),
   }));
   // Border lives on the wrapper so Reanimated can animate its color without doubling the inner input's own line.
-  const baseClass = "bg-card rounded-lg text-foreground font-sans text-body px-3";
+  const baseClass =
+    "bg-card rounded-lg text-foreground font-sans text-body px-3";
   if (!multiline) {
     return (
       // iOS 27 grouped text field: capsule on the translucent system fill; the hairline rest-border is near-invisible on the wash and the focus crossfade paints the primary ring.
@@ -137,9 +140,16 @@ export function TextField({
           scrollEnabled
           testID={testID}
           accessibilityLabel={accessibilityLabel}
-          className={clsx("text-foreground font-sans text-body px-3", className)}
+          className={clsx(
+            "text-foreground font-sans text-body px-3",
+            className,
+          )}
           style={[
-            { flex: 1, width: "100%", paddingHorizontal: SINGLE_LINE_PADDING_X },
+            {
+              flex: 1,
+              width: "100%",
+              paddingHorizontal: SINGLE_LINE_PADDING_X,
+            },
             inputStyle,
           ]}
         />
@@ -157,8 +167,8 @@ export function TextField({
   // When the caller owns the container surface the inner TextInput drops its own padding/border to avoid doubling.
   const hasCustomContainer = containerClassName !== undefined;
   const wrapperClass = hasCustomContainer
-    ? containerClassName
-    : "bg-card rounded-lg justify-center";
+    ? clsx(containerClassName, "overflow-hidden")
+    : "bg-card rounded-lg justify-center overflow-hidden";
   // A caller-supplied className owns the type tier; the iOS Body tier backfills when none is given.
   const innerClass = hasCustomContainer
     ? clsx("text-foreground font-sans", className ?? "text-body")
@@ -166,6 +176,8 @@ export function TextField({
   return (
     <Animated.View
       className={wrapperClass}
+      // `overflow-hidden` is not cosmetic here: without it the rounded container does not clip the TextInput, so the
+      // native scroll indicator and the end glyphs of a wrapped line paint outside the corner curve.
       style={
         hasCustomContainer
           ? containerStyle
@@ -179,6 +191,7 @@ export function TextField({
       <TextInput
         value={value}
         onChangeText={onChangeText}
+        {...(maxLength !== undefined ? { maxLength } : {})}
         placeholder={placeholder}
         autoCapitalize={autoCapitalize}
         autoComplete={autoComplete}
