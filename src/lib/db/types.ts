@@ -60,6 +60,9 @@ export interface DbAttachment {
   sizeBytes: number;
   // Extracted text kept for replay, as JSON pages for a PDF. NULL when the text can be re-decoded from `data`.
   textContent: string | null;
+  // Set when the app derived this row from another attachment (a rendered PDF page): shown to the model, hidden from
+  // the bubble, since the user attached the document and not its pages.
+  derivedFrom: AttachmentId | null;
 }
 
 export interface ChatSummary {

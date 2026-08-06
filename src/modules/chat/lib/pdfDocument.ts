@@ -120,30 +120,40 @@ export function pdfPlaceholder(
 
 // Render the given pages to JPEG attachments for the vision images[] path. VISION ONLY. No page-count limit: these are
 // built past validateAttachment, so `budgetBytes` (the turn's remaining budget) is the only thing bounding them.
+export interface RenderedPages {
+  images: UiAttachment[];
+  // Why fewer pages came back than were asked for, so the caller can say the true reason instead of guessing one.
+  cutBy: "budget" | "error" | null;
+}
+
 export async function renderPdfPageImages(
   uri: string,
   filename: string,
   sourceId: AttachmentId,
   pages: readonly number[],
   budgetBytes: number,
-): Promise<UiAttachment[]> {
-  if (pages.length === 0) return [];
+): Promise<RenderedPages> {
+  if (pages.length === 0) return { images: [], cutBy: null };
   // Degrade like the text side does: a PDF that cannot be opened costs the vision half, never the send.
   try {
     await PdfPageImage.open(uri);
   } catch (err) {
     console.warn("pdfDocument: cannot open the PDF for rendering", err);
-    return [];
+    return { images: [], cutBy: "error" };
   }
   const images: UiAttachment[] = [];
   let usedBytes = 0;
+  let cutBy: "budget" | "error" | null = null;
   try {
     for (const page of pages) {
       // Render above 1x so small digits stay crisp, then re-encode: generate() writes PNG on both platforms, and these
       // ride the images[] path as image/jpeg — the label has to match the bytes the chip and the DB row will carry.
+      // The module indexes pages from zero (PDFKit `page(at:)`, Android `openPage`), while everything else here counts
+      // from one, as the page numbers the model is shown. Asking for `page` directly renders the NEXT one and throws
+      // on the last, which reads as a document that silently skips its first page.
       const rendered = await PdfPageImage.generate(
         uri,
-        page,
+        page - 1,
         PDF_PAGE_RENDER_SCALE,
       );
       // generate() already returns the scaled pixel size, so size against those dims as-is (no re-multiply).
@@ -159,6 +169,7 @@ export async function renderPdfPageImages(
         console.warn(
           `pdfDocument: budget reached, sending ${images.length} of ${pages.length} pages`,
         );
+        cutBy = "budget";
         break;
       }
       usedBytes += data.byteLength;
@@ -176,6 +187,7 @@ export async function renderPdfPageImages(
   } catch (err) {
     // Keep the pages that did render: a document that stops early still shows the model something.
     console.warn("pdfDocument: page render stopped early", err);
+    cutBy = "error";
   } finally {
     // Always free the native document + its temp files, even if a page render threw mid-loop. A failed close only
     // leaks a temp file, so it must never discard the pages that already rendered.
@@ -183,5 +195,5 @@ export async function renderPdfPageImages(
       console.warn("pdfDocument: closing the PDF failed", err);
     });
   }
-  return images;
+  return { images, cutBy };
 }

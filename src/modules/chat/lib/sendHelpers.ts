@@ -44,16 +44,11 @@ export function toWireHistory(
     m.role === "user" ? attachmentRows.filter((a) => a.messageId === m.id) : [];
   const groups = turns.map((m) => {
     const rows = rowsOf(m);
-    // A rendered page is an image row whose filename carries the PDF's own, so a document knows whether its pages made
-    // it — asking only "is there an image here" would let the user's own photo answer for it.
+    // A rendered page points back at the document it came from, so a PDF knows whether its pages made it.
     return rows.flatMap((a) =>
       attachmentTextBlocks(
         a,
-        rows.some(
-          (p) =>
-            p.mimeType?.startsWith("image/") === true &&
-            p.filename.startsWith(`${a.filename} (page `),
-        ),
+        rows.some((p) => p.derivedFrom === a.id),
       ),
     );
   });

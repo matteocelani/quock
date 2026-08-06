@@ -60,7 +60,13 @@ function UserMessageImpl({
   onEdit,
 }: UserMessageProps): React.ReactElement {
   const colors = useThemeColors();
-  const hasAttachments = attachments !== undefined && attachments.length > 0;
+  // Pages the app rendered from a PDF are hidden here: you attached one document, you see one document. They still
+  // travel to the model, which is where they earn their keep.
+  const picked = useMemo(
+    () => attachments?.filter((a) => a.derivedFrom === null) ?? [],
+    [attachments],
+  );
+  const hasAttachments = picked.length > 0;
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [draft, setDraft] = useState<string>(message.content);
   // Gate the entrance to the just-sent turn so recycled cells don't re-fire when scrolling.
@@ -125,7 +131,7 @@ function UserMessageImpl({
         {hasAttachments ? (
           <View className="px-4 pt-2 items-end">
             <View className="flex-row flex-wrap gap-2 justify-end">
-              {attachments?.map((a) => (
+              {picked.map((a) => (
                 <PersistedAttachmentChip key={String(a.id)} attachment={a} />
               ))}
             </View>
@@ -164,7 +170,7 @@ function UserMessageImpl({
       {hasAttachments ? (
         <View className="px-4 pt-2 items-end">
           <View className="flex-row flex-wrap gap-2 justify-end">
-            {attachments?.map((a) => (
+            {picked.map((a) => (
               <PersistedAttachmentChip key={String(a.id)} attachment={a} />
             ))}
           </View>

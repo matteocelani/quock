@@ -84,6 +84,12 @@ const ADD_ATTACHMENT_TEXT = `
   CREATE INDEX IF NOT EXISTS idx_attachments_message ON attachments(message_id);
 `;
 
+// Marks a row the app derived from another attachment (a PDF page rendered for a vision model). The UI hides these —
+// you attached one document, you should see one document — while the wire still needs them on every replayed turn.
+const ADD_ATTACHMENT_DERIVED = `
+  ALTER TABLE attachments ADD COLUMN derived_from INTEGER;
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { id: 1, up: INITIAL_SCHEMA },
   { id: 2, up: ADD_MESSAGE_STATUS },
@@ -94,6 +100,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { id: 7, up: ADD_MESSAGE_SENT_MODES },
   { id: 8, up: ADD_CHAT_USER },
   { id: 10, up: ADD_ATTACHMENT_TEXT },
+  { id: 11, up: ADD_ATTACHMENT_DERIVED },
 ];
 export const CURRENT_VERSION: number =
   MIGRATIONS.length > 0

@@ -19,6 +19,7 @@ interface AttachmentRow {
   uri: string | null;
   size_bytes: number;
   text_content: string | null;
+  derived_from: number | null;
 }
 
 function rowToAttachment(row: AttachmentRow): DbAttachment {
@@ -31,21 +32,25 @@ function rowToAttachment(row: AttachmentRow): DbAttachment {
     uri: row.uri,
     sizeBytes: row.size_bytes,
     textContent: row.text_content,
+    derivedFrom:
+      row.derived_from === null ? null : asAttachmentId(row.derived_from),
   };
 }
 // Add input lets callers omit `uri`, `sizeBytes` and `textContent`; sizeBytes defaults to `data.byteLength`.
 export type AttachmentAddInput = Omit<
   DbAttachment,
-  "id" | "uri" | "sizeBytes" | "textContent"
+  "id" | "uri" | "sizeBytes" | "textContent" | "derivedFrom"
 > &
-  Partial<Pick<DbAttachment, "uri" | "sizeBytes" | "textContent">>;
+  Partial<
+    Pick<DbAttachment, "uri" | "sizeBytes" | "textContent" | "derivedFrom">
+  >;
 
 export class AttachmentRepository {
   constructor(private readonly db: SQLiteDatabase) {}
   async listByMessage(messageId: MessageId): Promise<DbAttachment[]> {
     const rows = await this.db.getAllAsync<AttachmentRow>(
       `
-      SELECT id, message_id, filename, mime_type, data, uri, size_bytes, text_content
+      SELECT id, message_id, filename, mime_type, data, uri, size_bytes, text_content, derived_from
       FROM attachments
       WHERE message_id = ?
       ORDER BY id ASC
@@ -60,7 +65,7 @@ export class AttachmentRepository {
   async listByChatForWire(chatId: ChatId): Promise<DbAttachment[]> {
     const rows = await this.db.getAllAsync<AttachmentRow>(
       `
-      SELECT a.id, a.message_id, a.filename, a.mime_type, a.uri, a.size_bytes, a.text_content,
+      SELECT a.id, a.message_id, a.filename, a.mime_type, a.uri, a.size_bytes, a.text_content, a.derived_from,
              CASE WHEN a.text_content IS NULL THEN a.data ELSE x'' END AS data
       FROM attachments a
       JOIN messages m ON m.id = a.message_id
@@ -75,10 +80,11 @@ export class AttachmentRepository {
     const uri = input.uri ?? null;
     const sizeBytes = input.sizeBytes ?? input.data.byteLength;
     const textContent = input.textContent ?? null;
+    const derivedFrom = input.derivedFrom ?? null;
     const result = await this.db.runAsync(
       `
-      INSERT INTO attachments (message_id, filename, mime_type, data, uri, size_bytes, text_content)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO attachments (message_id, filename, mime_type, data, uri, size_bytes, text_content, derived_from)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         input.messageId,
@@ -88,6 +94,7 @@ export class AttachmentRepository {
         uri,
         sizeBytes,
         textContent,
+        derivedFrom,
       ],
     );
     return {
@@ -96,6 +103,7 @@ export class AttachmentRepository {
       uri,
       sizeBytes,
       textContent,
+      derivedFrom,
     };
   }
   async delete(id: AttachmentId): Promise<void> {

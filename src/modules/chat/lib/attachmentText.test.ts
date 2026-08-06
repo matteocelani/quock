@@ -16,6 +16,7 @@ function row(over: Partial<DbAttachment>): DbAttachment {
     uri: null,
     sizeBytes: 0,
     textContent: null,
+    derivedFrom: null,
     ...over,
   };
 }

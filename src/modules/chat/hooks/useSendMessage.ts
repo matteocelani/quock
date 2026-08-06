@@ -310,25 +310,25 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           .reduce((sum, a) => sum + a.sizeBytes, 0);
         let budget = Math.max(0, ATTACHMENT_MAX_TOTAL_BYTES - wireBytes);
         const pageRows: DbAttachment[] = [];
-        let pagesCut = false;
+        let pagesCut: "budget" | "error" | null = null;
         for (const row of insertedAttachments) {
           const result = pdfResults.get(row.id);
           if (result === undefined) continue;
           const pagesForVision = pagesToRender(result);
           if (pagesForVision.length === 0) continue;
-          const pages = await renderPdfPageImages(
+          const rendered = await renderPdfPageImages(
             row.uri ?? "",
             row.filename,
             row.id,
             pagesForVision,
             budget,
           );
-          if (pages.length < pagesForVision.length) pagesCut = true;
+          if (rendered.cutBy !== null) pagesCut = rendered.cutBy;
           budget = Math.max(
             0,
-            budget - pages.reduce((sum, p) => sum + p.sizeBytes, 0),
+            budget - rendered.images.reduce((sum, p) => sum + p.sizeBytes, 0),
           );
-          for (const page of pages) {
+          for (const page of rendered.images) {
             if (page.data === undefined) continue;
             try {
               pageRows.push(
@@ -340,6 +340,8 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
                   uri: page.uri,
                   sizeBytes: page.sizeBytes,
                   textContent: null,
+                  // Marks it as ours, not something the user picked: the bubble hides it, the wire keeps it.
+                  derivedFrom: row.id,
                 }),
               );
             } catch (err) {
@@ -348,10 +350,13 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
             }
           }
         }
-        if (pagesCut) {
+        if (pagesCut !== null) {
           toast({
             title: "Some pages were left out",
-            description: "The document is too large to send every page.",
+            description:
+              pagesCut === "budget"
+                ? "The document is too large to send every page."
+                : "Some pages of this document could not be prepared.",
           });
         }
         // Fresh array and Map: the first patch handed the previous ones to the cache, and mutating those in place

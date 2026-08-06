@@ -54,6 +54,7 @@ function dbAtt(id: number, mimeType: string | null): DbAttachment {
     uri: null,
     sizeBytes: 1,
     textContent: null,
+    derivedFrom: null,
   };
 }
 
@@ -152,9 +153,18 @@ describe("toWireHistory", () => {
 
   it("stays quiet when the pages did get rendered", () => {
     const stored = JSON.stringify({ pageCount: 2, pages: [] });
+    const pdf = {
+      ...dbAtt(1, "application/pdf"),
+      filename: "scan.pdf",
+      textContent: stored,
+    };
     const rows = [
-      { ...dbAtt(1, "application/pdf"), filename: "scan.pdf", textContent: stored },
-      { ...dbAtt(1, "image/jpeg"), filename: "scan.pdf (page 1)" },
+      pdf,
+      {
+        ...dbAtt(1, "image/jpeg"),
+        filename: "scan.pdf (page 1)",
+        derivedFrom: pdf.id,
+      },
     ];
     const wire = toWireHistory([dbMsg(1, "user", "read this")], rows, true);
     expect(wire.messages[0].content).not.toContain("no text layer");
