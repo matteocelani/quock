@@ -9,7 +9,7 @@ import type { ChatId, MessageId } from "@/lib/types/ids";
 import type { WireChatMessage } from "@/modules/chat/api/chat";
 import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import { attachmentTextBlocks } from "@/modules/chat/lib/attachmentText";
-import { bytesToBase64 } from "@/lib/encoding/base64";
+import { encodeAttachmentBase64 } from "@/modules/chat/lib/attachmentBase64";
 import { ATTACHMENT_REPLAY_MAX_BYTES } from "@/modules/chat/constants";
 import { allocateBlocks, foldBlocks } from "@/modules/chat/lib/documentText";
 
@@ -67,7 +67,7 @@ export function toWireHistory(
         continue;
       }
       imageBudget -= row.data.byteLength;
-      images.push(bytesToBase64(row.data));
+      images.push(encodeAttachmentBase64(row.id, row.data));
     }
     // Said out loud for the same reason a cut document is: a turn asking about a picture the model cannot see is worse
     // than a turn that admits the picture is missing.

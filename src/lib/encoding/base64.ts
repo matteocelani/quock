@@ -7,12 +7,29 @@ const URL_ALPHABET =
 
 const BYTES_PER_BASE64_GROUP = 3;
 const BASE64_GROUP_BITS = 6;
+// 12 bits at a time: every pair of output characters is looked up once instead of built two indexings at a time. An
+// image is megabytes of this loop on the JS thread, and the table halves the work; built on first use so the 32-byte
+// encodes on the signing path never pay for it.
+const PAIR_TABLE_SIZE = 4096;
+const pairTables = new Map<string, string[]>();
+
+function pairTable(alphabet: string): string[] {
+  const cached = pairTables.get(alphabet);
+  if (cached !== undefined) return cached;
+  const table = new Array<string>(PAIR_TABLE_SIZE);
+  for (let i = 0; i < PAIR_TABLE_SIZE; i += 1) {
+    table[i] = alphabet[i >> 6] + alphabet[i & 0x3f];
+  }
+  pairTables.set(alphabet, table);
+  return table;
+}
 
 function encodeWithAlphabet(
   bytes: Uint8Array,
   alphabet: string,
   withPadding: boolean,
 ): string {
+  const pairs = pairTable(alphabet);
   let out = "";
   let i = 0;
   for (
@@ -20,13 +37,10 @@ function encodeWithAlphabet(
     i + BYTES_PER_BASE64_GROUP <= bytes.length;
     i += BYTES_PER_BASE64_GROUP
   ) {
-    const b0 = bytes[i];
-    const b1 = bytes[i + 1];
-    const b2 = bytes[i + 2];
-    out += alphabet[b0 >> 2];
-    out += alphabet[((b0 & 0x03) << 4) | (b1 >> 4)];
-    out += alphabet[((b1 & 0x0f) << 2) | (b2 >> 6)];
-    out += alphabet[b2 & 0x3f];
+    // Three bytes are two 12-bit indexes: 0xFFF000 >> 12 and 0x000FFF.
+    const group = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+    out += pairs[group >> 12];
+    out += pairs[group & 0xfff];
   }
   const remaining = bytes.length - i;
   if (remaining === 1) {
