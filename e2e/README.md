@@ -20,7 +20,7 @@ Maestro Studio (`maestro studio`) is useful for authoring new flows and inspecti
 
 ## Manual: document attachments
 
-Sending anything needs a bound account and a picked model, and the OS document picker is a separate process, so this flow stays manual for the same reason the rest of the chat does. Run it on the simulator before a release touching attachments. The four fixtures cover the four paths a document can take — build your own to these shapes, any PDF toolchain will do.
+Sending anything needs a bound account and a picked model, and the OS document picker is a separate process, so this flow stays manual for the same reason the rest of the chat does. Run it on the simulator before a release touching attachments. The fixtures below cover every path a document can take, the failures included — build your own to these shapes, any PDF toolchain will do.
 
 | Fixture | Shape | Expected |
 |---|---|---|
@@ -28,6 +28,10 @@ Sending anything needs a bound account and a picked model, and the OS document p
 | an image-only PDF, 2 pages, a distinct code on each | no text layer | on a vision model both codes come back; the second proves the render did not stop at page 1 |
 | the same image-only PDF | — | on a NON-vision model the codes still come back, recognised on-device by OCR; nothing is invented |
 | a password-protected PDF | encrypted | red toast "… is password protected", and the model says it could not read it |
+| a damaged PDF (truncate a real one, or rename a `.zip`) | not parseable | red toast "… couldn't be used" / "The file is damaged, or it is not really a PDF." — a document that reaches the model empty must never do so in silence |
+| two damaged PDFs in one send | not parseable | ONE red toast counting both and naming them, never two toasts (the store keeps only the last) |
+| an image-only PDF on a NON-vision model, with OCR unavailable | nothing recognised | amber toast "No text could be read from …", pointing at re-attaching with a vision model |
+| several documents at once, one of them unreadable | mixed | the readable ones attach, and ONE toast names how many were dropped (the store keeps only the last toast) |
 
 Two checks that catch the failures worth catching:
 

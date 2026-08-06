@@ -3,8 +3,8 @@ import { joinRecognisedLines, ocrPages } from "@/modules/chat/lib/pdfOcr";
 describe("joinRecognisedLines", () => {
   // The recogniser returns one string per line; a table or a form only reads right if the breaks survive.
   it("keeps the line breaks and drops the blanks", () => {
-    expect(joinRecognisedLines(["Totale", "  ", " 45,04 € ", ""])).toBe(
-      "Totale\n45,04 €",
+    expect(joinRecognisedLines(["Amount due", "  ", " 45.04 EUR ", ""])).toBe(
+      "Amount due\n45.04 EUR",
     );
   });
 

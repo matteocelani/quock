@@ -195,7 +195,7 @@ export async function renderPdfPages(
   return { pages: out, isCutShort };
 }
 
-// Frees the native document and deletes every file it rendered. Call it once the pages have been read.
+// Frees the native document and deletes the files it rendered.
 export async function closePdfRender(uri: string): Promise<void> {
   await PdfPageImage.close(uri).catch((err: unknown) => {
     console.warn("pdfDocument: closing the PDF failed", err);

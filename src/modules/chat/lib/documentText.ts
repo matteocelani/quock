@@ -127,7 +127,6 @@ export interface BlockAllocation {
 
 // Allocates the character budget across the conversation NEWEST FIRST, so the document just attached arrives whole and
 // an older one yields. Groups come in and go out in chronological order.
-
 export function allocateBlocks(
   groups: readonly (readonly TextBlockInput[])[],
 ): BlockAllocation {
