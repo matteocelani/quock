@@ -52,6 +52,10 @@ export const TOAST_MAX_NAMED_FILES = 2;
 // — so this bounds the wait, not the payload; a document that reads as text has no cap at all.
 export const PDF_OCR_MAX_PAGES = 30;
 
+// Steady painting speed for a streaming answer, and how far behind the model the screen may fall while spending a
+// burst. Faster than comfortable reading on purpose: the pacing is there to remove stutter, not to slow the answer.
+export const STREAM_REVEAL_CHARS_PER_SEC = 280;
+export const STREAM_REVEAL_MAX_LAG_MS = 350;
 // How long a live stream must produce nothing before the UI says so. Short enough to cover a pause the eye notices,
 // long enough that the gaps between ordinary tokens never trip it.
 export const STREAM_SILENCE_MS = 600;

@@ -22,6 +22,7 @@ import { ThinkingBlock } from "@/components/chat/ThinkingBlock";
 import { ThinkingIndicator } from "@/components/chat/ThinkingIndicator";
 import { useIsReasoning } from "@/modules/chat/hooks/useIsReasoning";
 import { useIsStreamSilent } from "@/modules/chat/hooks/useIsStreamSilent";
+import { useRevealedContent } from "@/modules/chat/hooks/useRevealedContent";
 import type { DbMessage, MessageErrorCode } from "@/lib/db/types";
 import { useToast } from "@/lib/hooks/useToast";
 import {
@@ -174,6 +175,9 @@ function AssistantMessageImpl({
     message.content.length + (message.thinking?.length ?? 0),
   );
   const isWorking = isStreaming && (isReasoning || isSilent);
+  // Only the painted source is paced; every gate below still reads the real content, so the cursor and the working
+  // indicator never flicker because the screen is a few characters behind.
+  const revealedContent = useRevealedContent(message.content, isStreaming);
   const isError = message.status === "error";
   const isInterrupted = message.status === "interrupted";
   // Has the model produced any reasoning yet (think: true models stream `<think>` tokens before the answer).
@@ -206,7 +210,7 @@ function AssistantMessageImpl({
           <View className="flex-row items-end flex-wrap">
             {/* Excerpt actions only on a landed reply: mid-stream the list follows the tail, so a menu anchored to a moving unit would drift off it. */}
             <Markdown
-              source={message.content}
+              source={revealedContent}
               className="flex-1"
               {...(showActionRow
                 ? { onLongPressExcerpt: handleLongPressExcerpt }
