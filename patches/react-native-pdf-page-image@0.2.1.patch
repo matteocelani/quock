@@ -1,5 +1,19 @@
+diff --git a/android/build.gradle b/android/build.gradle
+index 9719c815b73db70b545dd9d740320a2c9cbb5fec..b13f9431ac32df6e10f0a4033ec1e06e54a6da77 100644
+--- a/android/build.gradle
++++ b/android/build.gradle
+@@ -61,7 +61,8 @@ android {
+ repositories {
+   mavenCentral()
+   google()
+-  jcenter()  // Add this line to include JCenter repository
++  // Quock: dropped jcenter() — Gradle 9 removed the method itself, so this file could not be evaluated at all.
++  // Everything it once served is on mavenCentral(), declared two lines above.
+ 
+   def found = false
+   def defaultDir = null
 diff --git a/ios/PdfFlyweight.swift b/ios/PdfFlyweight.swift
-index c17614935aec755587f5bd1ae7be4cf7fce3aea0..b3454094d49459c616c0ea4524f57b715d2355e4 100644
+index c17614935aec755587f5bd1ae7be4cf7fce3aea0..da317df2949c27671f450040ab6eff3523e5cf73 100644
 --- a/ios/PdfFlyweight.swift
 +++ b/ios/PdfFlyweight.swift
 @@ -101,8 +101,11 @@ class PdfFlyweight {
@@ -41,7 +55,7 @@ index c17614935aec755587f5bd1ae7be4cf7fce3aea0..b3454094d49459c616c0ea4524f57b71
          
          // Construir el nombre del archivo con el UUID y una extensión
 diff --git a/react-native-pdf-page-image.podspec b/react-native-pdf-page-image.podspec
-index 9182f3eb35e90a2f754ecdbe7491ad5bba283ad9..0a7318b7a9fbd08ee460779d4b4c5a875b53c721 100644
+index 9182f3eb35e90a2f754ecdbe7491ad5bba283ad9..e8beb8dc4c5c49aefe2894c0f8b4bf4bfa659e2f 100644
 --- a/react-native-pdf-page-image.podspec
 +++ b/react-native-pdf-page-image.podspec
 @@ -18,18 +18,6 @@ Pod::Spec.new do |s|
