@@ -37,12 +37,14 @@ export function FloatingHeader({
     insets.top +
     componentLayout.floatingHeader.topGap +
     componentLayout.floatingHeader.orbHeight;
-  const { model } = useChatModel(chatId);
   const { user } = useAuth();
   const openChatHistory = useUIStore((s) => s.openChatHistory);
   const closeChatHistory = useUIStore((s) => s.closeChatHistory);
   // The orbs stay put while the screen slides out from under them, so this one has to say which way it now points.
   const isDrawerOpen = useUIStore((s) => s.chatHistoryOpen);
+  // On the chats page the badge must read the DEFAULT, not the pin of the conversation hidden behind the panel: that
+  // chat is pinned from its first send, so it would keep naming its own model while the picker changed a different one.
+  const { model } = useChatModel(isDrawerOpen ? null : chatId);
   const openModelPicker = useUIStore((s) => s.openModelPicker);
   const openModelPickerAsDefault = useUIStore((s) => s.openModelPickerAsDefault);
   const openAccount = useUIStore((s) => s.openAccount);
