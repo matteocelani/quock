@@ -20,10 +20,14 @@ interface StreamingState {
   abortControllers: ReadonlyMap<ChatId, AbortController>;
   downloadProgress: ReadonlyMap<ChatId, DownloadProgress>;
   toolActivity: ReadonlyMap<ChatId, ToolActivity>;
+  // Chats whose model is producing REASONING right now, as opposed to answer tokens. Volatile by nature: it flips many
+  // times inside one turn, and nothing outside the live UI has any use for it.
+  reasoningChatIds: ReadonlySet<ChatId>;
   startStream: (chatId: ChatId, controller: AbortController) => void;
   endStream: (chatId: ChatId) => void;
   updateProgress: (chatId: ChatId, progress: DownloadProgress) => void;
   setToolActivity: (chatId: ChatId, activity: ToolActivity | null) => void;
+  setReasoning: (chatId: ChatId, isReasoning: boolean) => void;
   abort: (chatId: ChatId) => void;
 }
 
@@ -32,6 +36,7 @@ export const useStreamingStore = create<StreamingState>((set, get) => ({
   abortControllers: new Map<ChatId, AbortController>(),
   downloadProgress: new Map<ChatId, DownloadProgress>(),
   toolActivity: new Map<ChatId, ToolActivity>(),
+  reasoningChatIds: new Set<ChatId>(),
   startStream: (chatId, controller): void => {
     const streamingChatIds = new Set(get().streamingChatIds);
     streamingChatIds.add(chatId);
@@ -48,7 +53,23 @@ export const useStreamingStore = create<StreamingState>((set, get) => ({
     downloadProgress.delete(chatId);
     const toolActivity = new Map(get().toolActivity);
     toolActivity.delete(chatId);
-    set({ streamingChatIds, abortControllers, downloadProgress, toolActivity });
+    const reasoningChatIds = new Set(get().reasoningChatIds);
+    reasoningChatIds.delete(chatId);
+    set({
+      streamingChatIds,
+      abortControllers,
+      downloadProgress,
+      toolActivity,
+      reasoningChatIds,
+    });
+  },
+  setReasoning: (chatId, isReasoning): void => {
+    const current = get().reasoningChatIds.has(chatId);
+    if (current === isReasoning) return;
+    const reasoningChatIds = new Set(get().reasoningChatIds);
+    if (isReasoning) reasoningChatIds.add(chatId);
+    else reasoningChatIds.delete(chatId);
+    set({ reasoningChatIds });
   },
   updateProgress: (chatId, progress): void => {
     const downloadProgress = new Map(get().downloadProgress);

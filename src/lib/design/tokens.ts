@@ -111,6 +111,8 @@ export interface DesignTimingsNamed {
   focus: number; // 200  — TextField focus-border crossfade
   sheetSlide: number; // 220  — Sheet enter / exit slide
   swipeCloseTail: number; // 260  — ChatRow rename/delete: wait for ReanimatedSwipeable close before opening the dialog
+  shimmerSweep: number; // 1500 — one pass of the light across a label. Slower than a spinner on purpose: a fast cycle
+  // reads as "stuck in a loop", a slow one as "working".
   drawerOpen: number; // 500  — drawer reveal on tap. Long enough that the choreography (page, zoom, veil, icon) can
   // actually be read: under ~400 the eye registers the end state and misses the transition entirely.
   drawerClose: number; // 420  — dismiss on tap, still shorter than arriving so leaving feels lighter
@@ -125,6 +127,7 @@ export const timingsNamed: DesignTimingsNamed = {
   focus: 200,
   sheetSlide: 220,
   swipeCloseTail: 260,
+  shimmerSweep: 1500,
   drawerOpen: 500,
   drawerClose: 420,
   copyFeedback: 1000,
@@ -354,6 +357,10 @@ export interface DesignComponentLayout {
   modelPicker: {
     descriptionMaxLines: number; // 2 — Ollama-site mirror
   };
+  shimmerText: {
+    bandWidth: number; // 0.3 — share of the label the highlight spans. Spread wider it stops being a band and becomes
+    // a wash that nobody notices crossing.
+  };
   // iOS 27 Scroll Edge Effect. One intensity for every edge that uses it: header, composer, drawer panel.
   scrollEdgeBlur: {
     intensity: number; // 60 — peak blur where content meets the edge
@@ -493,6 +500,7 @@ export const componentLayout: DesignComponentLayout = {
     orbRowPaddingY: 10,
   },
   modelPicker: { descriptionMaxLines: 2 },
+  shimmerText: { bandWidth: 0.3 },
   scrollEdgeBlur: { intensity: 60 },
   drawer: {
     widthRatio: 1,

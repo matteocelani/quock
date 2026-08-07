@@ -52,10 +52,9 @@ export const TOAST_MAX_NAMED_FILES = 2;
 // — so this bounds the wait, not the payload; a document that reads as text has no cap at all.
 export const PDF_OCR_MAX_PAGES = 30;
 
-// ThinkingDots cadence: each dot loops opacity over DURATION_MS with STAGGER_MS lag so the trio reads as a wave.
-export const THINKING_DOT_DURATION_MS = 900;
-export const THINKING_DOT_STAGGER_MS = 140;
-export const THINKING_DOT_MIN_OPACITY = 0.3;
+// How long a live stream must produce nothing before the UI says so. Short enough to cover a pause the eye notices,
+// long enough that the gaps between ordinary tokens never trip it.
+export const STREAM_SILENCE_MS = 600;
 
 // Composer: send/stop icon cross-fade window and visible-rows cap (8 = Telegram-style sweet spot) before the TextField starts scrolling internally. Line height lives in componentLayout.composer.inputLineHeight — one home.
 export const COMPOSER_SEND_MORPH_DURATION_MS = 200;

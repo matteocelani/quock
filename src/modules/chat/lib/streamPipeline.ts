@@ -70,6 +70,7 @@ export interface RunStreamContext {
   endStream: (chatId: ChatId) => void;
   updateProgress: (chatId: ChatId, progress: DownloadProgress) => void;
   setToolActivity: (chatId: ChatId, activity: ToolActivity | null) => void;
+  setReasoning: (chatId: ChatId, isReasoning: boolean) => void;
   haptics: UseHapticsResult;
   // Ref is shared with the hook so `abort()` on the hook still cancels the active controller; we set + clear it from inside the pipeline.
   controllerRef: React.MutableRefObject<AbortController | null>;
@@ -157,6 +158,7 @@ export async function runStream(
     endStream,
     updateProgress,
     setToolActivity,
+    setReasoning,
     haptics,
     controllerRef,
   } = ctx;
@@ -337,11 +339,15 @@ export async function runStream(
         switch (event.eventName) {
           case "chat": {
             if (event.content) {
+              const answerBefore = buffers.content.length;
               buffers.rawContent += event.content;
               // Re-derive the visible answer + inline reasoning from the full raw buffer (tolerant of tags split across chunks).
               const split = splitInlineThink(buffers.rawContent);
               buffers.content = split.content;
               buffers.inlineThinking = split.thinking;
+              // A model reasoning INLINE sends its thoughts down this same channel, so the answer standing still while
+              // the buffer grows is the tell that it went back to thinking rather than resumed writing.
+              setReasoning(chatId, buffers.content.length === answerBefore);
               tokenCount += 1;
               if (!buffers.hasStreamedToken) {
                 buffers.hasStreamedToken = true;
@@ -356,6 +362,7 @@ export async function runStream(
           }
           case "thinking": {
             if (event.thinking) {
+              setReasoning(chatId, true);
               buffers.thinking += event.thinking;
               scheduleReactFlush();
               scheduleDbFlush();

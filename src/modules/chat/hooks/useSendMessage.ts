@@ -91,6 +91,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
   const endStream = useStreamingStore((s) => s.endStream);
   const updateProgress = useStreamingStore((s) => s.updateProgress);
   const setToolActivity = useStreamingStore((s) => s.setToolActivity);
+  const setReasoning = useStreamingStore((s) => s.setReasoning);
   const ctxAbort = useStreamingStore((s) => s.abort);
   const isStreaming = useStreamingStore((s) =>
     s.streamingChatIds.has(chatId),
@@ -132,6 +133,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           endStream,
           updateProgress,
           setToolActivity,
+          setReasoning,
           haptics,
           controllerRef,
         },
@@ -149,6 +151,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       haptics,
       messages,
       queryClient,
+      setReasoning,
       setToolActivity,
       startStream,
       updateProgress,

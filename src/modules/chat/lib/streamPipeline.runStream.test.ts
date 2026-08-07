@@ -75,6 +75,7 @@ function makeCtx() {
 
   const update = jest.fn().mockResolvedValue(undefined);
   const setToolActivity = jest.fn();
+  const setReasoning = jest.fn();
   const endStream = jest.fn();
   const light = jest.fn();
 
@@ -87,11 +88,20 @@ function makeCtx() {
     endStream,
     updateProgress: jest.fn(),
     setToolActivity,
+    setReasoning,
     haptics: { light } as unknown as UseHapticsResult,
     controllerRef: { current: null as AbortController | null },
   };
 
-  return { ctx, queryClient, update, setToolActivity, endStream, light };
+  return {
+    ctx,
+    queryClient,
+    update,
+    setToolActivity,
+    setReasoning,
+    endStream,
+    light,
+  };
 }
 
 function tailMessage(queryClient: QueryClient) {
