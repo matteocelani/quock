@@ -33,7 +33,11 @@ import {
   DEFAULT_DEEP_DIVE_INSTRUCTION,
   DEFAULT_WEB_SEARCH_INSTRUCTION,
 } from "@/modules/chat/lib/selectionPrompts";
-import { EXCERPT_INSTRUCTION_MAX_CHARS } from "@/modules/settings/constants";
+import {
+  EXCERPT_INSTRUCTION_MAX_CHARS,
+  SETTINGS_SCROLL_PAD_BOTTOM,
+  SETTINGS_SCROLL_PAD_TOP,
+} from "@/modules/settings/constants";
 import { useSettingsStore } from "@/lib/stores/settings.store";
 
 // The two excerpt-menu actions whose wording is editable.
@@ -44,10 +48,6 @@ const THEME_OPTIONS: readonly SegmentedOption[] = [
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
 ];
-
-// Visual rhythm for the settings ScrollView: a little breathing space after the sheet header, generous bottom inset so the last row never sits flush against the safe-area edge.
-const SCROLL_PAD_TOP = 14;
-const SCROLL_PAD_BOTTOM = 40;
 
 export interface SettingsViewProps {
   onChangeModel?: () => void;
@@ -191,8 +191,8 @@ export function SettingsView({
       <ScrollView
         className="flex-1"
         contentContainerStyle={{
-          paddingTop: SCROLL_PAD_TOP,
-          paddingBottom: SCROLL_PAD_BOTTOM,
+          paddingTop: SETTINGS_SCROLL_PAD_TOP,
+          paddingBottom: SETTINGS_SCROLL_PAD_BOTTOM,
         }}
         showsVerticalScrollIndicator={false}
         bounces

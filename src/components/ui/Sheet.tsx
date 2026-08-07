@@ -7,7 +7,6 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
   View,
   type ViewStyle,
 } from "react-native";
@@ -25,12 +24,10 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { X } from "lucide-react-native";
 import { useTheme, useThemeColors } from "@/lib/theme/ThemeContext";
 import { sheetSpring } from "@/lib/design/motion";
-import { boxShadow, iconSize, sheetPrimitive, size, timingsNamed } from "@/lib/design/tokens";
+import { boxShadow, sheetPrimitive, timingsNamed } from "@/lib/design/tokens";
 
-import { IconButton } from "@/components/ui/IconButton";
 import { ToastViewport } from "@/components/global/ToastContext";
 import { useUIStore } from "@/lib/stores/ui.store";
 
@@ -41,7 +38,6 @@ export interface SheetProps {
   snapPoints: (string | number)[];
   children: React.ReactNode;
   enableDynamicSizing?: boolean;
-  title?: string;
   /** Horizontal padding inside the scrollable content area. Default 0 so list rows go edge-to-edge. */
   contentPaddingHorizontal?: number;
   /** Nodes rendered inside the sheet's Modal but OUTSIDE the card — useful for dialogs that need to center against the full display, not against a 75%-height card. */
@@ -70,7 +66,6 @@ export function Sheet({
   onClose,
   snapPoints,
   children,
-  title,
   contentPaddingHorizontal = 0,
   overlays,
   className,
@@ -215,7 +210,7 @@ export function Sheet({
             // Card extends under the home indicator, so the content pads for it internally.
             style={{ ...cardRadii, overflow: "hidden", paddingBottom: insets.bottom }}
           >
-            {/* Grabber zone — drag handle + optional title row — owns the pan gesture. */}
+            {/* Grabber zone — owns the pan gesture. The title row is <SheetHeader>, rendered by each sheet as content. */}
             <GestureDetector gesture={panGesture}>
               <View>
                 <View
@@ -232,24 +227,6 @@ export function Sheet({
                     }}
                   />
                 </View>
-                {title !== undefined ? (
-                  <View className="flex-row items-center justify-between py-1 px-4 border-b border-border">
-                    {/* Slots mirror IconButton's exact 44pt box so the title stays centered. */}
-                    <View style={{ width: size.hitTargetMin }} />
-                    <Text className="flex-1 text-center font-sans font-semibold text-label text-headline">
-                      {title}
-                    </Text>
-                    <View className="items-end" style={{ width: size.hitTargetMin }}>
-                      <IconButton
-                        icon={X}
-                        size={iconSize.xl}
-                        tone="muted"
-                        accessibilityLabel="Close"
-                        onPress={onClose}
-                      />
-                    </View>
-                  </View>
-                ) : null}
               </View>
             </GestureDetector>
             <View

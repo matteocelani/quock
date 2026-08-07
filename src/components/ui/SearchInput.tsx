@@ -5,8 +5,7 @@ import { TextInput, View, type TextInputProps } from "react-native";
 import clsx from "clsx";
 import { Search, X } from "lucide-react-native";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
-import { withAlpha } from "@/lib/design/color";
-import { iconSize, motion, opacity } from "@/lib/design/tokens";
+import { iconSize, motion } from "@/lib/design/tokens";
 import { Pressable } from "@/components/ui/Pressable";
 
 export interface SearchInputProps {
@@ -36,8 +35,8 @@ export function SearchInput({
 }: SearchInputProps): React.ReactElement {
   const colors = useThemeColors();
   const hasValue = value.length > 0;
-  // Foreground @ 50% alpha — mutedForeground over muted bg was too low contrast in light.
-  const placeholderColor = withAlpha(colors.foreground, opacity.half);
+  // The iOS ramp's tertiary tint, which is what a placeholder is: any hand-rolled alpha reads as pre-filled text.
+  const placeholderColor = colors.labelTertiary;
   const handleClear = (): void => {
     onChangeText("");
   };

@@ -128,7 +128,9 @@ function ListRowImpl({
           {trailingMeta ? (
             <Animated.View style={trailingMetaAnimStyle}>
               <Text
-                className="font-sans text-footnote text-muted-foreground"
+                // Tertiary, not secondary: a timestamp is metadata, and at the same tint as the subtitle beside it the
+                // row reads as two equal columns instead of a title with a note.
+                className="font-sans text-footnote text-label-tertiary"
                 numberOfLines={1}
               >
                 {trailingMeta}

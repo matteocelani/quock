@@ -95,7 +95,7 @@ export function AttachmentChip({
           <View
             className={clsx(
               "rounded-2xl overflow-hidden border bg-muted",
-              isInvalid ? "border-destructive" : "border-gray4",
+              isInvalid ? "border-destructive" : "border-border",
             )}
             style={{
               position: "absolute",
@@ -133,7 +133,7 @@ export function AttachmentChip({
               "flex-row items-center border rounded-xl px-2.5 py-1.5",
               isInvalid
                 ? "bg-destructive-soft border-destructive"
-                : "bg-card border-gray4",
+                : "bg-card border-border",
             )}
             style={{ maxWidth: componentLayout.attachmentChipMaxWidth }}
           >

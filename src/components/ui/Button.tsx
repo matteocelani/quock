@@ -12,7 +12,7 @@ import { Pressable } from "@/components/ui/Pressable";
 import { Spinner } from "@/components/ui/Spinner";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { baseAnimationDurationMs, springEasing } from "@/lib/design/motion";
-import { componentLayout, motion, opacity, timingsNamed } from "@/lib/design/tokens";
+import { componentLayout, iconSize, motion, opacity, timingsNamed } from "@/lib/design/tokens";
 import type { DesignColors } from "@/lib/design/tokens";
 
 export type ButtonVariant =
@@ -170,7 +170,7 @@ export function Button({
       >
         {loading ? (
           <Spinner
-            size={size === "sm" ? 14 : 18}
+            size={size === "sm" ? iconSize.sm : iconSize.lg}
             color={resolveSpinnerColor(variant, colors)}
           />
         ) : typeof children === "string" || typeof children === "number" ? (

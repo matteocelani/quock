@@ -3,6 +3,10 @@
 import * as WebBrowser from "expo-web-browser";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { ScrollView, Text, View } from "react-native";
+import {
+  SETTINGS_DRILL_SCROLL_PAD_TOP,
+  SETTINGS_SCROLL_PAD_BOTTOM,
+} from "@/modules/settings/constants";
 import { OLLAMA_LINKS } from "@/lib/api/config";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -11,8 +15,6 @@ import { useSettingsStore } from "@/lib/stores/settings.store";
 import { componentLayout } from "@/lib/design/tokens";
 import { useRevokeAiConsent } from "@/modules/settings/hooks/useRevokeAiConsent";
 
-const SCROLL_PAD_TOP = 8;
-const SCROLL_PAD_BOTTOM = 40;
 
 export interface AiDataViewProps {
   // Publishes the revoke confirmation up to AccountSheet so it renders in the Sheet's `overlays` slot — centered
@@ -67,8 +69,8 @@ export function AiDataView({
     <ScrollView
       className="flex-1"
       contentContainerStyle={{
-        paddingTop: SCROLL_PAD_TOP,
-        paddingBottom: SCROLL_PAD_BOTTOM,
+        paddingTop: SETTINGS_DRILL_SCROLL_PAD_TOP,
+        paddingBottom: SETTINGS_SCROLL_PAD_BOTTOM,
       }}
       showsVerticalScrollIndicator={false}
       bounces

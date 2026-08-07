@@ -4,6 +4,10 @@ import * as WebBrowser from "expo-web-browser";
 import React, { useCallback } from "react";
 import { Linking, ScrollView, Text, View } from "react-native";
 import { ExternalLink, Mail } from "lucide-react-native";
+import {
+  SETTINGS_DRILL_SCROLL_PAD_TOP,
+  SETTINGS_SCROLL_PAD_BOTTOM,
+} from "@/modules/settings/constants";
 import DiscordSvg from "@/assets/icons/Discord.svg";
 import GithubSvg from "@/assets/icons/Github.svg";
 import OllamaSvg from "@/assets/icons/Ollama.svg";
@@ -15,9 +19,6 @@ import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { componentLayout, iconSize, size } from "@/lib/design/tokens";
 import { useToast } from "@/lib/hooks/useToast";
 
-// Top-edge breathing space below the sheet header; bottom-edge spacing before the sheet bottom inset so the last row never sits flush against the safe-area edge.
-const SCROLL_PAD_TOP = 8;
-const SCROLL_PAD_BOTTOM = 40;
 
 export function OllamaView(): React.ReactElement {
   const colors = useThemeColors();
@@ -45,7 +46,7 @@ export function OllamaView(): React.ReactElement {
   return (
     <ScrollView
       className="flex-1"
-      contentContainerStyle={{ paddingTop: SCROLL_PAD_TOP, paddingBottom: SCROLL_PAD_BOTTOM }}
+      contentContainerStyle={{ paddingTop: SETTINGS_DRILL_SCROLL_PAD_TOP, paddingBottom: SETTINGS_SCROLL_PAD_BOTTOM }}
       showsVerticalScrollIndicator={false}
       bounces
       decelerationRate="normal"
