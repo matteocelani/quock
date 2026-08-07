@@ -33,6 +33,7 @@ interface UIState {
   openChatHistory: () => void;
   closeChatHistory: () => void;
   openModelPicker: () => void;
+  openModelPickerAsDefault: () => void;
   closeModelPicker: () => void;
   openAccount: () => void;
   closeAccount: () => void;
@@ -69,6 +70,11 @@ export const useUIStore = create<UIState>((set) => ({
   // Header tap → current-chat override.
   openModelPicker: (): void => {
     set({ modelPickerOpen: true, modelPickerMode: "current" });
+  },
+  // Picked from the chats page, where no conversation is on screen: there is nothing to pin to, so the choice moves the
+  // global default — which is what the next new chat is born with, since a fresh row carries no model of its own.
+  openModelPickerAsDefault: (): void => {
+    set({ modelPickerOpen: true, modelPickerMode: "default" });
   },
   closeModelPicker: (): void => {
     set({ modelPickerOpen: false });

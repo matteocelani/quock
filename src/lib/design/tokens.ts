@@ -68,6 +68,9 @@ export interface DesignColors {
   // Utility.
   scrim: string;
   scrimSheet: string;
+  // Wash over the page that has not arrived yet, cleared as it lands. Heavier in dark: the surface there is already
+  // black, so what the wash actually dims is the text standing on it.
+  scrimPage: string;
   // Excerpt menu dim (lighter than a sheet: it blurs too) and the ported BorderGlow rim palette, that effect only.
   scrimExcerpt: string;
   excerptRimMesh: readonly string[];
@@ -108,6 +111,9 @@ export interface DesignTimingsNamed {
   focus: number; // 200  — TextField focus-border crossfade
   sheetSlide: number; // 220  — Sheet enter / exit slide
   swipeCloseTail: number; // 260  — ChatRow rename/delete: wait for ReanimatedSwipeable close before opening the dialog
+  drawerOpen: number; // 500  — drawer reveal on tap. Long enough that the choreography (page, zoom, veil, icon) can
+  // actually be read: under ~400 the eye registers the end state and misses the transition entirely.
+  drawerClose: number; // 420  — dismiss on tap, still shorter than arriving so leaving feels lighter
   copyFeedback: number; // 1000 — CodeBlock copy checkmark linger
   spinnerRotation: number; // 833  — iOS UIActivityIndicator cadence (~1.2 rps)
   routeSpinnerDefer: number; // 250 — wait before showing route spinner
@@ -119,6 +125,8 @@ export const timingsNamed: DesignTimingsNamed = {
   focus: 200,
   sheetSlide: 220,
   swipeCloseTail: 260,
+  drawerOpen: 500,
+  drawerClose: 420,
   copyFeedback: 1000,
   spinnerRotation: 833,
   routeSpinnerDefer: 250,
@@ -266,6 +274,9 @@ export interface DesignBoxShadowGlass {
 }
 export interface DesignBoxShadow {
   glass: Record<"light" | "dark", DesignBoxShadowGlass>;
+  // Same glass, contained: an orb sitting INSIDE a list row has ~7pt of air above and below it, so the ambient lift's
+  // 8/24 would spill onto the rows either side. Shorter throw, lighter wash — the ring is what says "glass" anyway.
+  glassContained: Record<"light" | "dark", DesignBoxShadowGlass>;
   // Sheet card ring — iOS 27 kit values (hairline + deep ambient), heavier than the orb glass ring. The kit's 1.25px side speculars are deliberately omitted: sub-pixel ticks read as noise at card scale and the kit extracts no dark values for them.
   sheet: Record<"light" | "dark", string>;
   // SegmentedControl selected-pill lift — kit CSS blur rendered verbatim by Fabric (legacy shadowRadius would halve it).
@@ -273,6 +284,9 @@ export interface DesignBoxShadow {
   // Excerpt spotlight edge light: the web BorderGlow's ladder, cut where the mask cuts. Its 50px tier blurred past
   // glowReach (26) and was rasterised only to be masked away; its inset half is invisible over a white paragraph.
   excerptRim: string;
+  // Leading edge of the page that slides aside for the drawer. Barely there on purpose: enough to say the chat is ON
+  // TOP of the page behind it, not enough to read as a drop shadow.
+  pageEdge: Record<"light" | "dark", string>;
 }
 export const boxShadow: DesignBoxShadow = {
   glass: {
@@ -284,6 +298,22 @@ export const boxShadow: DesignBoxShadow = {
     },
     dark: {
       ring: "0 0 0 0.5px #e6e6e6, 0 8px 24px rgba(0,0,0,0.4)",
+      highlight:
+        "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(255,255,255,0.06)",
+    },
+  },
+  pageEdge: {
+    light: "-6px 0 18px rgba(0,0,0,0.06)",
+    dark: "-6px 0 18px rgba(0,0,0,0.5)",
+  },
+  glassContained: {
+    light: {
+      ring: "0 0 0 0.5px #ebebeb, 0 1px 4px rgba(0,0,0,0.08)",
+      highlight:
+        "inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(255,255,255,0.2)",
+    },
+    dark: {
+      ring: "0 0 0 0.5px #e6e6e6, 0 1px 4px rgba(0,0,0,0.25)",
       highlight:
         "inset 0 1px 1px rgba(255,255,255,0.18), inset 0 -1px 1px rgba(255,255,255,0.06)",
     },
@@ -320,10 +350,35 @@ export interface DesignComponentLayout {
     chipScrollGap: number; // 8  — attachment chip ScrollView gap
     orbSize: number; // 38 — composer orb diameter (matches w-9.5/h-9.5 tailwind class)
     orbRowPaddingY: number; // 10 — vertical padding on the orb flex-row (applied numerically — py-2.5 renders 8.75 under the 14px rem)
-    blurBaseIntensity: number; // 60 — peak blur intensity at the bottom edge; gradient fades to 0 at the top of the orbs. Height = insets.bottom + orbRowPaddingY + orbSize.
   };
   modelPicker: {
     descriptionMaxLines: number; // 2 — Ollama-site mirror
+  };
+  // iOS 27 Scroll Edge Effect. One intensity for every edge that uses it: header, composer, drawer panel.
+  scrollEdgeBlur: {
+    intensity: number; // 60 — peak blur where content meets the edge
+  };
+  // Side drawer: the screen slides right to reveal the panel behind it. Gesture thresholds live here too, since the
+  // pull has to lose to a vertical scroll and to a row's own swipe.
+  drawer: {
+    widthRatio: number; // 1 — a full page, not a slice: the panel is a page beside the chat, so its content gets a whole screen
+    edgeWidth: number; // 28 — how far in from the screen edge a pull is accepted: left to open, right to close
+    activateX: number; // 12 — horizontal travel before the pan claims the gesture
+    failY: number; // 12 — vertical travel that hands it back to the list
+    openThreshold: number; // 0.5 — released past halfway, it opens
+    flingVelocity: number; // 600 — px/s that decides direction regardless of position
+    panelScaleFrom: number; // 0.95 — the arriving page grows the last 5% into place, so it reads as coming forward
+    listFadeHeight: number; // 76 — the chat list dissolves into blur over this much of the bottom edge, never gets cut
+  };
+  // Cross-fade between two icons in the same box (menu ↔ close): the outgoing one shrinks as the incoming one grows.
+  // The two fades are OFFSET, not mirrored: a shrinking glyph collapses onto the centre, where the arriving one already
+  // has strokes, and two lines in the same pixels read as one thick doubled line.
+  iconSwap: {
+    startScale: number; // 0.6 — the incoming glyph is already legible when it appears, not a dot growing at the centre
+    exitScale: number; // 1.2 — the outgoing one leaves OUTWARD. Shrinking would collapse it onto the very point the
+    // arriving glyph occupies, and two stroke sets in the same pixels read as one doubled line.
+    fadeOutBy: number; // 0.45 — fully gone by here
+    fadeInFrom: number; // 0.35 — starts here, overlapping just enough to read as a cross-fade
   };
   // iOS 27 UISwitch geometry — wide track, white pill knob.
   toggleSwitch: {
@@ -359,7 +414,6 @@ export interface DesignComponentLayout {
     sidePad: number; // 12 — horizontal padding of the orb row
     height: number; // 60 — header + topGap + orb height + breathing gap (used as MessageList topInset)
     orbHeight: number; // 44 — header orb diameter (HIG tap-target minimum; applied numerically — w-11/h-11 render 38.5 under the 14px rem)
-    blurBaseIntensity: number; // 60 — peak blur intensity at the top edge; gradient fades to 0 at the bottom of the orbs. Height = insets.top + topGap + orbHeight.
   };
   iconButton: {
     defaultIconSize: number; // 22 — between iconSize.xl (20) and 2xl (24); tuned for 44pt tap targets
@@ -437,9 +491,25 @@ export const componentLayout: DesignComponentLayout = {
     chipScrollGap: 8,
     orbSize: 38,
     orbRowPaddingY: 10,
-    blurBaseIntensity: 60,
   },
   modelPicker: { descriptionMaxLines: 2 },
+  scrollEdgeBlur: { intensity: 60 },
+  drawer: {
+    widthRatio: 1,
+    edgeWidth: 28,
+    activateX: 12,
+    failY: 12,
+    openThreshold: 0.5,
+    flingVelocity: 600,
+    panelScaleFrom: 0.95,
+    listFadeHeight: 76,
+  },
+  iconSwap: {
+    startScale: 0.6,
+    exitScale: 1.2,
+    fadeOutBy: 0.45,
+    fadeInFrom: 0.35,
+  },
   toggleSwitch: {
     trackWidth: 64,
     trackHeight: 28,
@@ -470,7 +540,6 @@ export const componentLayout: DesignComponentLayout = {
     sidePad: 12,
     height: 60,
     orbHeight: 44,
-    blurBaseIntensity: 60,
   },
   iconButton: { defaultIconSize: 22 },
   alertDialog: {

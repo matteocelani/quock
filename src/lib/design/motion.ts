@@ -14,6 +14,10 @@ export const springEasing = Easing.bezier(
 // Default duration for show/hide animations (matches lib.jsx 180ms).
 export const baseAnimationDurationMs = timings.base;
 
+// Decelerating curve (easeOutQuint): leaves fast, lands soft. For TAP-driven travel; a finger release keeps a spring,
+// because a gesture that ends in a fixed curve feels detached from the hand.
+export const decelerateEasing = Easing.bezier(0.22, 1, 0.36, 1);
+
 // Snappy press spring tuned to CASpringAnimation defaults — fast settle, no bounce.
 export const pressSpring: WithSpringConfig = {
   damping: 22,

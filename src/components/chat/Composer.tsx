@@ -1,13 +1,8 @@
 // Bottom input bar — attach + multi-line field + send-morphs-into-stop while streaming.
 
-import { BlurView } from "expo-blur";
-import { LinearGradient } from "expo-linear-gradient";
-import MaskedView from "@react-native-masked-view/masked-view";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Platform,
   ScrollView,
-  StyleSheet,
   Text,
   View,
   type LayoutChangeEvent,
@@ -25,6 +20,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ArrowUp, ChevronDown, Globe, Plus, Square } from "lucide-react-native";
 import { GlassOrb } from "@/components/ui/GlassOrb";
+import { ScrollEdgeBlur } from "@/components/ui/ScrollEdgeBlur";
 import { TextField } from "@/components/ui/TextField";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { useHaptics } from "@/lib/hooks/useHaptics";
@@ -92,12 +88,6 @@ export function Composer({
   onJumpToLatest,
 }: ComposerProps): React.ReactElement {
   const colors = useThemeColors();
-  // `default` is a transparent-wash tint — pure blur with no light/dark colour overlay, which keeps chat text legible inside the gradient transition zone instead of fading it to white-on-white.
-  const blurTint = "default" as const;
-  const blurAndroidFallback =
-    Platform.OS === "ios"
-      ? {}
-      : { experimentalBlurMethod: "dimezisBlurView" as const };
   const [text, setText] = useState<string>("");
   const insets = useSafeAreaInsets();
   // Cover bottom edge → top of orbs so the gradient's 0% mark lands exactly on the orb seam. insets.bottom adapts per device; the orb sums come from the design system.
@@ -279,33 +269,14 @@ export function Composer({
         -(restingBottomPad - componentLayout.composer.minBottomPad)
       }
     >
-      {/* Linear gradient blur sitting INSIDE the safe-area-bottom + the orb row's vertical padding — under the orbs, never covering them. 100% blur at the screen edge, fading to 0% just before the orbs start. The mask is a black→transparent LinearGradient; MaskedView clamps the BlurView's visibility to the mask's alpha. Hidden when the keyboard is up so it does not overlap the keyboard surface. */}
-      {!isKeyboardVisible && composerBlurHeight > 0 ? (
-        <MaskedView
-          pointerEvents="none"
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: composerBlurHeight,
-          }}
-          maskElement={
-            <LinearGradient
-              colors={["transparent", "black"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={StyleSheet.absoluteFill}
-            />
-          }
-        >
-          <BlurView
-            tint={blurTint}
-            intensity={componentLayout.composer.blurBaseIntensity}
-            {...blurAndroidFallback}
-            style={StyleSheet.absoluteFill}
-          />
-        </MaskedView>
+      {/* Total blur at the screen edge, gone exactly at the orb seam. Hidden with the keyboard up: it would sit on the
+          keyboard surface, which has its own material. */}
+      {!isKeyboardVisible ? (
+        <ScrollEdgeBlur
+          edge="bottom"
+          height={composerBlurHeight}
+          intensity={componentLayout.scrollEdgeBlur.intensity}
+        />
       ) : null}
       {/* Background-less surface: the orbs + TextField float over MessageList directly (Apple HIG iOS 26 topmost-layer pattern). Each control owns its own surface (GlassOrb shadow on the orbs, bg-card on the TextField) so they read cleanly without a strip behind them. */}
       <View

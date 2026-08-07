@@ -7,14 +7,19 @@ import { useCloudModels } from "@/modules/models/hooks/useCloudModels";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
 import { useDb } from "@/lib/contexts/DbContext";
 import { queryKeys } from "@/lib/hooks/queryKeys";
-import type { ChatId } from "@/lib/types/ids";
+import { asChatId, type ChatId } from "@/lib/types/ids";
+
+// Placeholder key for the no-chat case; the query is disabled there, so it never reaches the DB.
+const NO_CHAT = asChatId("");
 
 export interface UseChatModelResult {
   model: CloudModel | null;
   setForCurrentChat: (model: CloudModel) => void;
 }
 
-export function useChatModel(chatId: ChatId): UseChatModelResult {
+// `chatId` is nullable because the header outlives the chat under it: while a new chat is being created there is no row
+// to read a pin from, and the badge has to keep showing the model that chat will be born with — the global default.
+export function useChatModel(chatId: ChatId | null): UseChatModelResult {
   const { chats } = useDb();
   const queryClient = useQueryClient();
   const { data: cloudModels } = useCloudModels();
@@ -22,8 +27,10 @@ export function useChatModel(chatId: ChatId): UseChatModelResult {
   // Model-only read: the payload is the pinned NAME (or null), so this subscription
   // only re-renders when the pin itself changes, never on the chat's streaming traffic.
   const { data: pinnedName } = useQuery<string | null>({
-    queryKey: queryKeys.chatModel(chatId),
+    queryKey: queryKeys.chatModel(chatId ?? NO_CHAT),
+    enabled: chatId !== null,
     queryFn: async (): Promise<string | null> => {
+      if (chatId === null) return null;
       const chat = await chats.get(chatId);
       return chat?.model ?? null;
     },
@@ -36,6 +43,8 @@ export function useChatModel(chatId: ChatId): UseChatModelResult {
   }, [cloudModels, pinnedName]);
   const setForCurrentChat = React.useCallback(
     (model: CloudModel): void => {
+      // No chat to pin to yet: the caller wanted the default, which is a different hook's business.
+      if (chatId === null) return;
       // Flip the cache first so the badge + composer update instantly, then persist so the
       // pin survives restarts. The optimistic value hides latency; the DB is the source of truth.
       const previous = queryClient.getQueryData<string | null>(

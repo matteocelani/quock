@@ -139,6 +139,7 @@ const light = {
   scrim: "rgba(0,0,0,0.4)",
   // Sheet scrim is lighter than the dialog scrim — iOS 27 kit overlay value.
   scrimSheet: "rgba(0,0,0,0.2)",
+  scrimPage: "rgba(0,0,0,0.07)",
   // Excerpt menu dims less than a sheet because it also blurs, and the blur separates the surround on its own.
   scrimExcerpt: "rgba(0,0,0,0.08)",
   // Excerpt spotlight rim ONLY — the ported BorderGlow mesh hues. Never an app accent: they live outside the Apple HIG
@@ -185,6 +186,7 @@ const dark = {
   scrim: "rgba(0,0,0,0.6)",
   // Same value both themes — the kit overlay does not deepen for dark.
   scrimSheet: "rgba(0,0,0,0.2)",
+  scrimPage: "rgba(0,0,0,0.16)",
   // Deeper than light: over a near-black body a 0.08 wash does not separate the surround at all.
   scrimExcerpt: "rgba(0,0,0,0.16)",
   // Same rim palette as light — the effect sits on the dimmed surround, which is neutral in both themes.

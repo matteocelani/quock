@@ -5,11 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { FloatingHeader } from "@/components/layout/FloatingHeader";
-import { AccountSheet } from "@/components/settings/AccountSheet";
 import { AttachSheet } from "@/components/chat/AttachSheet";
-import { ChatHistorySheet } from "@/components/chat/ChatHistorySheet";
-import { ModelPickerSheet } from "@/components/models/ModelPickerSheet";
 import { Spinner } from "@/components/ui/Spinner";
 import { componentLayout } from "@/lib/design/tokens";
 import {
@@ -62,18 +58,9 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     ? composerHeight + keyboardHeight
     : composerHeight;
   // Sheet visibility comes from the UI store; individual selectors so each sheet only re-renders when its own flag flips.
-  const chatHistoryOpen = useUIStore((s) => s.chatHistoryOpen);
-  const modelPickerOpen = useUIStore((s) => s.modelPickerOpen);
-  const accountOpen = useUIStore((s) => s.accountOpen);
   const attachOpen = useUIStore((s) => s.attachOpen);
-  const closeChatHistory = useUIStore((s) => s.closeChatHistory);
-  const closeModelPicker = useUIStore((s) => s.closeModelPicker);
-  const closeAccount = useUIStore((s) => s.closeAccount);
   const closeAttach = useUIStore((s) => s.closeAttach);
   const openAttach = useUIStore((s) => s.openAttach);
-  const switchToModelPickerFromAccount = useUIStore(
-    (s) => s.switchToModelPickerFromAccount,
-  );
   const selectTextOpen = useUIStore((s) => s.selectTextOpen);
   const selectTextMessageId = useUIStore((s) => s.selectTextMessageId);
   const closeSelectText = useUIStore((s) => s.closeSelectText);
@@ -226,17 +213,6 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
       webSearchInstruction,
     ],
   );
-  const handleSelectChat = useCallback(
-    (selectedId: ChatId) => {
-      closeChatHistory();
-      router.replace(`/c/${selectedId}`);
-    },
-    [closeChatHistory, router],
-  );
-  const handleNewChat = useCallback(() => {
-    closeChatHistory();
-    router.replace("/c");
-  }, [closeChatHistory, router]);
   const handleAttachResult = useCallback((file: UiAttachment) => {
     // Last-line guard: never exceed the cap even if a picker over-delivers or a sheet gate is bypassed.
     setAttachments((prev) =>
@@ -261,7 +237,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   return (
     <View className="flex-1 bg-background">
       {/* Body fills the screen edge-to-edge; the FloatingHeader orbs float on top, and the list's top inset pushes the first message clear of them so content scrolls under the orbs (Apple HIG topmost-layer pattern). */}
-      <View className="flex-1">
+      <View className="flex-1 bg-background">
         {showLoading ? (
           <View className="flex-1 items-center justify-center">
             <Spinner />
@@ -294,7 +270,6 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
           />
         )}
       </View>
-      <FloatingHeader chatId={chatId} />
       <Composer
         chatId={chatId}
         attachments={attachments}
@@ -306,23 +281,6 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
       />
       {/* Sheets render unconditionally so their mount cost is paid once at
           screen-mount rather than on first open. */}
-      <ChatHistorySheet
-        visible={chatHistoryOpen}
-        onClose={closeChatHistory}
-        onSelectChat={handleSelectChat}
-        onNewChat={handleNewChat}
-        currentChatId={chatId}
-      />
-      <ModelPickerSheet
-        visible={modelPickerOpen}
-        onClose={closeModelPicker}
-        chatId={chatId}
-      />
-      <AccountSheet
-        visible={accountOpen}
-        onClose={closeAccount}
-        onChangeModel={switchToModelPickerFromAccount}
-      />
       <AttachSheet
         visible={attachOpen}
         onClose={closeAttach}

@@ -1,15 +1,17 @@
-// Chat-history sheet — search + bucketed ChatRow list with swipe rename/delete.
+// The chat list, as the drawer's panel: search + bucketed ChatRow list with swipe rename/delete. Same content the
+// history sheet used to hold, minus the sheet — it now lives behind the screen instead of over it.
 
 import clsx from "clsx";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import { PenLine } from "lucide-react-native";
 import { ChatRow } from "@/components/chat/ChatRow";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { GlassOrb } from "@/components/ui/GlassOrb";
 import { SearchInput } from "@/components/ui/SearchInput";
-import { Sheet } from "@/components/ui/Sheet";
+import { ScrollEdgeBlur } from "@/components/ui/ScrollEdgeBlur";
 import { SheetHeader } from "@/components/ui/SheetHeader";
 import { useDb } from "@/lib/contexts/DbContext";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
@@ -25,10 +27,10 @@ import {
   type Bucket,
 } from "@/modules/chat/lib/chatTimestamp";
 import type { ChatId } from "@/lib/types/ids";
-import { CHAT_HISTORY_SHEET_SNAP } from "@/modules/chat/constants";
 
-export interface ChatHistorySheetProps {
-  visible: boolean;
+export interface ChatHistoryPanelProps {
+  // Drives the empty-draft sweep only; the panel itself is always mounted behind the screen.
+  isOpen: boolean;
   onClose: () => void;
   onSelectChat: (chatId: ChatId) => void;
   onNewChat: () => void;
@@ -36,35 +38,36 @@ export interface ChatHistorySheetProps {
   currentChatId?: ChatId;
 }
 
-export function ChatHistorySheet({
-  visible,
+export function ChatHistoryPanel({
+  isOpen,
   onClose,
   onSelectChat,
   onNewChat,
   currentChatId,
-}: ChatHistorySheetProps): React.ReactElement {
+}: ChatHistoryPanelProps): React.ReactElement {
   const chatsQuery = useChats();
   const deleteChat = useDeleteChat();
   const renameChat = useRenameChat();
   const toast = useToast();
   const db = useDb();
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState<string>("");
   const [pendingDelete, setPendingDelete] = useState<ChatId | null>(null);
   const [renamingId, setRenamingId] = useState<ChatId | null>(null);
   const [renameValue, setRenameValue] = useState<string>("");
   // Sweep empty drafts on each open since /c creates a row on every new-chat tap.
   React.useEffect(() => {
-    if (!visible) return;
+    if (!isOpen) return;
     void db.chats
       .deleteEmpty(currentChatId)
       .then((removed) => {
         if (removed > 0) void chatsQuery.refetch();
       })
       .catch((err: unknown) => {
-        console.error("ChatHistorySheet: deleteEmpty failed", err);
+        console.warn("ChatHistoryPanel: deleteEmpty failed", err);
       });
-  }, [visible, db.chats, chatsQuery, currentChatId]);
+  }, [isOpen, db.chats, chatsQuery, currentChatId]);
   const buckets = useMemo<Bucket[]>(() => {
     const raw = chatsQuery.data ?? [];
     // Defense-in-depth: skip rows with empty title AND excerpt even before deleteEmpty runs.
@@ -129,7 +132,7 @@ export function ChatHistorySheet({
         toast({ title: "Chat deleted", tone: "success" });
       },
       onError: (err: Error) => {
-        console.error("ChatHistorySheet: failed to delete", err);
+        console.warn("ChatHistoryPanel: failed to delete", err);
         toast({ title: "Could not delete chat", tone: "error" });
       },
     });
@@ -150,57 +153,22 @@ export function ChatHistorySheet({
           toast({ title: "Chat renamed", tone: "success" });
         },
         onError: (err: Error) => {
-          console.error("ChatHistorySheet: failed to rename", err);
+          console.warn("ChatHistoryPanel: failed to rename", err);
           toast({ title: "Could not rename chat", tone: "error" });
         },
       },
     );
   }, [renameChat, renamingId, toast, trimmedRename]);
   return (
-    <Sheet
-      visible={visible}
-      onClose={onClose}
-      snapPoints={[CHAT_HISTORY_SHEET_SNAP]}
-      overlays={
-        <>
-          <ConfirmDialog
-            visible={pendingDelete !== null}
-            title="Delete chat?"
-            message="This will permanently remove the conversation from this device."
-            destructive
-            confirmLabel="Delete"
-            onConfirm={(): void => {
-              clearOpenSwipeable();
-              confirmDeleteNow();
-            }}
-            onCancel={(): void => {
-              clearOpenSwipeable();
-              setPendingDelete(null);
-            }}
-          />
-          <ConfirmDialog
-            visible={renamingId !== null}
-            title="Rename chat"
-            confirmLabel="Rename"
-            confirmDisabled={trimmedRename.length === 0}
-            inputValue={renameValue}
-            onChangeInput={setRenameValue}
-            inputPlaceholder="Chat title"
-            onConfirm={(): void => {
-              clearOpenSwipeable();
-              confirmRenameNow();
-            }}
-            onCancel={(): void => {
-              clearOpenSwipeable();
-              setRenamingId(null);
-            }}
-          />
-        </>
-      }
+    <View
+      className="flex-1 bg-background"
+      // Starts below the floating orbs, not under them: they stay anchored while this page slides in, so the same inset
+      // the message list uses to clear them applies here — otherwise the title and the search field sit beneath glass.
+      style={{ paddingTop: insets.top + componentLayout.floatingHeader.height }}
     >
       <SheetHeader title="Chats" />
       <View
-        className="flex-row items-center gap-2 pb-3 border-b border-border"
+        className="flex-row items-center gap-2 pb-3"
         // Control row shares the 16pt list grid with the headers/rows below (px-4 renders 14 at the 14px rem).
         style={{ paddingHorizontal: componentLayout.listSection.insetX }}
       >
@@ -244,31 +212,37 @@ export function ChatHistorySheet({
           className="flex-1"
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          // Runs to the very bottom edge and pads past it, so the last row can scroll clear of the blur instead of
+          // ending underneath it.
+          contentContainerStyle={{
+            paddingBottom:
+              insets.bottom + componentLayout.drawer.listFadeHeight,
+          }}
         >
-          <View className="pb-6">
+          <View>
             {buckets.map((bucket, bucketIndex) => {
-              const isLastBucket = bucketIndex === buckets.length - 1;
               return (
                 <View key={bucket.label}>
                   <Text
                     // iOS 27 grouped-list header — body semibold sentence case, 16pt inset shared with the rows.
+                    // Deliberate deviation from the kit's Body-17-semibold section header: in a LIST OF CHATS whose
+                    // titles are themselves 17, that header is the same size as its content and the page flattens.
                     className={clsx(
-                      "font-sans font-semibold text-body text-muted-foreground mb-2",
+                      "font-sans font-semibold text-footnote text-label-tertiary mb-2",
                       bucketIndex === 0 ? "mt-4.5" : "mt-6",
                     )}
                     style={{ paddingLeft: componentLayout.listSection.insetX }}
                   >
                     {bucket.label}
                   </Text>
-                  {bucket.rows.map((chat, index) => {
-                    const isLastRowInBucket = index === bucket.rows.length - 1;
-                    // Divider between every adjacent row, including bucket boundaries; suppress only on the last row.
-                    const showDivider = !(isLastBucket && isLastRowInBucket);
+                  {bucket.rows.map((chat) => {
                     return (
                       <ChatRow
                         key={chat.id}
                         chat={chat}
-                        showDivider={showDivider}
+                        // No hairlines here: the bucket headings already group the rows, and a full-bleed line is the
+                        // one element that stays pin-sharp while the page scales, so it fights the arrival.
+                        showDivider={false}
                         trailingMeta={formatRelativeTimestamp(
                           chat.updatedAt,
                           now,
@@ -286,6 +260,43 @@ export function ChatHistorySheet({
           </View>
         </ScrollView>
       )}
-    </Sheet>
+      <ScrollEdgeBlur
+        edge="bottom"
+        height={insets.bottom + componentLayout.drawer.listFadeHeight}
+        intensity={componentLayout.scrollEdgeBlur.intensity}
+      />
+      <ConfirmDialog
+        visible={pendingDelete !== null}
+        title="Delete chat?"
+        message="This will permanently remove the conversation from this device."
+        destructive
+        confirmLabel="Delete"
+        onConfirm={(): void => {
+          clearOpenSwipeable();
+          confirmDeleteNow();
+        }}
+        onCancel={(): void => {
+          clearOpenSwipeable();
+          setPendingDelete(null);
+        }}
+      />
+      <ConfirmDialog
+        visible={renamingId !== null}
+        title="Rename chat"
+        confirmLabel="Rename"
+        confirmDisabled={trimmedRename.length === 0}
+        inputValue={renameValue}
+        onChangeInput={setRenameValue}
+        inputPlaceholder="Chat title"
+        onConfirm={(): void => {
+          clearOpenSwipeable();
+          confirmRenameNow();
+        }}
+        onCancel={(): void => {
+          clearOpenSwipeable();
+          setRenamingId(null);
+        }}
+      />
+    </View>
   );
 }

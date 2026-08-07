@@ -1,4 +1,4 @@
-// Single row in ChatHistorySheet — ListRow + ReanimatedSwipeable revealing Rename + Delete.
+// Single row in ChatHistoryPanel — ListRow + ReanimatedSwipeable revealing Rename + Delete.
 
 import React, { useCallback, useRef, useState } from "react";
 import ReanimatedSwipeable, {
@@ -66,6 +66,7 @@ function RightActions({
     >
       <GlassOrb
         variant="regular"
+        lift="contained"
         interactive
         onPress={onRename}
         tintColor={withAlpha(colors.primary, opacity.tint)}
@@ -80,6 +81,7 @@ function RightActions({
       </GlassOrb>
       <GlassOrb
         variant="regular"
+        lift="contained"
         interactive
         onPress={onDelete}
         tintColor={withAlpha(colors.destructive, opacity.tint)}
