@@ -57,20 +57,7 @@ Rules:
 
 Expo SDK 55 (New Architecture, Fabric, TurboModules) · React 19 + React Native 0.83.6 · Expo Router · NativeWind v4 + Tailwind v3 · TanStack Query 5 · react-native-reanimated 4 + react-native-worklets · `@shopify/flash-list` · `expo-sqlite` · `expo-secure-store` · `react-native-mmkv` · `expo/fetch` (streaming) · `tweetnacl` (Ed25519) · `expo-blur` · `expo-linear-gradient` + `@react-native-masked-view/masked-view` (gradient blur masks behind the floating header / composer) · `zustand` 5 · `react-native-keyboard-controller` · `react-native-gesture-handler` v2.
 
-**Document attachments (native)**: `expo-pdf-text-extract` (PDFKit / PDFBox text layer) · `react-native-pdf-page-image` (page rasterisation, **patched** — see below) · `expo-text-extractor` (Apple Vision / ML Kit OCR). None runs under Jest; each has a `__mocks__/` shim and is verified on device.
-
 **Banned (categorical)**: any third-party design / UI / component library (we own the design system) · Redux · Jotai · Recoil · axios · moment / dayjs (use `Intl.*`) · `@gorhom/bottom-sheet` (fails silently on iOS Fabric — we use our own `<Sheet>`) · native `<FlatList>` for messages · RN `Animated.*` legacy · `<TouchableOpacity>` (use `<Pressable>`).
-
-### Patched dependencies
-
-A dependency may be patched only when upstream is broken on our locked stack and there is no supported alternative. Patches live in `patches/`, are listed under `patchedDependencies` in `pnpm-workspace.yaml`, and `pnpm install` re-applies them — a patch that stops applying breaks the build loudly, which is the point.
-
-- **Pin the version exactly** in `package.json` (`"0.2.1"`, never `"~0.2.1"`). A range lets a new release resolve unpatched, and the build comes back silently wrong.
-- Every hunk carries a `Quock:` comment saying WHY, under the same 1-2 line rule as the rest of the repo.
-- Keep the upstream file's line endings. Normalising them rewrites untouched lines and makes the patch's context stop matching the real bytes.
-- Editing or adding a patch is a STOP signal: it changes a dependency's behaviour for everyone who installs.
-
-Today: `react-native-pdf-page-image@0.2.1` — its podspec asks for pods RN 0.83 no longer ships (without the patch `pod install` cannot resolve), and its renderer drew every page into a canvas nine times the pixels it needed.
 
 ---
 
@@ -377,7 +364,7 @@ Quock has no runtime `.env` — the device Ed25519 seed is generated on first la
 
 ## Files not to edit
 
-- `node_modules/`, `ios/Pods/`, `ios/build/`, `android/build/` — build artifacts. A dependency's own source changes only through `patches/` (see §Patched dependencies), never by editing the installed copy.
+- `node_modules/`, `ios/Pods/`, `ios/build/`, `android/build/` — build artifacts. A dependency's own source changes only through `patches/`, never by editing the installed copy.
 - `codegen/gotypes.gen.ts` (imported as `@/gotypes`) — regenerated from the Go backend; touching it manually breaks the next codegen run.
 - `LICENSE` — touch is a STOP signal (see below).
 - Compiled locale catalogs — edit the source, not the output.
@@ -385,7 +372,7 @@ Quock has no runtime `.env` — the device Ed25519 seed is generated on first la
 ## STOP signals (announce and wait for human)
 
 - Need to add a new npm package.
-- Need to patch a dependency's source (see §Patched dependencies) — it changes that dependency for every install.
+- Need to add or edit a dependency patch in `patches/` (pnpm re-applies them on install; pin that version exactly).
 - Need to change `app.json` identity (name, slug, scheme, bundleId).
 - Need to break an existing public API surface (component prop, hook signature).
 - Need to introduce a new top-level folder under `src/` (a new `src/modules/<feature>/` is fine; a new sibling of `modules`/`components`/`lib`/`dev` is a STOP).
