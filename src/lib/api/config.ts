@@ -8,7 +8,10 @@ export const CLOUD_BASE_URL: string =
 export const API_ROUTES = {
   me: "/api/me",
   signout: "/api/signout",
-  // Mirrors the web app's featured-models source. Cloud-only models live in the recommendations payload; the cloud doesn't yet have a dedicated `?cloud=true` filter on `/api/tags`.
+  // The cloud's own catalogue: on ollama.com this path lists the models the CLOUD serves (19 today), not a local
+  // daemon's installed set. Names come back bare (`glm-5.2`), because everything there is cloud by definition.
+  cloudCatalogue: "/api/tags",
+  // Kept alongside the catalogue for what the catalogue cannot say: which models are featured, and their description.
   cloudModels: "/api/experimental/model-recommendations",
   modelCapabilities: "/api/show",
 } as const;

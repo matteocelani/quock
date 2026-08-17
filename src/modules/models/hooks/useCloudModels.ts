@@ -1,9 +1,11 @@
-// Catalogue mirrors `/api/experimental/model-recommendations` so a server-side addition lights up without an App Store build. Non-featured cloud models are intentionally hidden until Ollama ships a complete public catalogue endpoint.
+// The picker's list: `/api/tags` on ollama.com is the cloud's own catalogue — the models it actually serves — and the
+// recommendations endpoint supplies the two things the catalogue omits, which model is featured and what it does.
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import {
-  isCloudModelName,
+  listCloudCatalogue,
   listCloudModels,
+  mergeCloudModels,
   type CloudModel,
 } from "@/modules/models/api/models";
 import { useApi } from "@/lib/contexts/ApiContext";
@@ -15,10 +17,16 @@ export function useCloudModels(): UseQueryResult<CloudModel[], Error> {
   return useQuery<CloudModel[], Error>({
     queryKey: queryKeys.cloudModels(),
     queryFn: async () => {
-      const real = await listCloudModels(client);
-      // The recommendations endpoint mixes cloud variants (`*:cloud` / `*-cloud`) with local-only entries that carry `vram_bytes` instead of a `:cloud` tag. Mobile Quock can't run anything locally — the wire path is /api/chat against ollama.com — so we drop non-cloud entries before they reach the picker. Otherwise the default-model picker could land on a local stub and /api/chat would 404.
-      const cloudOnly = real.filter((m) => isCloudModelName(m.name));
-      return cloudOnly;
+      const recommended = await listCloudModels(client);
+      // The catalogue is the better source but not a reason to lose the list: a failure here degrades to the featured
+      // few rather than to an empty picker, and `mergeCloudModels` treats an empty catalogue as exactly that case.
+      let catalogue: string[] = [];
+      try {
+        catalogue = await listCloudCatalogue(client);
+      } catch (err) {
+        console.warn("useCloudModels: cloud catalogue unavailable", err);
+      }
+      return mergeCloudModels(recommended, catalogue);
     },
     staleTime: CLOUD_MODELS_STALE_TIME_MS,
   });
