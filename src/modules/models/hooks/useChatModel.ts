@@ -2,7 +2,10 @@
 
 import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CloudModel } from "@/modules/models/api/models";
+import {
+  normalizeModelName,
+  type CloudModel,
+} from "@/modules/models/api/models";
 import { useCloudModels } from "@/modules/models/hooks/useCloudModels";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
 import { useDb } from "@/lib/contexts/DbContext";
@@ -32,7 +35,12 @@ export function useChatModel(chatId: ChatId): UseChatModelResult {
   });
   const pinnedModel = React.useMemo<CloudModel | null>(() => {
     if (!pinnedName || !cloudModels) return null;
-    return cloudModels.find((m) => m.name === pinnedName) ?? null;
+    // Compared on the bare name: chats pinned before the catalogue became the source hold `glm-5.2:cloud`, while the
+    // catalogue calls the same model `glm-5.2`. An exact match would drop those pins back to the default silently.
+    const pinnedKey = normalizeModelName(pinnedName);
+    return (
+      cloudModels.find((m) => normalizeModelName(m.name) === pinnedKey) ?? null
+    );
   }, [cloudModels, pinnedName]);
   const setForCurrentChat = React.useCallback(
     (model: CloudModel): void => {
