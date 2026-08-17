@@ -67,10 +67,10 @@ export function isCloudModelName(name: string): boolean {
   return name.endsWith("cloud");
 }
 
-// The same model is named two ways: the catalogue calls it `glm-5.2`, the recommendations `glm-5.2:cloud`, and chats
-// pinned before this change hold the second form. Comparing on the bare name is what keeps those pins resolving.
+// One model, several spellings: the catalogue says `glm-5.2`, the recommendations `glm-5.2:cloud`, and pins saved
+// earlier hold `-cloud`. Identity has to ignore the tag, or a stored choice resolves to nothing and resets itself.
 export function normalizeModelName(name: string): string {
-  return name.replace(/:cloud$/, "");
+  return name.replace(/:cloud$/, "").replace(/-cloud$/, "");
 }
 
 // The catalogue decides WHAT exists; the recommendations decide what comes first and what carries a description. A

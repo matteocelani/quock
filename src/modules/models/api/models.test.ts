@@ -110,6 +110,8 @@ describe("models API", () => {
   it("normalizeModelName strips only a trailing cloud tag", () => {
     expect(normalizeModelName("glm-5.2:cloud")).toBe("glm-5.2");
     expect(normalizeModelName("glm-5.2")).toBe("glm-5.2");
+    // Both spellings existed on the wire, and a pin saved under either has to keep resolving.
+    expect(normalizeModelName("gpt-oss:120b-cloud")).toBe("gpt-oss:120b");
     // A size tag is part of the identity: gpt-oss:120b and gpt-oss:20b are different models.
     expect(normalizeModelName("gpt-oss:120b")).toBe("gpt-oss:120b");
   });

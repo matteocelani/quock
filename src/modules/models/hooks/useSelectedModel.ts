@@ -1,7 +1,10 @@
 // Resolves the user's persisted default-model preference against the live cloud-models catalogue. The chosen model NAME lives in `useSettingsStore`; this hook turns that name into a `CloudModel` object on each render. When nothing is persisted, we apply `DEFAULT_MODEL_PRIORITY` so first-time users land on Gemma → GPT-OSS → Qwen → Llama rather than whichever model the API returns first.
 
 import React from "react";
-import type { CloudModel } from "@/modules/models/api/models";
+import {
+  normalizeModelName,
+  type CloudModel,
+} from "@/modules/models/api/models";
 import { useCloudModels } from "@/modules/models/hooks/useCloudModels";
 import { DEFAULT_MODEL_PRIORITY } from "@/modules/models/constants";
 import { useSettingsStore } from "@/lib/stores/settings.store";
@@ -38,7 +41,12 @@ export function useSelectedModel(): UseSelectedModelResult {
       return null;
     }
     if (storedName) {
-      const match = cloudModels.find((m) => m.name === storedName);
+      // Matched on the bare name: a default saved before the catalogue became the source is stored as `glm-5.2:cloud`
+      // while the catalogue offers `glm-5.2`, and an exact match would quietly reset the user's choice to the priority.
+      const storedKey = normalizeModelName(storedName);
+      const match = cloudModels.find(
+        (m) => normalizeModelName(m.name) === storedKey,
+      );
       if (match) return match;
       // Stored model is no longer offered; fall through to the priority default.
     }
