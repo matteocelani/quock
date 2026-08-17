@@ -7,7 +7,7 @@ import {
   VISION_CAPABILITY,
 } from "@/modules/models/constants";
 
-// Substring match against the lowered model name. List is generous on purpose: false positives just show an extra chip; false negatives hide a feature affordance (worse UX). Synced with ollama.com/search?c=cloud mid-2026.
+// Substring match against the lowered model name. Vision is the one list that must NOT be generous: it gates image attachments in both directions — a false positive ships images to a blind model, a false negative tells the user to switch models for nothing. Verified entry by entry against /api/show for every cloud model, Aug 2026.
 const VISION_HINT_NAMES: readonly string[] = [
   // Generic markers
   "vision",
@@ -28,8 +28,6 @@ const VISION_HINT_NAMES: readonly string[] = [
   "qwen2.5-vl",
   "qwen3-vl",
   "qwen3.5",
-  // OpenAI open-weights — gpt-oss:120b is multimodal in the catalogue
-  "gpt-oss:120b",
   // Mistral multimodal
   "pixtral",
   "mistral-large-3",
@@ -40,6 +38,8 @@ const VISION_HINT_NAMES: readonly string[] = [
   // Moonshot Kimi multimodal series
   "kimi-k2.5",
   "kimi-k2.6",
+  "kimi-k2.7",
+  "kimi-k3",
   // Google Gemini
   "gemini-3-flash",
 ];
@@ -87,6 +87,8 @@ const THINKING_HINT_NAMES: readonly string[] = [
   "kimi-k2-thinking",
   "kimi-k2.5",
   "kimi-k2.6",
+  "kimi-k2.7",
+  "kimi-k3",
   // Z.ai GLM
   "glm-4.6",
   "glm-4.7",
