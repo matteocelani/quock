@@ -21,6 +21,19 @@ interface ShowResponse {
   capabilities?: string[];
 }
 
+interface TagsResponse {
+  models?: { name?: string }[];
+}
+
+// The models ollama.com actually serves. `details` comes back empty, `size` is 0, and there is no description or
+// capability field, so the name is the only usable value — capabilities still come from `/api/show`, per model.
+export async function listCloudCatalogue(client: ApiClient): Promise<string[]> {
+  const data = await client.json<TagsResponse>(API_ROUTES.cloudCatalogue);
+  return (data.models ?? [])
+    .map((m) => m.name)
+    .filter((n): n is string => typeof n === "string" && n.length > 0);
+}
+
 export async function listCloudModels(
   client: ApiClient,
 ): Promise<CloudModel[]> {
@@ -52,4 +65,42 @@ export async function fetchModelCapabilities(
 export function isCloudModelName(name: string): boolean {
   // Matches the web app's `endsWith("cloud")` (covers both `-cloud` and bare `cloud`).
   return name.endsWith("cloud");
+}
+
+// One model, several spellings: the catalogue says `glm-5.2`, the recommendations `glm-5.2:cloud`, and pins saved
+// earlier hold `-cloud`. Identity has to ignore the tag, or a stored choice resolves to nothing and resets itself.
+export function normalizeModelName(name: string): string {
+  return name.replace(/:cloud$/, "").replace(/-cloud$/, "");
+}
+
+// The catalogue decides WHAT exists; the recommendations decide what comes first and what carries a description. A
+// merge rather than a swap, because with 19 names an arbitrary order is worse than a short list.
+export function mergeCloudModels(
+  recommended: readonly CloudModel[],
+  catalogue: readonly string[],
+): CloudModel[] {
+  // No catalogue (network hiccup, endpoint gone): fall back to the featured cloud subset, which is what shipped before.
+  if (catalogue.length === 0) {
+    return recommended.filter((m) => isCloudModelName(m.name));
+  }
+  const described = new Map<string, string>();
+  const featuredOrder: string[] = [];
+  for (const rec of recommended) {
+    // A local recommendation (no cloud tag, VRAM instead) can never run here, so it must not reach the picker.
+    if (!isCloudModelName(rec.name)) continue;
+    const key = normalizeModelName(rec.name);
+    featuredOrder.push(key);
+    if (rec.description !== undefined) described.set(key, rec.description);
+  }
+  const byKey = new Map<string, string>();
+  for (const name of catalogue) byKey.set(normalizeModelName(name), name);
+  const ordered = [
+    ...featuredOrder.filter((k) => byKey.has(k)),
+    ...[...byKey.keys()].filter((k) => !featuredOrder.includes(k)),
+  ];
+  return ordered.map((key): CloudModel => {
+    const name = byKey.get(key) ?? key;
+    const description = described.get(key);
+    return description === undefined ? { name } : { name, description };
+  });
 }

@@ -21,8 +21,28 @@ describe("inferCapabilities", () => {
 
   it("adds `tools` for known tool-capable model families", () => {
     expect(inferCapabilities("gpt-oss:120b-cloud")).toEqual(
-      expect.arrayContaining(["vision", "tools"]),
+      expect.arrayContaining(["tools"]),
     );
+  });
+
+  // The three cases below are pinned against what /api/show actually answers for the cloud catalogue: a wrong
+  // guess here either ships images to a blind model or blocks them on a model that sees fine.
+  it("does not claim vision for gpt-oss:120b, which /api/show reports as text-only", () => {
+    expect(inferCapabilities("gpt-oss:120b")).not.toContain("vision");
+  });
+
+  it("gives the newest Kimi models both vision and thinking", () => {
+    for (const name of ["kimi-k2.7-code", "kimi-k3"]) {
+      expect(inferCapabilities(name)).toEqual(
+        expect.arrayContaining(["vision", "thinking"]),
+      );
+    }
+  });
+
+  it("gives mistral-large-3 vision but withholds thinking, which it lacks", () => {
+    const chips = inferCapabilities("mistral-large-3:675b");
+    expect(chips).toContain("vision");
+    expect(chips).not.toContain("thinking");
   });
 
   it("filters out the `general` baseline when the server provides one", () => {

@@ -47,7 +47,7 @@ Rules:
 
 1. **Brand neutrality.** App, README, LICENSE, and About screen state that Quock is not affiliated with Ollama, Inc. The Ollama logo and mascot are never used inside Quock.
 2. **MIT dual copyright preserved.** `LICENSE` keeps `Copyright (c) 2026 Matteo Celani` first and `Copyright (c) Ollama` second — never remove the Ollama line.
-3. **Cloud-only target.** Backend is `ollama.com`. No localhost discovery, no `/api/tags`, no paired-desktop mode. If a feature requires a local runtime, it does not ship.
+3. **Cloud-only target.** Backend is `ollama.com`, and the ban is on the HOST, not on a path: no localhost discovery, no paired-desktop mode, nothing that assumes an `ollama` daemon. Every `ollama.com` route is fair game — including `/api/tags`, which on that host is the cloud's own catalogue, not a local install list. If a feature requires a local runtime, it does not ship.
 4. **Ed25519 device keypair auth.** Every API call is signed via `signRequest()` in `src/modules/auth/lib/sign.ts`. Seed lives in `expo-secure-store` only. No OAuth, password, cookie, JWT.
 5. **The design system is owned in-repo.** No external design or UI libraries — every surface, primitive, and motion in Quock is built from `GlassOrb`, `Sheet`, `Button`, `Pressable`, the design tokens in `src/lib/design/`, and the Tailwind theme. Any new npm package requires explicit approval; justify it in the PR description.
 
