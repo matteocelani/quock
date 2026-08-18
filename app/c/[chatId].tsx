@@ -11,7 +11,9 @@ export default function ChatRoute(): React.ReactElement {
   if (chatId === undefined || chatId === "") {
     return (
       <View className="flex-1 items-center justify-center bg-background">
-        <Text className="font-sans text-muted-foreground">Invalid chat id</Text>
+        <Text className="font-sans text-body text-muted-foreground">
+          Invalid chat id
+        </Text>
       </View>
     );
   }

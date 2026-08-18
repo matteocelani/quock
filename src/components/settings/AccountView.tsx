@@ -91,7 +91,7 @@ export function AccountView({
             onPress={onOpenAbout}
             testID="account-about"
             trailing={
-              <ChevronRight size={iconSize.md} color={colors.mutedForeground} />
+              <ChevronRight size={iconSize.md} color={colors.labelTertiary} />
             }
             showDivider={false}
           />
