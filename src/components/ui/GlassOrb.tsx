@@ -132,8 +132,12 @@ export function GlassOrb({
   );
   if (interactive && onPress !== undefined) {
     return (
-      // dimStyle on the OUTER wrapper so the disabled fade also covers the Android opaque base + shadow (both live on this view); on the inner Pressable it would leave a full-opacity card pill on Android.
-      <Animated.View style={[shadowStyle, scaleStyle, dimStyle, style]}>
+      // dimStyle and className both belong on the OUTER wrapper: the disabled fade has to cover the Android opaque base
+      // + shadow that live here, and a caller's `flex-1` would flatten the orb to zero height on the inner column node.
+      <Animated.View
+        style={[shadowStyle, scaleStyle, dimStyle, style]}
+        className={className}
+      >
         <RNPressable
           onPress={disabled ? undefined : onPress}
           onPressIn={disabled ? undefined : handlePressIn}
@@ -143,7 +147,6 @@ export function GlassOrb({
           accessibilityState={{ disabled }}
           testID={testID}
           style={wrapperStyle}
-          className={className}
         >
           {stack}
           {children}
