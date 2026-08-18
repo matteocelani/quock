@@ -1,6 +1,6 @@
 // Two-tier capability detection: hit `/api/show` first via TanStack Query and trust the server's `capabilities[]` when it answers, fall back to the name-based heuristic in `inferCapabilities` when the endpoint 404s, errors, or hasn't landed yet. The name fallback keeps the chip working in offline / stale-build / pre-auth states.
 
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import React from "react";
 import { useApi } from "@/lib/contexts/ApiContext";
 import { useAuth } from "@/modules/auth/hooks/useAuth";
@@ -44,6 +44,37 @@ export function useModelCapabilities(
     if (apiCapabilities !== null) return apiCapabilities;
     return inferCapabilities(modelName);
   }, [apiCapabilities, modelName]);
+}
+
+// Capabilities for a whole list, so a filter hides rows by the same answers those rows show — filtering on the name
+// heuristic while the rows show `/api/show` contradicts itself in plain sight. Shares their cache: no extra request.
+export function useModelCapabilitiesMap(
+  names: readonly string[],
+): ReadonlyMap<string, readonly string[]> {
+  const { client } = useApi();
+  const { user } = useAuth();
+  const isAuthenticated = user !== null;
+  return useQueries({
+    queries: names.map((name) => ({
+      queryKey: queryKeys.modelCapabilities(name),
+      queryFn: (): Promise<string[]> => fetchModelCapabilities(client, name),
+      enabled: isAuthenticated,
+      staleTime: MODEL_CAPABILITIES_STALE_TIME_MS,
+      retry: MODEL_CAPABILITIES_RETRY,
+    })),
+    // `combine` keeps the returned map stable across renders; building it in a `useMemo` here could not list `results`
+    // as a dependency without lying about it.
+    combine: (results): ReadonlyMap<string, readonly string[]> => {
+      const byName = new Map<string, readonly string[]>();
+      names.forEach((name, index) => {
+        const query = results[index];
+        const served =
+          query !== undefined && !query.isError ? query.data : undefined;
+        byName.set(name, served ?? inferCapabilities(name));
+      });
+      return byName;
+    },
+  });
 }
 
 export function useHasVisionCapability(
