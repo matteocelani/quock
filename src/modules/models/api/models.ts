@@ -5,6 +5,9 @@ export interface CloudModel {
   name: string;
   description?: string;
   capabilities?: string[];
+  // Set when the model came from the recommendations endpoint, which is the only source that ranks anything: `/api/tags`
+  // answers in a different order on every call, so position alone cannot say whether the first row means anything.
+  isRecommended?: boolean;
 }
 // Mirrors `getModelRecommendations` in `app/ui/app/src/api.ts:421`. Returns featured cloud models with description and inference-time metadata.
 interface ModelRecommendationsResponse {
@@ -81,7 +84,9 @@ export function mergeCloudModels(
 ): CloudModel[] {
   // No catalogue (network hiccup, endpoint gone): fall back to the featured cloud subset, which is what shipped before.
   if (catalogue.length === 0) {
-    return recommended.filter((m) => isCloudModelName(m.name));
+    return recommended
+      .filter((m) => isCloudModelName(m.name))
+      .map((m) => ({ ...m, isRecommended: true }));
   }
   const described = new Map<string, string>();
   const featuredOrder: string[] = [];
@@ -101,6 +106,9 @@ export function mergeCloudModels(
   return ordered.map((key): CloudModel => {
     const name = byKey.get(key) ?? key;
     const description = described.get(key);
-    return description === undefined ? { name } : { name, description };
+    const model: CloudModel = { name };
+    if (description !== undefined) model.description = description;
+    if (featuredOrder.includes(key)) model.isRecommended = true;
+    return model;
   });
 }

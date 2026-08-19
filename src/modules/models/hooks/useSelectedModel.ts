@@ -1,4 +1,4 @@
-// Resolves the user's persisted default-model preference against the live cloud-models catalogue. The chosen model NAME lives in `useSettingsStore`; this hook turns that name into a `CloudModel` object on each render. When nothing is persisted, we apply `DEFAULT_MODEL_PRIORITY` so first-time users land on Gemma → GPT-OSS → Qwen → Llama rather than whichever model the API returns first.
+// Resolves the user's persisted default-model preference against the live cloud-models catalogue. The chosen model NAME lives in `useSettingsStore`; this hook turns that name into a `CloudModel` object on each render. With nothing persisted, see `pickDefault`: the cloud's own top recommendation wins, and `DEFAULT_MODEL_PRIORITY` only decides when the recommendations carry nothing cloud-side.
 
 import React from "react";
 import {
@@ -13,9 +13,12 @@ export interface UseSelectedModelResult {
   model: CloudModel | null;
   setModel: (model: CloudModel) => void;
 }
-// Walks the priority list in order and returns the first cloud-model whose name contains the priority key (case-insensitive substring match). Falls back to the first available model when nothing matches so an unknown catalogue still gives us a usable default.
+// A first launch takes the cloud's own top recommendation, which is the one ranking anyone publishes. Only when the
+// recommendations carry nothing usable does our own priority list decide, and the last resort is whatever came first.
 function pickDefault(models: readonly CloudModel[]): CloudModel | null {
   if (models.length === 0) return null;
+  const recommended = models.find((m) => m.isRecommended === true);
+  if (recommended) return recommended;
   for (const key of DEFAULT_MODEL_PRIORITY) {
     const lowered = key.toLowerCase();
     const match = models.find((m) => m.name.toLowerCase().includes(lowered));

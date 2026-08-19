@@ -139,7 +139,21 @@ describe("models API", () => {
       [{ name: "minimax-m3:cloud" }],
       ["minimax-m3"],
     );
-    expect(merged).toEqual([{ name: "minimax-m3" }]);
+    expect(merged).toEqual([{ name: "minimax-m3", isRecommended: true }]);
+  });
+
+  // `/api/tags` answers in a different order on every call, so the flag — not the position — is what marks a ranking.
+  it("mergeCloudModels marks only the recommended models", () => {
+    const merged = mergeCloudModels(
+      [{ name: "glm-5.2:cloud" }],
+      ["kimi-k3", "glm-5.2"],
+    );
+    expect(
+      merged.map((m) => [m.name, m.isRecommended === true] as const),
+    ).toEqual([
+      ["glm-5.2", true],
+      ["kimi-k3", false],
+    ]);
   });
 
   // A local recommendation cannot run on a phone, and the catalogue never lists one.
@@ -154,7 +168,7 @@ describe("models API", () => {
       [{ name: "glm-5.2:cloud" }, { name: "gemma4:26b" }],
       [],
     );
-    expect(merged.map((m) => m.name)).toEqual(["glm-5.2:cloud"]);
+    expect(merged).toEqual([{ name: "glm-5.2:cloud", isRecommended: true }]);
   });
 
   it("isCloudModelName classifies names by `cloud` suffix", () => {
