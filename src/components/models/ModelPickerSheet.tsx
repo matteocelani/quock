@@ -17,7 +17,7 @@ import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { componentLayout, iconSize, strokeWidth } from "@/lib/design/tokens";
 import { formatModelName } from "@/modules/models/lib/formatModelName";
 import { useCloudModels } from "@/modules/models/hooks/useCloudModels";
-import { useModelCapabilitiesMap } from "@/modules/models/hooks/useModelCapabilities";
+import { useListModelCapabilities } from "@/modules/models/hooks/useModelCapabilities";
 import { useChatModel } from "@/modules/models/hooks/useChatModel";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
 import { useUIStore } from "@/lib/stores/ui.store";
@@ -30,9 +30,8 @@ import {
 export interface ModelPickerSheetProps {
   visible: boolean;
   onClose: () => void;
-  // The open chat; in "current" mode the picker pins the choice to this chat.
-  // Null while a chat is being created: the picker is reachable from the header, which outlives the screen. With no
-  // chat to pin to, a pick can only move the global default — which is what the chat about to be born will use.
+  // The open chat, pinned to in "current" mode. Null while one is being created: the picker lives in the header, which
+  // outlives the screen, and with no chat to pin to a pick can only move the global default.
   chatId: ChatId | null;
 }
 // `/api/show` also reports `completion` and `tools`, deliberately not shown: every cloud model has both, so they pushed
@@ -149,7 +148,7 @@ export function ModelPickerSheet({
     () => (visible ? models.map((m) => m.name) : []),
     [models, visible],
   );
-  const capabilitiesByName = useModelCapabilitiesMap(names);
+  const capabilitiesByName = useListModelCapabilities(names);
   const activeLabels = useMemo(
     () =>
       CAPABILITY_CHOICES.filter((c) => activeFilters.includes(c.key)).map(

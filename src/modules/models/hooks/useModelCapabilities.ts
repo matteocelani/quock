@@ -48,7 +48,7 @@ export function useModelCapabilities(
 
 // Capabilities for a whole list, so a filter hides rows by the same answers those rows show — filtering on the name
 // heuristic while the rows show `/api/show` contradicts itself in plain sight. Shares their cache: no extra request.
-export function useModelCapabilitiesMap(
+export function useListModelCapabilities(
   names: readonly string[],
 ): ReadonlyMap<string, readonly string[]> {
   const { client } = useApi();

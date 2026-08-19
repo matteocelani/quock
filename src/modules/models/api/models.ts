@@ -106,9 +106,10 @@ export function mergeCloudModels(
   return ordered.map((key): CloudModel => {
     const name = byKey.get(key) ?? key;
     const description = described.get(key);
-    const model: CloudModel = { name };
-    if (description !== undefined) model.description = description;
-    if (featuredOrder.includes(key)) model.isRecommended = true;
-    return model;
+    return {
+      name,
+      ...(description === undefined ? {} : { description }),
+      ...(featuredOrder.includes(key) ? { isRecommended: true } : {}),
+    };
   });
 }
