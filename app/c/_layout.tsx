@@ -1,6 +1,5 @@
-// Layout for the chat section: the drawer and the floating orbs live HERE, above the router, not inside a screen.
-// Inside a screen they died with it — selecting a chat replaced the route, so the open drawer unmounted and a closed
-// one took its place, which is the cut instead of a transition. Up here the page under them just swaps.
+// The drawer and the floating orbs live HERE, above the router. Inside a screen they died with it: picking a chat
+// replaced the route, so the open drawer unmounted and a closed one took its place — a cut, not a transition.
 
 import { Slot, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback } from "react";
@@ -35,8 +34,8 @@ export default function ChatSectionLayout(): React.ReactElement {
   const openChatHistory = useUIStore((s) => s.openChatHistory);
   const closeChatHistory = useUIStore((s) => s.closeChatHistory);
   const handleOpenChange = useCallback(
-    (nextOpen: boolean): void => {
-      if (nextOpen) openChatHistory();
+    (shouldOpen: boolean): void => {
+      if (shouldOpen) openChatHistory();
       else closeChatHistory();
     },
     [openChatHistory, closeChatHistory],

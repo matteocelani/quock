@@ -64,8 +64,8 @@ export const useStreamingStore = create<StreamingState>((set, get) => ({
     });
   },
   setReasoning: (chatId, isReasoning): void => {
-    const current = get().reasoningChatIds.has(chatId);
-    if (current === isReasoning) return;
+    const isCurrent = get().reasoningChatIds.has(chatId);
+    if (isCurrent === isReasoning) return;
     const reasoningChatIds = new Set(get().reasoningChatIds);
     if (isReasoning) reasoningChatIds.add(chatId);
     else reasoningChatIds.delete(chatId);

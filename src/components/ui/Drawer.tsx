@@ -60,10 +60,10 @@ export function Drawer({
   }, [isOpen, progress]);
 
   const settle = useCallback(
-    (nextOpen: boolean): void => {
+    (shouldOpen: boolean): void => {
       // Only when the state actually flips: otherwise the flag would survive and swallow the next tap's animation.
-      if (nextOpen !== isOpen) isSettlingFromGesture.current = true;
-      onOpenChange(nextOpen);
+      if (shouldOpen !== isOpen) isSettlingFromGesture.current = true;
+      onOpenChange(shouldOpen);
     },
     [isOpen, onOpenChange],
   );
@@ -91,12 +91,12 @@ export function Drawer({
     .onEnd((e) => {
       if (!isTracking.value) return;
       // Velocity wins over position: a short flick should open or close, the way a page turn does.
-      const flung =
+      const isFlung =
         Math.abs(e.velocityX) > drawer.flingVelocity
           ? e.velocityX > 0
           : progress.value > drawer.openThreshold;
-      progress.value = withSpring(flung ? 1 : 0, sheetSpring);
-      runOnJS(settle)(flung);
+      progress.value = withSpring(isFlung ? 1 : 0, sheetSpring);
+      runOnJS(settle)(isFlung);
     });
 
   // Scale and wash both ride the same progress, so the page can never be half-arrived in one and landed in the other.

@@ -4,6 +4,7 @@ import React, { useCallback } from "react";
 import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChevronDown, Menu, X } from "lucide-react-native";
+import type { SharedValue } from "react-native-reanimated";
 import { Avatar } from "@/components/ui/Avatar";
 import { GlassOrb } from "@/components/ui/GlassOrb";
 import { ScrollEdgeBlur } from "@/components/ui/ScrollEdgeBlur";
@@ -14,7 +15,6 @@ import { useAuth } from "@/modules/auth/hooks/useAuth";
 import { formatModelName } from "@/modules/models/lib/formatModelName";
 import { useChatModel } from "@/modules/models/hooks/useChatModel";
 import { useUIStore } from "@/lib/stores/ui.store";
-import type { SharedValue } from "react-native-reanimated";
 import type { ChatId } from "@/lib/types/ids";
 
 export interface FloatingHeaderProps {

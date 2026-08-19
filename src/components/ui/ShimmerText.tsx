@@ -2,6 +2,7 @@
 // pulse says "alive", a sweep says "progressing", and the difference is what tells a long wait apart from a freeze.
 
 import React, { useEffect, useState } from "react";
+import clsx from "clsx";
 import { LinearGradient } from "expo-linear-gradient";
 import MaskedView from "@react-native-masked-view/masked-view";
 import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
@@ -85,7 +86,7 @@ export function ShimmerText({
     >
       {/* Both layers live inside the glyphs: the flat tint is the label's real colour and the travelling band is the
           only thing that moves. Stacking two copies of the text instead would show the lower one's edges. */}
-      <Text className={`${className} opacity-0`}>{text}</Text>
+      <Text className={clsx(className, "opacity-0")}>{text}</Text>
       <View style={[StyleSheet.absoluteFill, { backgroundColor: baseColor }]} />
       {width > 0 ? (
         <Animated.View
