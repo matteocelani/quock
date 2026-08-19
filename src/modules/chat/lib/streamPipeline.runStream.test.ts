@@ -31,6 +31,10 @@ function chatEvent(content: string): ChatEventUnion {
   return { eventName: "chat", content } as ChatEventUnion;
 }
 
+function thinkingEvent(thinking: string): ChatEventUnion {
+  return { eventName: "thinking", thinking } as ChatEventUnion;
+}
+
 function toolCallsEvent(calls: WireToolCall[]): ChatEventUnion {
   return { eventName: "tool_calls", toolCalls: calls } as ChatEventUnion;
 }
@@ -255,5 +259,66 @@ describe("runStream tool-round loop", () => {
 
     expect(endStream).not.toHaveBeenCalled();
     expect(ctx.controllerRef.current).toBe(replacement);
+  });
+
+  // The reasoning flag drives the shimmer that tells a long wait apart from a freeze, and it is inferred rather than
+  // announced. Every case below asserts the LAST call, because that is the one the user ends up looking at.
+  it("clears the reasoning flag on a token that grows the answer", async () => {
+    scriptTurns([[chatEvent("Hello")]]);
+    const { ctx, setReasoning } = makeCtx();
+
+    await run(ctx);
+
+    expect(setReasoning).toHaveBeenLastCalledWith(CHAT_ID, false);
+  });
+
+  it("keeps the reasoning flag when a token only feeds an inline think", async () => {
+    scriptTurns([[chatEvent("<think>still going")]]);
+    const { ctx, setReasoning } = makeCtx();
+
+    await run(ctx);
+
+    expect(setReasoning).toHaveBeenLastCalledWith(CHAT_ID, true);
+  });
+
+  // Two tokens, so the comparison has to be captured per token: frozen at the buffer's initial length it would read
+  // this as "still writing" and the shimmer would never come back for the rest of the answer.
+  it("flags reasoning again when a later token only adds thought", async () => {
+    scriptTurns([[chatEvent("Hello"), chatEvent("<think>wait")]]);
+    const { ctx, setReasoning } = makeCtx();
+
+    await run(ctx);
+
+    expect(setReasoning).toHaveBeenLastCalledWith(CHAT_ID, true);
+  });
+
+  // A `<think>` completing across two chunks: the buffer ends mid-thought even though the visible answer just shrank.
+  it("flags reasoning when a tag completes across two chunks", async () => {
+    scriptTurns([[chatEvent("a<think"), chatEvent(">b")]]);
+    const { ctx, setReasoning } = makeCtx();
+
+    await run(ctx);
+
+    expect(setReasoning).toHaveBeenLastCalledWith(CHAT_ID, true);
+  });
+
+  // The mirror case, and the one a length comparison gets backwards: the bare close reclassifies shown text as thought,
+  // so the answer SHRINKS, but the same delta carries fresh visible text — the model is writing, not thinking.
+  it("clears the flag when a bare close is followed by fresh content", async () => {
+    scriptTurns([[chatEvent("ABCDE"), chatEvent("</think>X")]]);
+    const { ctx, setReasoning } = makeCtx();
+
+    await run(ctx);
+
+    expect(setReasoning).toHaveBeenLastCalledWith(CHAT_ID, false);
+  });
+
+  it("sets the reasoning flag on a thinking event", async () => {
+    scriptTurns([[thinkingEvent("weighing options")]]);
+    const { ctx, setReasoning } = makeCtx();
+
+    await run(ctx);
+
+    expect(setReasoning).toHaveBeenLastCalledWith(CHAT_ID, true);
   });
 });
