@@ -104,8 +104,126 @@ export const CURRENT_VERSION: number =
   MIGRATIONS.length > 0
     ? MIGRATIONS[MIGRATIONS.length - 1].id
     : INITIAL_USER_VERSION;
+
+export interface AddColumnTarget {
+  table: string;
+  column: string;
+}
+// Bare snake_case only, which is every identifier this schema uses. A quoted one is deliberately NOT understood: half-
+// reading `"te""st"` as `te` would look guarded while re-adding the column, so it is reported instead (see below).
+const IDENTIFIER = String.raw`[A-Za-z_][A-Za-z0-9_]*`;
+// `COLUMN` is optional because SQLite accepts `ADD <name>` too. The lookahead stops backtracking from capturing the
+// keyword itself as the column name when what follows it is a form this pattern cannot read.
+const ADD_COLUMN_PATTERN = new RegExp(
+  String.raw`^ALTER\s+TABLE\s+(${IDENTIFIER})\s+ADD\s+(?:COLUMN\s+)?(?!COLUMN\b)(${IDENTIFIER})\b`,
+  "i",
+);
+// Anything shaped like an add-column the strict pattern could not read. Anchored so a stray "add" in prose cannot
+// trigger it, and comments are gone by the time it runs.
+const LOOSE_ADD_PATTERN = new RegExp(
+  String.raw`^ALTER\s+TABLE\s+\S+\s+ADD\b`,
+  "i",
+);
+
+// One pass that drops SQL comments and splits on the semicolons that actually end a statement: a `;` inside a literal,
+// a quoted identifier or a comment does not, and cutting there hands SQLite two broken fragments on every device.
+function splitStatements(up: string): string[] {
+  const parts: string[] = [];
+  let current = "";
+  let closing: string | null = null;
+  for (let i = 0; i < up.length; i += 1) {
+    const char = up[i];
+    if (closing !== null) {
+      current += char;
+      if (char === closing) closing = null;
+      continue;
+    }
+    if (char === "-" && up[i + 1] === "-") {
+      const end = up.indexOf("\n", i);
+      i = end === -1 ? up.length : end;
+      continue;
+    }
+    if (char === "/" && up[i + 1] === "*") {
+      const end = up.indexOf("*/", i + 2);
+      i = end === -1 ? up.length : end + 1;
+      continue;
+    }
+    if (char === ";") {
+      parts.push(current);
+      current = "";
+      continue;
+    }
+    if (char === "'" || char === '"' || char === "`") closing = char;
+    else if (char === "[") closing = "]";
+    current += char;
+  }
+  parts.push(current);
+  return parts.map((s) => s.trim()).filter((s) => s.length > 0);
+}
+
+function parseAddColumn(statement: string): AddColumnTarget | null {
+  const match = ADD_COLUMN_PATTERN.exec(statement);
+  return match ? { table: match[1], column: match[2] } : null;
+}
+
+// The columns a migration wants to add, so the runner knows which tables to inspect before touching anything.
+export function addColumnTargets(up: string): AddColumnTarget[] {
+  const targets: AddColumnTarget[] = [];
+  for (const statement of splitStatements(up)) {
+    const target = parseAddColumn(statement);
+    if (target) targets.push(target);
+  }
+  return targets;
+}
+
+// An id is spent the moment any install runs it, so renumbering a migration that already ran on a device makes it run
+// AGAIN — and a repeated ADD COLUMN aborts the whole transaction, leaving a database that never opens.
+export function planMigration(
+  up: string,
+  hasColumn: (table: string, column: string) => boolean,
+): { run: string[]; skipped: AddColumnTarget[]; unreadable: string[] } {
+  const statements = splitStatements(up);
+  const unreadable = statements.filter(
+    (s) => parseAddColumn(s) === null && LOOSE_ADD_PATTERN.test(s),
+  );
+  // Nothing to guard: keep the body as one statement so multi-line DDL is never split on a semicolon it owns.
+  if (!statements.some((s) => parseAddColumn(s) !== null)) {
+    return { run: [up], skipped: [], unreadable };
+  }
+  const run: string[] = [];
+  const skipped: AddColumnTarget[] = [];
+  for (const statement of statements) {
+    const target = parseAddColumn(statement);
+    if (target && hasColumn(target.table, target.column)) {
+      skipped.push(target);
+      continue;
+    }
+    run.push(statement);
+  }
+  return { run, skipped, unreadable };
+}
+
 interface UserVersionRow {
   user_version: number;
+}
+interface TableInfoRow {
+  name: string;
+}
+// Columns as they stand BEFORE this run, on purpose: a column added by an earlier pending migration is absent from the
+// snapshot, so two migrations adding the same column still fail loudly instead of being quietly tolerated.
+async function snapshotColumns(
+  db: SQLiteDatabase,
+  tables: readonly string[],
+): Promise<Map<string, Set<string>>> {
+  const byTable = new Map<string, Set<string>>();
+  for (const table of tables) {
+    // PRAGMA can't be parameterised; the name comes from our own SQL via a pattern that admits identifiers only.
+    const rows = await db.getAllAsync<TableInfoRow>(
+      `PRAGMA table_info(${table});`,
+    );
+    byTable.set(table, new Set(rows.map((r) => r.name)));
+  }
+  return byTable;
 }
 // Idempotent: running migrate() twice in a row is a no-op the second time.
 export async function migrate(db: SQLiteDatabase): Promise<void> {
@@ -115,11 +233,39 @@ export async function migrate(db: SQLiteDatabase): Promise<void> {
   if (pending.length === 0) {
     return;
   }
+  const tables = [
+    ...new Set(
+      pending.flatMap((m) => addColumnTargets(m.up)).map((t) => t.table),
+    ),
+  ];
+  const columns = await snapshotColumns(db, tables);
+  const hasColumn = (table: string, column: string): boolean =>
+    columns.get(table)?.has(column) === true;
   // Enable foreign keys before applying schema changes so CASCADE works.
   await db.execAsync("PRAGMA foreign_keys = ON;");
   await db.withTransactionAsync(async () => {
     for (const migration of pending) {
-      await db.execAsync(migration.up);
+      const { run, skipped, unreadable } = planMigration(
+        migration.up,
+        hasColumn,
+      );
+      if (skipped.length > 0) {
+        // Never silent: a skip is expected after a renumber, but it is also how a duplicated migration would look.
+        console.warn(
+          `migrate: migration ${migration.id} skipped columns already present:`,
+          skipped.map((t) => `${t.table}.${t.column}`).join(", "),
+        );
+      }
+      if (unreadable.length > 0) {
+        // The guard is blind to these, so they run unprotected — say so rather than let a future author assume cover.
+        console.warn(
+          `migrate: migration ${migration.id} has add-column statements the guard cannot parse:`,
+          unreadable.join(" | "),
+        );
+      }
+      for (const statement of run) {
+        await db.execAsync(statement);
+      }
     }
     // Stamp the version inside the transaction so schema + version commit atomically; a separate write could crash between them, re-running the ALTER on next launch and bricking on a duplicate column.
     // PRAGMA can't be parameterised; the value is the trusted CURRENT_VERSION constant.
