@@ -224,9 +224,8 @@ export function ChatHistoryPanel({
               return (
                 <View key={bucket.label}>
                   <Text
-                    // iOS 27 grouped-list header — body semibold sentence case, 16pt inset shared with the rows.
-                    // Deliberate deviation from the kit's Body-17-semibold section header: in a LIST OF CHATS whose
-                    // titles are themselves 17, that header is the same size as its content and the page flattens.
+                    // Below the kit's Body-17-semibold section header on purpose: chat titles are 17 themselves, so a
+                    // header at that size matches its content and the page flattens. 16pt inset shared with the rows.
                     className={clsx(
                       "font-sans font-semibold text-footnote text-label-tertiary mb-2",
                       bucketIndex === 0 ? "mt-4.5" : "mt-6",

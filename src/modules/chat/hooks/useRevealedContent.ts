@@ -1,6 +1,5 @@
-// Paints the answer at a steady pace instead of the network's. Tokens arrive in clumps — forty characters at once, then
-// nothing for a beat — and painting each clump the instant it lands is what makes a stream read as stuttering. Holding
-// a small backlog and spending it evenly costs a few hundred milliseconds of lag and buys a constant, legible flow.
+// Paints the answer at a steady pace instead of the network's: tokens arrive in clumps, and painting each clump the
+// instant it lands is what makes a stream stutter. A small backlog spent evenly costs some lag and buys a legible flow.
 
 import { useEffect, useRef, useState } from "react";
 import {

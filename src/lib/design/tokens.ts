@@ -377,9 +377,8 @@ export interface DesignComponentLayout {
     panelScaleFrom: number; // 0.95 — the arriving page grows the last 5% into place, so it reads as coming forward
     listFadeHeight: number; // 76 — the chat list dissolves into blur over this much of the bottom edge, never gets cut
   };
-  // Cross-fade between two icons in the same box (menu ↔ close): the outgoing one shrinks as the incoming one grows.
-  // The two fades are OFFSET, not mirrored: a shrinking glyph collapses onto the centre, where the arriving one already
-  // has strokes, and two lines in the same pixels read as one thick doubled line.
+  // Cross-fade between two icons in one box (menu ↔ close). The fades are OFFSET, not mirrored: a shrinking glyph
+  // collapses onto the centre where the arriving one already has strokes, and two lines in one pixel read as doubled.
   iconSwap: {
     startScale: number; // 0.6 — the incoming glyph is already legible when it appears, not a dot growing at the centre
     exitScale: number; // 1.2 — the outgoing one leaves OUTWARD. Shrinking would collapse it onto the very point the

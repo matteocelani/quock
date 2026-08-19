@@ -10,9 +10,8 @@ export const ACCOUNT_DRILL_SCALE_FROM = 0.985;
 export const SHEET_FADE_IN_MS = 180;
 export const SHEET_FADE_OUT_MS = 120;
 
-// Scroll rhythm shared by every settings view: breathing space under the sheet header, and a bottom inset generous
-// enough that the last row never sits flush against the safe-area edge. Drill-in views start tighter — their header
-// is already one level down, so they need less air above the first row.
+// Scroll rhythm shared by every settings view: air under the sheet header, and a bottom inset so the last row never
+// sits flush against the safe-area edge. Drill-in views start tighter, their header already being one level down.
 export const SETTINGS_SCROLL_PAD_TOP = 14;
 export const SETTINGS_DRILL_SCROLL_PAD_TOP = 8;
 export const SETTINGS_SCROLL_PAD_BOTTOM = 40;

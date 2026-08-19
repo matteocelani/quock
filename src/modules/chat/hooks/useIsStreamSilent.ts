@@ -1,6 +1,5 @@
-// True when a stream is open but nothing has arrived for a moment. The exact reasoning flag says WHAT the model is
-// doing; this says that it is doing none of it visibly — the tool round-trip, the pause before a decision, the dead air
-// the user reads as a freeze. Together they cover every moment between "sent" and "answered".
+// True when a stream is open but nothing has arrived for a moment. The reasoning flag says WHAT the model is doing;
+// this covers the dead air a user reads as a freeze — the tool round-trip, the pause before a decision.
 
 import { useEffect, useRef, useState } from "react";
 import { STREAM_SILENCE_MS } from "@/modules/chat/constants";

@@ -1,6 +1,5 @@
-// Two icons sharing one box, crossing as a caller-owned progress goes 0 → 1: the outgoing one expands away while the
-// incoming one grows in. It runs NO animation of its own — the swap belongs to whatever movement it describes, so it
-// can follow a finger mid-drag instead of firing after the fact.
+// Two icons sharing one box, crossing as a caller-owned progress goes 0 → 1. It runs NO animation of its own: the
+// swap belongs to the movement it describes, so it can follow a finger mid-drag instead of firing after the fact.
 
 import React from "react";
 import { StyleSheet, View } from "react-native";
