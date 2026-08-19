@@ -132,7 +132,7 @@ Features today: `chat`, `auth`, `models`, `settings`.
 | New feature | `src/modules/<feature>/` (logic) + `src/components/<feature>/` (UI). Never scatter across the tree. |
 | New server-state hook | `src/modules/<feature>/hooks/use<X>.ts`. Use `queryKeys.<x>(…)` from `@/lib/hooks/queryKeys`, never inline arrays. Components consume the hook — never call `useQuery` directly. |
 | New repository method | Extend the relevant file in `src/lib/db/`. SQLite repos are native-module surfaces covered by Maestro E2E on device (see §Testing), not a Jest test; add a unit test only for any pure helper extracted alongside. |
-| New sheet | Compose `<Sheet>` + `<SheetHeader>`. Mount unconditionally as a sibling of chat home; visibility is a prop, not a conditional render. |
+| New sheet | Compose `<Sheet>` + `<SheetHeader>`. Mount unconditionally as a sibling of whatever owns its trigger — the screen for a composer sheet, `app/c/_layout.tsx` for a header one; visibility is a prop, not a conditional render. |
 | Dialog centered against the display, not the sheet | Pass it via the `overlays` slot of `<Sheet>` — otherwise an `absolute inset-0` dialog centers against the sheet body. |
 | Labeled CTA (Cancel, Confirm, Sign Out, Upgrade, …) | `<Button>` with the matching variant. Never compose raw `<Pressable bg-X rounded-full>`. Single sanctioned exception: `ConfirmDialog`'s internal `AlertAction` (the iOS 27 48pt alert tier sits between Button md/lg). |
 | Icon-only floating button | `<GlassOrb interactive>` with `borderRadius={999}`. |
@@ -268,7 +268,8 @@ Non-server hooks (theme, haptics, keyboard state) keep plain `useX` names.
 
 - `<Sheet>` from `@/components/ui/Sheet` is the only sheet primitive. Never `@gorhom/bottom-sheet`.
 - `<SheetHeader>` for the header row (title + optional left/right slots, 44pt height). All sheets consume it for visual unity.
-- The 4 sheets (`AccountSheet`, `ChatHistorySheet`, `ModelPickerSheet`, `AttachSheet`) render unconditionally as siblings of chat home — visibility is a prop, not a conditional render.
+- Sheets render unconditionally as siblings of whatever owns their trigger — visibility is a prop, never a conditional render. A sheet mounted where its trigger is not lets the trigger raise a store flag nobody renders, which then fires late on the next screen.
+- `<Drawer>` is the second navigation primitive: a full page revealed by sliding the screen aside. A `<Sheet>` is a Modal in its own window and cannot move the screen, so it can never do this.
 - Dialogs centered against the display use the `overlays` slot of `<Sheet>`.
 
 ### Lists
@@ -318,10 +319,11 @@ The parser at `src/components/ui/markdown/parseMarkdown.ts` is intentionally per
 
 ## Design system
 
-The design source lives in three files. Components consume from them — never invent at the use-site. The target look is **iOS 27** (values extracted from the Apple iOS/iPadOS 27 Figma kit).
+The design source lives in four files. Components consume from them — never invent at the use-site. The target look is **iOS 27** (values extracted from the Apple iOS/iPadOS 27 Figma kit).
 
 - `src/lib/design/colors.cjs` — Apple HIG palette + shadcn semantic layer (background, foreground, card, primary, secondary, muted, destructive, destructive-soft, border, ring) + iOS 27 semantics: translucent label ramp (`label`, `label-secondary`, `label-tertiary`), translucent separators (`separator`, `separator-opaque`), system fills (`fill-secondary`, `fill-tertiary`, `fill-quaternary`), `segmented-selected`, `toggle-on`, `scrim-sheet`.
 - `tailwind.config.js` — named spacing, tracking presets, and the iOS 27 type ramp (`text-large-title` … `text-caption-2`) — px-defined so each style renders at its exact pt (NativeWind rem is 14px; stock `text-*` tiers cannot express the ramp). Emphasized pairings at use-sites: `text-headline`/`text-body` and below take `font-semibold`; `text-title-2`, `text-title-1` and `text-large-title` take `font-bold` (Apple's Emphasized tiers).
+- `src/lib/design/motion.ts` — springs and easing curves. Never call `Easing.bezier()` at a use-site.
 - `src/lib/design/tokens.ts` — numeric tokens (icon size, stroke width, motion timings, component layout, opacity tiers, shadow profiles, `boxShadow.glass` recipes, sheet primitive geometry).
 
 **Layering**: body = gray6, cards = white; secondary text = translucent `label-secondary` (via `muted-foreground`); hairlines = translucent `separator` (via `border`) — iOS grouped-list pattern, mandatory.
