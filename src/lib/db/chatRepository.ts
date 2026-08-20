@@ -65,13 +65,14 @@ export class ChatRepository {
           LIMIT 1
         )             AS excerpt,
         (
-          SELECT COALESCE(SUM(LENGTH(m.content)) + SUM(COALESCE(LENGTH(m.thinking), 0)), 0)
+        -- LENGTH() counts characters on TEXT and bytes on BLOB, so the cast is what makes every figure bytes.
+          SELECT COALESCE(SUM(LENGTH(CAST(m.content AS BLOB))) + SUM(COALESCE(LENGTH(CAST(m.thinking AS BLOB)), 0)), 0)
           FROM messages m
           WHERE m.chat_id = c.id
         )
         +
         (
-          SELECT COALESCE(SUM(LENGTH(a.data)), 0)
+          SELECT COALESCE(SUM(LENGTH(a.data)) + SUM(COALESCE(LENGTH(CAST(a.text_content AS BLOB)), 0)), 0)
           FROM attachments a
           JOIN messages m ON a.message_id = m.id
           WHERE m.chat_id = c.id
@@ -97,14 +98,15 @@ export class ChatRepository {
       `
       SELECT
         (
-          SELECT COALESCE(SUM(LENGTH(m.content)) + SUM(COALESCE(LENGTH(m.thinking), 0)), 0)
+        -- LENGTH() counts characters on TEXT and bytes on BLOB, so the cast is what makes every figure bytes.
+          SELECT COALESCE(SUM(LENGTH(CAST(m.content AS BLOB))) + SUM(COALESCE(LENGTH(CAST(m.thinking AS BLOB)), 0)), 0)
           FROM messages m
           JOIN chats c ON m.chat_id = c.id
           WHERE c.user_id = ?
         )
         +
         (
-          SELECT COALESCE(SUM(LENGTH(a.data)), 0)
+          SELECT COALESCE(SUM(LENGTH(a.data)) + SUM(COALESCE(LENGTH(CAST(a.text_content AS BLOB)), 0)), 0)
           FROM attachments a
           JOIN messages m ON a.message_id = m.id
           JOIN chats c ON m.chat_id = c.id
@@ -121,12 +123,13 @@ export class ChatRepository {
       `
       SELECT
         (
-          SELECT COALESCE(SUM(LENGTH(content)) + SUM(COALESCE(LENGTH(thinking), 0)), 0)
+        -- LENGTH() counts characters on TEXT and bytes on BLOB, so the cast is what makes every figure bytes.
+          SELECT COALESCE(SUM(LENGTH(CAST(content AS BLOB))) + SUM(COALESCE(LENGTH(CAST(thinking AS BLOB)), 0)), 0)
           FROM messages
         )
         +
         (
-          SELECT COALESCE(SUM(LENGTH(data)), 0)
+          SELECT COALESCE(SUM(LENGTH(data)) + SUM(COALESCE(LENGTH(CAST(text_content AS BLOB)), 0)), 0)
           FROM attachments
         )       AS total
       `,
