@@ -15,6 +15,8 @@ export interface UseChatData {
   chat: DbChat;
   messages: DbMessage[];
   // Indexed by message id so UserMessage can look up its chips in O(1) without re-querying per row.
+  // Entries are NOT guaranteed free of derived rows (a PDF page rendered for vision): a fresh read excludes them,
+  // while the send path patches them in. Every consumer must filter on `derivedFrom` rather than trust the shape.
   attachmentsByMessage: ReadonlyMap<MessageId, DbAttachment[]>;
 }
 
@@ -40,13 +42,9 @@ export function useChat(chatId: ChatId): UseQueryResult<UseChatData, Error> {
       }
 
       const dbMessages = await messages.listByChat(chatId);
-      // Hydrate attachments per user message so chips render without a per-row async hop.
-      const attachmentsByMessage = new Map<MessageId, DbAttachment[]>();
-      for (const m of dbMessages) {
-        if (m.role !== "user") continue;
-        const list = await attachments.listByMessage(m.id);
-        if (list.length > 0) attachmentsByMessage.set(m.id, list);
-      }
+      // One grouped read rather than one per turn: a long chat used to pay a round-trip for every user message before
+      // it could draw anything, and nearly all of them came back empty.
+      const attachmentsByMessage = await attachments.listByChatForUi(chatId);
       // Re-read live state AFTER the awaits: a slow DB read must not clobber an optimistic turn the send/stream
       // path patched while we read. Return the live cache while streaming, or when it holds more turns than the DB.
       const live = queryClient.getQueryData<UseChatData>(

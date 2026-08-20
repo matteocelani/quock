@@ -45,6 +45,19 @@ export type AttachmentAddInput = Omit<
     Pick<DbAttachment, "uri" | "sizeBytes" | "textContent" | "derivedFrom">
   >;
 
+// Only messages that own something get an entry, so a caller can keep treating a miss as "no attachments".
+export function groupByMessageId(
+  attachments: readonly DbAttachment[],
+): Map<MessageId, DbAttachment[]> {
+  const byMessage = new Map<MessageId, DbAttachment[]>();
+  for (const attachment of attachments) {
+    const list = byMessage.get(attachment.messageId);
+    if (list) list.push(attachment);
+    else byMessage.set(attachment.messageId, [attachment]);
+  }
+  return byMessage;
+}
+
 export class AttachmentRepository {
   constructor(private readonly db: SQLiteDatabase) {}
   async listByMessage(messageId: MessageId): Promise<DbAttachment[]> {
@@ -58,6 +71,23 @@ export class AttachmentRepository {
       [messageId],
     );
     return rows.map(rowToAttachment);
+  }
+  // Every attachment of a chat the UI can show, in ONE query and already grouped: hydrating a chat message by message
+  // put a round-trip on every turn. Derived rows are excluded because the only consumer filters them out anyway.
+  async listByChatForUi(
+    chatId: ChatId,
+  ): Promise<Map<MessageId, DbAttachment[]>> {
+    const rows = await this.db.getAllAsync<AttachmentRow>(
+      `
+      SELECT a.id, a.message_id, a.filename, a.mime_type, a.data, a.uri, a.size_bytes, a.text_content, a.derived_from
+      FROM attachments a
+      JOIN messages m ON m.id = a.message_id
+      WHERE m.chat_id = ? AND m.role = 'user' AND a.derived_from IS NULL
+      ORDER BY a.id ASC
+      `,
+      [chatId],
+    );
+    return groupByMessageId(rows.map(rowToAttachment));
   }
   // Every attachment of a chat in ONE query, for building the wire: a query per message would put a round-trip on every turn.
   // `data` is blanked for what the wire cannot use — a PDF (its text is stored) and, on a text-only model, every image — because reading blobs the caller then discards costs megabytes a turn. Not for the UI, which needs the real bytes.
