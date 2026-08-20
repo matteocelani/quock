@@ -19,6 +19,8 @@ export function useClearAllChats(): UseClearAllChatsResult {
       for (const chat of all) {
         await db.chats.delete(chat.id);
       }
+      // Once, after the loop — never per chat: VACUUM rebuilds the whole file, so N of them would be N rewrites.
+      await db.chats.reclaimSpace();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.chats() });
