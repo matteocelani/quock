@@ -63,7 +63,7 @@
     "expo-text-extractor": "~2.0.0",
     "expo-updates": "~55.0.25",
     "expo-web-browser": "~55.0.16",
-    "lucide-react-native": "~0.577.0",
+    "lucide-react-native": "~1.33.0",
     "nativewind": "~4.2.5",
     "react": "19.2.0",
     "react-native": "0.83.6",

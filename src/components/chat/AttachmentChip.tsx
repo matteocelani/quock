@@ -10,7 +10,8 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { FileText, X } from "lucide-react-native";
+import FileText from "lucide-react-native/icons/file-text";
+import X from "lucide-react-native/icons/x";
 import { Pressable } from "@/components/ui/Pressable";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { componentLayout, iconSize, motion, strokeWidth } from "@/lib/design/tokens";

@@ -6,7 +6,7 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
-import { PenLine } from "lucide-react-native";
+import PenLine from "lucide-react-native/icons/pen-line";
 import { ChatRow } from "@/components/chat/ChatRow";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { GlassOrb } from "@/components/ui/GlassOrb";

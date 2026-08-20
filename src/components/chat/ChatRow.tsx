@@ -8,7 +8,8 @@ import Reanimated, {
   type SharedValue,
   useAnimatedStyle,
 } from "react-native-reanimated";
-import { Pencil, Trash2 } from "lucide-react-native";
+import Pencil from "lucide-react-native/icons/pencil";
+import Trash2 from "lucide-react-native/icons/trash-2";
 import { StyleSheet, View, type ViewStyle } from "react-native";
 import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { GlassOrb } from "@/components/ui/GlassOrb";

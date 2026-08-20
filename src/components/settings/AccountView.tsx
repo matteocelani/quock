@@ -2,11 +2,9 @@
 
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import {
-  ChevronRight,
-  Info,
-  Settings as SettingsIcon,
-} from "lucide-react-native";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import Info from "lucide-react-native/icons/info";
+import SettingsIcon from "lucide-react-native/icons/settings";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { ListRow } from "@/components/ui/ListRow";

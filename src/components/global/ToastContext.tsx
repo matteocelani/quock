@@ -1,12 +1,10 @@
 // Toast viewport — renders the top-most queued item from `useToastStore`. Mounted once in `_layout.tsx`. Apple-style floating pill: bg-card surface, soft shadow, tone-coloured Lucide icon + title.
 
-import {
-  AlertTriangle,
-  Check,
-  Info,
-  XCircle,
-  type LucideIcon,
-} from "lucide-react-native";
+import AlertTriangle from "lucide-react-native/icons/triangle-alert";
+import Check from "lucide-react-native/icons/check";
+import Info from "lucide-react-native/icons/info";
+import XCircle from "lucide-react-native/icons/circle-x";
+import { type LucideIcon } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";

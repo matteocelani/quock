@@ -1,6 +1,6 @@
 // Animated selection ring with a Check that springs in when selected. Shared by the model picker (single-select) and the + hub tool toggles (per-mode on/off).
 
-import { Check } from "lucide-react-native";
+import Check from "lucide-react-native/icons/check";
 import React, { useEffect } from "react";
 import Animated, {
   useAnimatedStyle,

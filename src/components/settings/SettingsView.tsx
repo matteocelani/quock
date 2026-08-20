@@ -2,14 +2,12 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
-import {
-  ChevronRight,
-  Globe,
-  Palette,
-  Sparkles,
-  Trash2,
-  Vibrate,
-} from "lucide-react-native";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import Globe from "lucide-react-native/icons/globe";
+import Palette from "lucide-react-native/icons/palette";
+import Sparkles from "lucide-react-native/icons/sparkles";
+import Trash2 from "lucide-react-native/icons/trash-2";
+import Vibrate from "lucide-react-native/icons/vibrate";
 import { ClearChatsChooser } from "@/components/settings/ClearChatsChooser";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ListRow } from "@/components/ui/ListRow";

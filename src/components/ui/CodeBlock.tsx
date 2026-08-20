@@ -12,7 +12,8 @@ import React, {
 import { ScrollView, Text, View } from "react-native";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { iconSize, timingsNamed } from "@/lib/design/tokens";
-import { Check, Copy } from "lucide-react-native";
+import Check from "lucide-react-native/icons/check";
+import Copy from "lucide-react-native/icons/copy";
 import { highlightCode } from "@/components/ui/markdown/highlight";
 import { Pressable } from "@/components/ui/Pressable";
 

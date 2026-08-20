@@ -18,7 +18,11 @@ import {
   useKeyboardState,
 } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArrowUp, ChevronDown, Globe, Plus, Square } from "lucide-react-native";
+import ArrowUp from "lucide-react-native/icons/arrow-up";
+import ChevronDown from "lucide-react-native/icons/chevron-down";
+import Globe from "lucide-react-native/icons/globe";
+import Plus from "lucide-react-native/icons/plus";
+import Square from "lucide-react-native/icons/square";
 import { GlassOrb } from "@/components/ui/GlassOrb";
 import { ScrollEdgeBlur } from "@/components/ui/ScrollEdgeBlur";
 import { TextField } from "@/components/ui/TextField";

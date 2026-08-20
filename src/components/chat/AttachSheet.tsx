@@ -4,13 +4,11 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import React, { useCallback } from "react";
 import { Text, View } from "react-native";
-import {
-  Brain,
-  FileText,
-  Globe,
-  Image as ImageIcon,
-  X,
-} from "lucide-react-native";
+import Brain from "lucide-react-native/icons/brain";
+import FileText from "lucide-react-native/icons/file-text";
+import Globe from "lucide-react-native/icons/globe";
+import ImageIcon from "lucide-react-native/icons/image";
+import X from "lucide-react-native/icons/x";
 import type {
   UiAttachment,
   UiAttachmentInvalidReason,

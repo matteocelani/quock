@@ -1,6 +1,10 @@
 // User-authored row: optional attachment chips above a right-aligned bubble, with copy and edit actions below. Editing drops into an inline TextField (Cancel/Save) that re-runs the conversation from the edited turn.
 
-import { Brain, Check, Copy, Globe, Pencil } from "lucide-react-native";
+import Brain from "lucide-react-native/icons/brain";
+import Check from "lucide-react-native/icons/check";
+import Copy from "lucide-react-native/icons/copy";
+import Globe from "lucide-react-native/icons/globe";
+import Pencil from "lucide-react-native/icons/pencil";
 import * as Clipboard from "expo-clipboard";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";

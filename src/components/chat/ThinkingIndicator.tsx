@@ -3,7 +3,7 @@
 
 import React from "react";
 import { View } from "react-native";
-import { Brain } from "lucide-react-native";
+import Brain from "lucide-react-native/icons/brain";
 import { ShimmerText } from "@/components/ui/ShimmerText";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { iconSize, strokeWidth } from "@/lib/design/tokens";

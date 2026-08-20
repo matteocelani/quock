@@ -3,7 +3,10 @@
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
-import { Brain, Eye, X, type LucideIcon } from "lucide-react-native";
+import Brain from "lucide-react-native/icons/brain";
+import Eye from "lucide-react-native/icons/eye";
+import X from "lucide-react-native/icons/x";
+import { type LucideIcon } from "lucide-react-native";
 import type { CloudModel } from "@/modules/models/api/models";
 import { GlassOrb } from "@/components/ui/GlassOrb";
 import { IconButton } from "@/components/ui/IconButton";

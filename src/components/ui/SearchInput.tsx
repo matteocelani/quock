@@ -3,7 +3,8 @@
 import React from "react";
 import { TextInput, View, type TextInputProps } from "react-native";
 import clsx from "clsx";
-import { Search, X } from "lucide-react-native";
+import Search from "lucide-react-native/icons/search";
+import X from "lucide-react-native/icons/x";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { iconSize, motion } from "@/lib/design/tokens";
 import { Pressable } from "@/components/ui/Pressable";

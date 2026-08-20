@@ -3,7 +3,8 @@
 
 import { BlurView } from "expo-blur";
 import MaskedView from "@react-native-masked-view/masked-view";
-import { Globe, Sparkles } from "lucide-react-native";
+import Globe from "lucide-react-native/icons/globe";
+import Sparkles from "lucide-react-native/icons/sparkles";
 import React, { useCallback, useMemo } from "react";
 import {
   Platform,

@@ -10,12 +10,10 @@ import Animated, {
   SlideOutDown,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  Smartphone,
-  Trash2,
-  User,
-  type LucideIcon,
-} from "lucide-react-native";
+import Smartphone from "lucide-react-native/icons/smartphone";
+import Trash2 from "lucide-react-native/icons/trash-2";
+import User from "lucide-react-native/icons/user";
+import { type LucideIcon } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { Pressable } from "@/components/ui/Pressable";
 import { useThemeColors } from "@/lib/theme/ThemeContext";

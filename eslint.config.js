@@ -24,6 +24,28 @@ module.exports = [
       ],
       "no-console": ["error", { allow: ["error", "warn", "info"] }],
       "import/no-named-as-default": "off",
+      // The icon barrel has no tree-shaking under Metro, so one value import from it drags all ~1780 icons into the
+      // bundle. Types are erased at compile time, so `type LucideIcon` from the root stays allowed.
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "lucide-react-native",
+              allowTypeImports: true,
+              message:
+                "Import each icon from its own module: lucide-react-native/icons/<kebab-name>.",
+            },
+            {
+              // Matched exactly, so the per-icon subpaths below it stay allowed.
+              name: "lucide-react-native/icons",
+              allowTypeImports: true,
+              message:
+                "That is the barrel of every icon. Import one: lucide-react-native/icons/<kebab-name>.",
+            },
+          ],
+        },
+      ],
     },
   },
 ];

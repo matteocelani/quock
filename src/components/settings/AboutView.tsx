@@ -2,14 +2,12 @@
 
 import React from "react";
 import { ScrollView, Text } from "react-native";
-import {
-  ChevronRight,
-  ExternalLink,
-  FileText,
-  Info,
-  LifeBuoy,
-  ShieldCheck,
-} from "lucide-react-native";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
+import ExternalLink from "lucide-react-native/icons/external-link";
+import FileText from "lucide-react-native/icons/file-text";
+import Info from "lucide-react-native/icons/info";
+import LifeBuoy from "lucide-react-native/icons/life-buoy";
+import ShieldCheck from "lucide-react-native/icons/shield-check";
 import {
   SETTINGS_SCROLL_PAD_TOP,
   SETTINGS_SCROLL_PAD_BOTTOM,

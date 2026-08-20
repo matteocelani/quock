@@ -3,7 +3,9 @@
 import React, { useCallback } from "react";
 import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronDown, Menu, X } from "lucide-react-native";
+import ChevronDown from "lucide-react-native/icons/chevron-down";
+import Menu from "lucide-react-native/icons/menu";
+import X from "lucide-react-native/icons/x";
 import type { SharedValue } from "react-native-reanimated";
 import { Avatar } from "@/components/ui/Avatar";
 import { GlassOrb } from "@/components/ui/GlassOrb";

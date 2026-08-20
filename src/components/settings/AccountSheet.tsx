@@ -15,7 +15,7 @@ import { AccountView } from "@/components/settings/AccountView";
 import { AiDataView } from "@/components/settings/AiDataView";
 import { OllamaView } from "@/components/settings/OllamaView";
 import { SettingsView } from "@/components/settings/SettingsView";
-import { ChevronLeft } from "lucide-react-native";
+import ChevronLeft from "lucide-react-native/icons/chevron-left";
 import { Pressable } from "@/components/ui/Pressable";
 import { Sheet } from "@/components/ui/Sheet";
 import { SheetHeader } from "@/components/ui/SheetHeader";

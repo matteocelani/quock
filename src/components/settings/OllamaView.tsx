@@ -3,7 +3,8 @@
 import * as WebBrowser from "expo-web-browser";
 import React, { useCallback } from "react";
 import { Linking, ScrollView, Text, View } from "react-native";
-import { ExternalLink, Mail } from "lucide-react-native";
+import ExternalLink from "lucide-react-native/icons/external-link";
+import Mail from "lucide-react-native/icons/mail";
 import {
   SETTINGS_DRILL_SCROLL_PAD_TOP,
   SETTINGS_SCROLL_PAD_BOTTOM,

@@ -1,7 +1,7 @@
 // Lifts one assistant reply into a sheet as read-only selectable text — the in-list Markdown can't be selected
 // (FlashList + Fabric swallow the long-press), so this is where a user grabs and copies an arbitrary portion.
 
-import { X } from "lucide-react-native";
+import X from "lucide-react-native/icons/x";
 import React, { useMemo } from "react";
 import { TextInput, View } from "react-native";
 import { IconButton } from "@/components/ui/IconButton";

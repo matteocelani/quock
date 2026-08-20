@@ -7,7 +7,9 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
-import { Brain, ChevronDown, ChevronRight } from "lucide-react-native";
+import Brain from "lucide-react-native/icons/brain";
+import ChevronDown from "lucide-react-native/icons/chevron-down";
+import ChevronRight from "lucide-react-native/icons/chevron-right";
 import { ShimmerText } from "@/components/ui/ShimmerText";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { iconSize, strokeWidth, timings } from "@/lib/design/tokens";

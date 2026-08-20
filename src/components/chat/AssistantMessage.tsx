@@ -4,13 +4,11 @@ import clsx from "clsx";
 import * as Clipboard from "expo-clipboard";
 import React, { useCallback } from "react";
 import { Text, View } from "react-native";
-import {
-  Copy,
-  Globe,
-  Highlighter,
-  RotateCw,
-  type LucideIcon,
-} from "lucide-react-native";
+import Copy from "lucide-react-native/icons/copy";
+import Globe from "lucide-react-native/icons/globe";
+import Highlighter from "lucide-react-native/icons/highlighter";
+import RotateCw from "lucide-react-native/icons/rotate-cw";
+import { type LucideIcon } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { Markdown } from "@/components/ui/Markdown";
 import { Pressable } from "@/components/ui/Pressable";
