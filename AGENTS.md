@@ -156,6 +156,7 @@ Features today: `chat`, `auth`, `models`, `settings`.
 
 - All imports use absolute `@/*` paths, including same-folder. Zero relative imports outside auto-generated code.
 - No barrel `index.ts` files. Import directly from the source file.
+- Same rule for icons, which is where it costs the most: `import Menu from "lucide-react-native/icons/menu"` — a default import from the kebab-case file. The package root supplies `type LucideIcon` and nothing else, because Metro cannot tree-shake that barrel and one value import from it compiles all ~1780 icons into the bundle (measured: 1.37 MB, 28% of it). A lint rule blocks the barrel and lets the type through.
 - Never invent or import packages not in `package.json`.
 - Import order: external packages → `@/gotypes` → `@/*`. No blank lines between groups.
 
