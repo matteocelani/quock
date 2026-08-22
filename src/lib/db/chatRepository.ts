@@ -1,7 +1,6 @@
 // Chat repository: CRUD over the `chats` table plus the join needed to build the sidebar list.
 
 import type { SQLiteDatabase } from "expo-sqlite";
-import { reclaimDiskSpace } from "@/lib/db/maintenance";
 import { asChatId, type ChatId, newChatId } from "@/lib/types/ids";
 import {
   EXCERPT_LENGTH,
@@ -144,7 +143,7 @@ export class ChatRepository {
       await this.db.execAsync("DELETE FROM chats");
     });
     // Outside the transaction, where VACUUM is allowed: this is the flow whose whole purpose is freeing the disk.
-    await reclaimDiskSpace(this.db);
+    await this.reclaimSpace();
   }
   async get(id: ChatId): Promise<DbChat | null> {
     const userId = this.getUserId();
@@ -210,9 +209,10 @@ export class ChatRepository {
       [title, now, id],
     );
   }
-  // Exposed so the caller that deletes many chats in a loop can reclaim ONCE, after it finishes.
+  // SQLite hands deleted pages to a freelist inside the file, so only VACUUM returns them to the filesystem. Public so
+  // a caller deleting many chats in a loop can reclaim ONCE at the end: this rewrites the whole file.
   async reclaimSpace(): Promise<void> {
-    await reclaimDiskSpace(this.db);
+    await this.db.execAsync("VACUUM;");
   }
   async delete(id: ChatId): Promise<void> {
     await this.db.runAsync("DELETE FROM chats WHERE id = ?", [id]);

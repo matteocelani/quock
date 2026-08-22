@@ -14,9 +14,8 @@ import { useStreamingStore } from "@/modules/chat/stores/streaming.store";
 export interface UseChatData {
   chat: DbChat;
   messages: DbMessage[];
-  // Indexed by message id so UserMessage can look up its chips in O(1) without re-querying per row.
-  // Entries are NOT guaranteed free of derived rows (a PDF page rendered for vision): a fresh read excludes them,
-  // while the send path patches them in. Every consumer must filter on `derivedFrom` rather than trust the shape.
+  // Indexed by message id so UserMessage looks up its chips in O(1). Entries are NOT guaranteed free of derived rows
+  // (a PDF page rendered for vision), so a consumer must filter on `derivedFrom` rather than trust the shape.
   attachmentsByMessage: ReadonlyMap<MessageId, DbAttachment[]>;
 }
 
