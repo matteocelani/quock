@@ -7,6 +7,7 @@ import Globe from "lucide-react-native/icons/globe";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import React, { useCallback, useMemo } from "react";
 import {
+  BackHandler,
   Platform,
   Pressable as RNPressable,
   StyleSheet,
@@ -126,6 +127,21 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
       cancelAnimation(progress);
     };
   }, [isOpen, progress, releaseMount]);
+  // Android's hardware back is the platform's dismiss for anything floating, and iOS has no such key — so without this
+  // back pops the route instead, and the menu rides into the next screen still open over content it never anchored to.
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const sub = BackHandler.addEventListener(
+      "hardwareBackPress",
+      (): boolean => {
+        close();
+        return true;
+      },
+    );
+    return () => {
+      sub.remove();
+    };
+  }, [isOpen, close]);
   const scrimStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
   const toolbarStyle = useAnimatedStyle(() => ({
     opacity: progress.value,
