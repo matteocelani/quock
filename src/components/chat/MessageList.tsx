@@ -43,6 +43,8 @@ export interface MessageListProps {
   onRetry?: (assistantMessageId: MessageId) => void;
   onEdit?: (userMessageId: MessageId, newContent: string) => void;
   attachmentsByMessage?: ReadonlyMap<MessageId, DbAttachment[]>;
+  /** Handed to each reply row: the view the excerpt overlay draws inside, which its long-press anchor is measured against. */
+  anchorSpace?: React.RefObject<View | null>;
 }
 
 function MessageListInner(
@@ -56,6 +58,7 @@ function MessageListInner(
     onRetry,
     onEdit,
     attachmentsByMessage,
+    anchorSpace,
   }: MessageListProps,
   ref: React.ForwardedRef<MessageListHandle>,
 ): React.ReactElement {
@@ -100,9 +103,18 @@ function MessageListInner(
       };
       if (onRegenerate !== undefined) aProps.onRegenerate = onRegenerate;
       if (onRetry !== undefined) aProps.onRetry = onRetry;
+      if (anchorSpace !== undefined) aProps.anchorSpace = anchorSpace;
       return <AssistantMessage {...aProps} />;
     },
-    [messages.length, isStreaming, onRegenerate, onRetry, onEdit, attachmentsByMessage],
+    [
+      messages.length,
+      isStreaming,
+      onRegenerate,
+      onRetry,
+      onEdit,
+      attachmentsByMessage,
+      anchorSpace,
+    ],
   );
   const keyExtractor = useCallback(
     (item: DbMessage): string => String(item.id),

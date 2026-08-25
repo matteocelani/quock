@@ -11,6 +11,7 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 import { CodeBlock } from "@/components/ui/CodeBlock";
+import { anchorRelativeTo } from "@/components/ui/markdown/anchorRect";
 import type { AnchorRect } from "@/lib/types/geometry";
 import {
   type BlockNode,
@@ -27,6 +28,11 @@ export interface MarkdownProps {
   className?: string;
   testID?: string;
   onLongPressExcerpt?: OnLongPressExcerpt;
+  /**
+   * The view the anchor is measured against — pass the one the overlay draws inside. Required alongside
+   * `onLongPressExcerpt`: without it there is no space to express the anchor in, so the long press does nothing.
+   */
+  anchorSpace?: React.RefObject<View | null>;
   // Namespace prepended to unit keys so highlights never collide across messages.
   highlightPrefix?: string;
   // Full key (prefix:unitKey) of the unit to tint while its menu is open.
@@ -284,6 +290,7 @@ export function Markdown({
   className,
   testID,
   onLongPressExcerpt,
+  anchorSpace,
   highlightPrefix,
   activeHighlightKey,
 }: MarkdownProps): React.ReactElement {
@@ -292,20 +299,27 @@ export function Markdown({
   // Reparsing on every render would run the whole reply through the parser twice per menu open/close.
   const blocks = React.useMemo(() => parseMarkdown(source), [source]);
   const units = React.useMemo(() => groupIntoUnits(blocks), [blocks]);
-  // Measure the unit's container in-window and hand its top/bottom to the pill so it anchors above/below, not over the text.
+  // Measure the unit's container and hand its top/bottom to the pill so it anchors above/below, not over the text.
+  // Restated against `anchorSpace`: a raw window reading is not the space the overlay draws in (see anchorRect).
   const open = (unitKey: string): void => {
-    if (!onLongPressExcerpt) return;
+    const space = anchorSpace?.current;
+    if (!onLongPressExcerpt || !space) return;
     const full = `${prefix}:${unitKey}`;
     const node = unitRefs.current.get(full);
     if (node) {
       node.measureInWindow((x, y, w, h) => {
         // A recycled or detached FlashList node measures as zeros; anchoring to that would park the menu at the top edge.
         if (w === 0 && h === 0) return;
-        onLongPressExcerpt(full, {
-          top: y,
-          bottom: y + h,
-          left: x,
-          width: w,
+        // Measured here rather than once on layout: the two readings must share a frame, or the origin contributes a
+        // transform the anchor never had — a chat opened from the drawer lays out while the panel still covers it.
+        space.measureInWindow((originX, originY) => {
+          onLongPressExcerpt(
+            full,
+            anchorRelativeTo(
+              { x, y, width: w, height: h },
+              { x: originX, y: originY },
+            ),
+          );
         });
       });
     }

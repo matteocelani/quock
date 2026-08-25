@@ -70,6 +70,9 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   // Scroll-to-latest button lives in the composer (rides its keyboard lift); the list reports visibility here and is driven via ref.
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const messageListRef = useRef<MessageListHandle>(null);
+  // The excerpt overlay draws inside this root, so reply rows measure their long-press anchor against it rather than
+  // against the window — measureInWindow would fold in the surface's viewport offset and every ancestor transform.
+  const rootRef = useRef<View | null>(null);
   const { data, isLoading, isError, error } = useChat(chatId);
   // A deleted chat (clear-all wipes the cache, or the current chat is removed from history) makes useChat throw
   // "not found"; route to a fresh chat instead of dead-ending on the error screen. Genuine DB errors still show.
@@ -235,7 +238,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const showLoading = (isLoading || chatGone) && messages.length === 0;
   const showEmpty = !showLoading && !showError && messages.length === 0;
   return (
-    <View className="flex-1 bg-background">
+    <View ref={rootRef} className="flex-1 bg-background">
       {/* Body fills the screen edge-to-edge; the FloatingHeader orbs float on top, and the list's top inset pushes the first message clear of them so content scrolls under the orbs (Apple HIG topmost-layer pattern). */}
       <View className="flex-1 bg-background">
         {showLoading ? (
@@ -258,6 +261,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         ) : (
           <MessageList
             ref={messageListRef}
+            anchorSpace={rootRef}
             messages={messages}
             isStreaming={isStreaming}
             topInset={listTopInset}
