@@ -140,7 +140,8 @@ const light = {
   // Sheet scrim is lighter than the dialog scrim — iOS 27 kit overlay value.
   scrimSheet: "rgba(0,0,0,0.2)",
   scrimPage: "rgba(0,0,0,0.07)",
-  // Excerpt menu dims less than a sheet because it also blurs, and the blur separates the surround on its own.
+  // Excerpt menu dims less than a sheet because it also blurs, and the blur separates the surround on its own. iOS
+  // only, therefore: the blur-free Android path takes `scrim`, since this tone alone barely attenuates the surround.
   scrimExcerpt: "rgba(0,0,0,0.08)",
   // Excerpt spotlight rim ONLY — the ported BorderGlow mesh hues. Never an app accent: they live outside the Apple HIG
   // set on purpose and must not leak into general use. The rim's warm edge light lives in boxShadow.excerptRim.

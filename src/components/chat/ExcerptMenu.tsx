@@ -243,8 +243,9 @@ export const ExcerptMenu = React.memo(function ExcerptMenu({
           pointerEvents="none"
           style={[StyleSheet.absoluteFill, scrimStyle]}
         >
+          {/* The dialog scrim, not scrimExcerpt: that tier is tuned to sit beside a blur, and alone it barely marks the surround. */}
           <Svg width={screenWidth} height={screenHeight}>
-            <Path d={dimMask} fill={colors.scrimExcerpt} fillRule="evenodd" />
+            <Path d={dimMask} fill={colors.scrim} fillRule="evenodd" />
           </Svg>
         </Animated.View>
       )}
