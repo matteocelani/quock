@@ -349,7 +349,7 @@ Apple HIG iOS 27 uses pill shape (`rounded-full`) across the system. Quock follo
 
 ---
 
-## Platform notes (Fabric iOS 26)
+## Platform notes (Fabric)
 
 Workarounds for known New-Architecture quirks. Apply categorically:
 
@@ -358,16 +358,9 @@ Workarounds for known New-Architecture quirks. Apply categorically:
 - **`Modal` is a separate UIWindow.** Nest `<GestureHandlerRootView>` inside the `<Modal>`, not outside, or gestures will not register inside the modal.
 - **Press tint vs scale** — when a `Pressable` overlay paints a tint and the inner view also scales, the edges of the scaled child diverge from the outer. When both are active, lock `scale = 1`.
 - **`@gorhom/bottom-sheet`** — fails silently on Fabric. Use `<Sheet>`.
-
----
-
-## Platform notes (Android)
-
-Verified against the installed React Native sources. Every one was found by shipping an iOS-only assumption:
-
-- **`measureInWindow` is not the space your overlay draws in.** It folds in the surface's viewport offset — `getLocationOnScreen()` minus `getWindowVisibleDisplayFrame()`, i.e. minus the status bar under edge-to-edge, where iOS's is zero for a full-window root (`ReactSurfaceView.kt` → `RootShadowNode.cpp` → `DOM.cpp`). Measure the overlay's own ancestor the same way and subtract (`anchorRelativeTo`): that cancels the offset and any shared ancestor transform, on both platforms, with no inset arithmetic. **Both readings must come from the same press** — a cached origin carries whatever transform was on screen when it was taken, and a chat opened from the drawer lays out while the panel still covers it. `measureLayout` looks like the clean answer and is not: `includeTransform: false` drops the list's scroll offset too, so inside a `FlashList` it returns content-space coordinates — measured at 330dp off on a scrolled reply.
-- **Hardware back is not routed to floating UI.** `<Modal>` gets it free through `onRequestClose`, so `<Sheet>` is covered; an absolute overlay never sees it — back reaches the navigator instead. Where the overlay's visibility lives in a store, that flag then outlives the screen and the overlay returns over unrelated content: register a `BackHandler` while it is open (`ExcerptMenu`). Verify on device rather than assuming, since what back actually does varies by what else claims the gesture.
-- **No blur, so a tint has to separate on its own.** `expo-blur` runs on Android but misrenders (`GlassOrb`, `Sheet`), so the app does not use it there — and a dim tuned to sit beside a blur then has nothing helping it. Note what such a dim actually acts on: over a black body no alpha changes the background at all, so the whole job is attenuating the text, and 16% black leaves it at 84% of itself. Reach for the tier that already dims blur-free (`scrim`, as `ConfirmDialog` does) rather than inventing a synonym.
+- **Android: `measureInWindow` carries the surface's viewport offset** (minus the status bar under edge-to-edge; zero on iOS). Anchor an overlay against its own ancestor instead (`anchorRelativeTo`), both readings taken in one press — not `measureLayout`, which drops the list's scroll offset.
+- **Android: hardware back goes to the navigator, not to an absolute overlay.** `<Modal>` intercepts it via `onRequestClose`; `ExcerptMenu` registers a `BackHandler` while open.
+- **Android: the scrims go without the blur** (`Sheet` calls the fallback too uneven to dim with), so a tone tuned to sit beside one is replaced, not reused — the excerpt dim takes `scrim`.
 
 ---
 
