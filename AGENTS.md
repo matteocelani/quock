@@ -349,7 +349,7 @@ Apple HIG iOS 27 uses pill shape (`rounded-full`) across the system. Quock follo
 
 ---
 
-## Platform notes (Fabric)
+## Platform notes (Fabric iOS 26)
 
 Workarounds for known New-Architecture quirks. Apply categorically:
 
@@ -358,9 +358,14 @@ Workarounds for known New-Architecture quirks. Apply categorically:
 - **`Modal` is a separate UIWindow.** Nest `<GestureHandlerRootView>` inside the `<Modal>`, not outside, or gestures will not register inside the modal.
 - **Press tint vs scale** — when a `Pressable` overlay paints a tint and the inner view also scales, the edges of the scaled child diverge from the outer. When both are active, lock `scale = 1`.
 - **`@gorhom/bottom-sheet`** — fails silently on Fabric. Use `<Sheet>`.
-- **Android: `measureInWindow` carries the surface's viewport offset** (minus the status bar under edge-to-edge; zero on iOS). Anchor an overlay against its own ancestor instead (`anchorRelativeTo`), both readings taken in one press — not `measureLayout`, which drops the list's scroll offset.
-- **Android: hardware back goes to the navigator, not to an absolute overlay.** `<Modal>` intercepts it via `onRequestClose`; `ExcerptMenu` registers a `BackHandler` while open.
-- **Android: the scrims go without the blur** (`Sheet` calls the fallback too uneven to dim with), so a tone tuned to sit beside one is replaced, not reused — the excerpt dim takes `scrim`.
+
+---
+
+## Platform notes (Android)
+
+- **`measureInWindow` carries the surface's viewport offset** — minus the status bar under edge-to-edge, zero on iOS. Anchor an overlay against its own ancestor instead (`anchorRelativeTo`), both readings taken in one press; not `measureLayout`, which drops the list's scroll offset too.
+- **Hardware back reaches the navigator, not an absolute overlay.** `<Modal>` intercepts it via `onRequestClose`, which is how `<Sheet>` is covered; `ExcerptMenu` registers a `BackHandler` while open. Other overlays have not needed it — check on device before assuming yours does.
+- **A blur the design leans on may not be there.** `Sheet` and `ExcerptMenu` both drop theirs on Android, the fallback being too uneven to dim with, so a tone tuned to sit beside one has to be replaced: the excerpt dim takes `scrim`.
 
 ---
 
