@@ -1,5 +1,5 @@
-// Turns a measured unit into the rect an overlay can draw against. Pure so the sign is testable: subtracting the wrong
-// way doubles the error instead of cancelling it, and the symptom reads as a design slip rather than arithmetic.
+// Pure so the sign is testable: subtracting the wrong way doubles the error instead of cancelling it, and the symptom
+// reads as a design slip rather than arithmetic.
 
 import type { AnchorRect } from "@/lib/types/geometry";
 

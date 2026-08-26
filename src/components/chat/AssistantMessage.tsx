@@ -34,7 +34,6 @@ import type { MessageId } from "@/lib/types/ids";
 export interface AssistantMessageProps {
   message: DbMessage;
   isStreaming: boolean;
-  /** The view the excerpt overlay draws inside; long-press anchors are measured against it, not the window. */
   anchorSpace?: React.RefObject<View | null>;
   onRegenerate?: (assistantMessageId: MessageId) => void;
   onRetry?: (assistantMessageId: MessageId) => void;
@@ -213,11 +212,8 @@ function AssistantMessageImpl({
             <Markdown
               source={revealedContent}
               className="flex-1"
-              {...(showActionRow && anchorSpace
-                ? {
-                    onLongPressExcerpt: handleLongPressExcerpt,
-                    anchorSpace,
-                  }
+              {...(showActionRow
+                ? { onLongPressExcerpt: handleLongPressExcerpt, anchorSpace }
                 : {})}
               highlightPrefix={String(message.id)}
               activeHighlightKey={activeHighlightKey}

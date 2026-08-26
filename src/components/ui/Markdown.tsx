@@ -28,10 +28,7 @@ export interface MarkdownProps {
   className?: string;
   testID?: string;
   onLongPressExcerpt?: OnLongPressExcerpt;
-  /**
-   * The view the anchor is measured against — pass the one the overlay draws inside. Required alongside
-   * `onLongPressExcerpt`: without it there is no space to express the anchor in, so the long press does nothing.
-   */
+  // Required alongside onLongPressExcerpt: the view the anchor is measured against, i.e. the one the overlay fills.
   anchorSpace?: React.RefObject<View | null>;
   // Namespace prepended to unit keys so highlights never collide across messages.
   highlightPrefix?: string;
@@ -302,8 +299,14 @@ export function Markdown({
   // Measure the unit's container and hand its top/bottom to the pill so it anchors above/below, not over the text.
   // Restated against `anchorSpace`: a raw window reading is not the space the overlay draws in (see anchorRect).
   const open = (unitKey: string): void => {
+    if (!onLongPressExcerpt) return;
     const space = anchorSpace?.current;
-    if (!onLongPressExcerpt || !space) return;
+    if (!space) {
+      // Wired for the menu with nowhere to place it. Worth a log: the caller believes the feature is on, and the only
+      // symptom is a long press that does nothing.
+      console.warn("Markdown: onLongPressExcerpt without anchorSpace");
+      return;
+    }
     const full = `${prefix}:${unitKey}`;
     const node = unitRefs.current.get(full);
     if (node) {

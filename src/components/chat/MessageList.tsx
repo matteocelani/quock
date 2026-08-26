@@ -43,7 +43,6 @@ export interface MessageListProps {
   onRetry?: (assistantMessageId: MessageId) => void;
   onEdit?: (userMessageId: MessageId, newContent: string) => void;
   attachmentsByMessage?: ReadonlyMap<MessageId, DbAttachment[]>;
-  /** Handed to each reply row: the view the excerpt overlay draws inside, which its long-press anchor is measured against. */
   anchorSpace?: React.RefObject<View | null>;
 }
 
@@ -100,10 +99,10 @@ function MessageListInner(
       const aProps: React.ComponentProps<typeof AssistantMessage> = {
         message: item,
         isStreaming: isLastAssistantStreaming,
+        ...(anchorSpace !== undefined ? { anchorSpace } : {}),
       };
       if (onRegenerate !== undefined) aProps.onRegenerate = onRegenerate;
       if (onRetry !== undefined) aProps.onRetry = onRetry;
-      if (anchorSpace !== undefined) aProps.anchorSpace = anchorSpace;
       return <AssistantMessage {...aProps} />;
     },
     [
