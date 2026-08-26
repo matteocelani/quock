@@ -1,9 +1,8 @@
 // An overlay anchor is the unit's measureInWindow reading minus its ancestor's: that cancels the surface's viewport
-// offset and any translation the two share. Pure so the sign is testable; not measureLayout — see Platform notes.
+// offset and any translation the two share. Pure so the sign is testable.
 
 import type { AnchorRect } from "@/lib/types/geometry";
 
-/** A measureInWindow reading: the unit's box, and the box of the ancestor the overlay draws inside. */
 export interface Measured {
   x: number;
   y: number;

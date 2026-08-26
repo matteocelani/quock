@@ -315,8 +315,8 @@ export function Markdown({
       node.measureInWindow((x, y, w, h) => {
         // A recycled or detached FlashList node measures as zeros; anchoring to that would park the menu at the top edge.
         if (w === 0 && h === 0) return;
-        // Measured here rather than once on layout: the two readings must share a frame, or the origin contributes a
-        // transform the anchor never had — a chat opened from the drawer lays out while the panel still covers it.
+        // Read here rather than cached on layout: an origin sampled at another moment carries whatever transform was
+        // on screen then — a chat opened from the drawer lays out while the panel still covers it.
         space.measureInWindow((originX, originY) => {
           onLongPressExcerpt(
             full,

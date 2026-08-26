@@ -194,7 +194,6 @@ function AssistantMessageImpl({
     message.webSearchFailed && !isError && !isInterrupted;
   // Action row visible only once the response is fully landed — hide during pending / streaming / error / interrupted so the icons never offer regenerate over an in-flight answer.
   const showActionRow = message.status === "complete" && hasContent;
-  // Excerpt actions only on a landed reply, and the pair travels together or not at all — see MarkdownProps.
   const excerptWiring: ExcerptWiring = showActionRow
     ? { onLongPressExcerpt: handleLongPressExcerpt, anchorSpace }
     : {};
