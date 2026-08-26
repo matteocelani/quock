@@ -70,8 +70,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   // Scroll-to-latest button lives in the composer (rides its keyboard lift); the list reports visibility here and is driven via ref.
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const messageListRef = useRef<MessageListHandle>(null);
-  // The excerpt overlay draws inside this root, so reply rows measure their long-press anchor against it rather than
-  // against the window — measureInWindow would fold in the surface's viewport offset and every ancestor transform.
+  // The excerpt overlay draws inside this root, so reply rows measure their long-press anchor against it.
   const rootRef = useRef<View | null>(null);
   const { data, isLoading, isError, error } = useChat(chatId);
   // A deleted chat (clear-all wipes the cache, or the current chat is removed from history) makes useChat throw

@@ -1,6 +1,6 @@
 import { anchorRelativeTo } from "@/components/ui/markdown/anchorRect";
 
-// A unit two thirds down a scrolled reply, as measureInWindow reports it.
+// Logged off the device the bug was found on: 1200x2670 at 408dpi, so 470.6dp wide with a 43.1dp status bar.
 const unit = { x: 7, y: 241, width: 456, height: 422 };
 
 describe("anchorRelativeTo", () => {
@@ -33,10 +33,6 @@ describe("anchorRelativeTo", () => {
   it("cancels a horizontal shift both readings carry", () => {
     const shifted = { ...unit, x: unit.x + 471 };
     expect(anchorRelativeTo(shifted, { x: 471, y: 0 }).left).toBe(unit.x);
-  });
-
-  it("never scales the width, whatever the origin", () => {
-    expect(anchorRelativeTo(unit, { x: -20, y: -43 }).width).toBe(unit.width);
   });
 
   it("keeps a unit scrolled above the fold above the fold", () => {

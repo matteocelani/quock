@@ -43,7 +43,7 @@ export interface MessageListProps {
   onRetry?: (assistantMessageId: MessageId) => void;
   onEdit?: (userMessageId: MessageId, newContent: string) => void;
   attachmentsByMessage?: ReadonlyMap<MessageId, DbAttachment[]>;
-  anchorSpace?: React.RefObject<View | null>;
+  anchorSpace: React.RefObject<View | null>;
 }
 
 function MessageListInner(
@@ -99,21 +99,13 @@ function MessageListInner(
       const aProps: React.ComponentProps<typeof AssistantMessage> = {
         message: item,
         isStreaming: isLastAssistantStreaming,
-        ...(anchorSpace !== undefined ? { anchorSpace } : {}),
+        anchorSpace,
       };
       if (onRegenerate !== undefined) aProps.onRegenerate = onRegenerate;
       if (onRetry !== undefined) aProps.onRetry = onRetry;
       return <AssistantMessage {...aProps} />;
     },
-    [
-      messages.length,
-      isStreaming,
-      onRegenerate,
-      onRetry,
-      onEdit,
-      attachmentsByMessage,
-      anchorSpace,
-    ],
+    [messages.length, isStreaming, onRegenerate, onRetry, onEdit, attachmentsByMessage, anchorSpace],
   );
   const keyExtractor = useCallback(
     (item: DbMessage): string => String(item.id),

@@ -10,7 +10,7 @@ import Highlighter from "lucide-react-native/icons/highlighter";
 import RotateCw from "lucide-react-native/icons/rotate-cw";
 import { type LucideIcon } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
-import { Markdown } from "@/components/ui/Markdown";
+import { Markdown, type ExcerptWiring } from "@/components/ui/Markdown";
 import { Pressable } from "@/components/ui/Pressable";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { iconSize, strokeWidth } from "@/lib/design/tokens";
@@ -34,7 +34,7 @@ import type { MessageId } from "@/lib/types/ids";
 export interface AssistantMessageProps {
   message: DbMessage;
   isStreaming: boolean;
-  anchorSpace?: React.RefObject<View | null>;
+  anchorSpace: React.RefObject<View | null>;
   onRegenerate?: (assistantMessageId: MessageId) => void;
   onRetry?: (assistantMessageId: MessageId) => void;
 }
@@ -194,6 +194,10 @@ function AssistantMessageImpl({
     message.webSearchFailed && !isError && !isInterrupted;
   // Action row visible only once the response is fully landed — hide during pending / streaming / error / interrupted so the icons never offer regenerate over an in-flight answer.
   const showActionRow = message.status === "complete" && hasContent;
+  // Excerpt actions only on a landed reply, and the pair travels together or not at all — see MarkdownProps.
+  const excerptWiring: ExcerptWiring = showActionRow
+    ? { onLongPressExcerpt: handleLongPressExcerpt, anchorSpace }
+    : {};
   return (
     <View>
       <MessageBubble role="assistant" isStreaming={isStreaming}>
@@ -212,9 +216,7 @@ function AssistantMessageImpl({
             <Markdown
               source={revealedContent}
               className="flex-1"
-              {...(showActionRow
-                ? { onLongPressExcerpt: handleLongPressExcerpt, anchorSpace }
-                : {})}
+              {...excerptWiring}
               highlightPrefix={String(message.id)}
               activeHighlightKey={activeHighlightKey}
             />

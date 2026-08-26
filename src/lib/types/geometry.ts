@@ -1,5 +1,4 @@
-// Bounds of a measured element, already restated in the coordinate space of the overlay that consumes them — a raw
-// measureInWindow reading is not that space, see anchorRelativeTo and Platform notes (Android).
+// Bounds of a measured element, in the coordinate space of the overlay that consumes them (see anchorRelativeTo).
 
 // Anchors an overlay to the element it belongs to: above or below its edges, leading-aligned to its left.
 // `width` lets a dimming overlay spare the element instead of darkening it with everything else.

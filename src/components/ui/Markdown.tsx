@@ -23,18 +23,26 @@ import { groupIntoUnits } from "@/components/ui/markdown/groupIntoUnits";
 // Hands the unit's message-scoped key and its on-screen bounds; the text is resolved from the reply when acted on.
 type OnLongPressExcerpt = (key: string, anchor: AnchorRect) => void;
 
-export interface MarkdownProps {
+// The handler and the view its anchor is measured against are one unit, so the type refuses either alone: a caller
+// cannot wire the menu with nowhere to place it.
+export type ExcerptWiring =
+  | {
+      onLongPressExcerpt: OnLongPressExcerpt;
+      anchorSpace: React.RefObject<View | null>;
+    }
+  | { onLongPressExcerpt?: never; anchorSpace?: never };
+
+interface MarkdownBaseProps {
   source: string;
   className?: string;
   testID?: string;
-  onLongPressExcerpt?: OnLongPressExcerpt;
-  // Required alongside onLongPressExcerpt: the view the anchor is measured against, i.e. the one the overlay fills.
-  anchorSpace?: React.RefObject<View | null>;
   // Namespace prepended to unit keys so highlights never collide across messages.
   highlightPrefix?: string;
   // Full key (prefix:unitKey) of the unit to tint while its menu is open.
   activeHighlightKey?: string;
 }
+
+export type MarkdownProps = MarkdownBaseProps & ExcerptWiring;
 // Opens a markdown link externally; a rejected promise (bad scheme / no handler) is logged, never thrown, so a malformed LLM link can't crash the row.
 function openLink(href: string): void {
   Linking.openURL(href).catch((error: unknown) => {
@@ -297,16 +305,10 @@ export function Markdown({
   const blocks = React.useMemo(() => parseMarkdown(source), [source]);
   const units = React.useMemo(() => groupIntoUnits(blocks), [blocks]);
   // Measure the unit's container and hand its top/bottom to the pill so it anchors above/below, not over the text.
-  // Restated against `anchorSpace`: a raw window reading is not the space the overlay draws in (see anchorRect).
   const open = (unitKey: string): void => {
     if (!onLongPressExcerpt) return;
-    const space = anchorSpace?.current;
-    if (!space) {
-      // Wired for the menu with nowhere to place it. Worth a log: the caller believes the feature is on, and the only
-      // symptom is a long press that does nothing.
-      console.warn("Markdown: onLongPressExcerpt without anchorSpace");
-      return;
-    }
+    const space = anchorSpace.current;
+    if (!space) return;
     const full = `${prefix}:${unitKey}`;
     const node = unitRefs.current.get(full);
     if (node) {

@@ -1,5 +1,5 @@
-// Pure so the sign is testable: subtracting the wrong way doubles the error instead of cancelling it, and the symptom
-// reads as a design slip rather than arithmetic.
+// An overlay anchor is the unit's measureInWindow reading minus its ancestor's: that cancels the surface's viewport
+// offset and any translation the two share. Pure so the sign is testable; not measureLayout — see Platform notes.
 
 import type { AnchorRect } from "@/lib/types/geometry";
 
@@ -11,8 +11,6 @@ export interface Measured {
   height: number;
 }
 
-// measureInWindow folds the surface's viewport offset (minus the status bar on Android, zero on iOS) and every ancestor
-// transform into both readings, so subtracting the ancestor's cancels all of it. Why not measureLayout: Platform notes.
 export function anchorRelativeTo(
   unit: Measured,
   origin: Pick<Measured, "x" | "y">,
