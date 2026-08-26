@@ -10,7 +10,7 @@ import Highlighter from "lucide-react-native/icons/highlighter";
 import RotateCw from "lucide-react-native/icons/rotate-cw";
 import { type LucideIcon } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
-import { Markdown, type ExcerptWiring } from "@/components/ui/Markdown";
+import { Markdown } from "@/components/ui/Markdown";
 import { Pressable } from "@/components/ui/Pressable";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { iconSize, strokeWidth } from "@/lib/design/tokens";
@@ -194,9 +194,6 @@ function AssistantMessageImpl({
     message.webSearchFailed && !isError && !isInterrupted;
   // Action row visible only once the response is fully landed — hide during pending / streaming / error / interrupted so the icons never offer regenerate over an in-flight answer.
   const showActionRow = message.status === "complete" && hasContent;
-  const excerptWiring: ExcerptWiring = showActionRow
-    ? { onLongPressExcerpt: handleLongPressExcerpt, anchorSpace }
-    : {};
   return (
     <View>
       <MessageBubble role="assistant" isStreaming={isStreaming}>
@@ -215,7 +212,10 @@ function AssistantMessageImpl({
             <Markdown
               source={revealedContent}
               className="flex-1"
-              {...excerptWiring}
+              anchorSpace={anchorSpace}
+              {...(showActionRow
+                ? { onLongPressExcerpt: handleLongPressExcerpt }
+                : {})}
               highlightPrefix={String(message.id)}
               activeHighlightKey={activeHighlightKey}
             />

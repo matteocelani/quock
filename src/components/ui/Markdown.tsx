@@ -23,26 +23,19 @@ import { groupIntoUnits } from "@/components/ui/markdown/groupIntoUnits";
 // Hands the unit's message-scoped key and its on-screen bounds; the text is resolved from the reply when acted on.
 type OnLongPressExcerpt = (key: string, anchor: AnchorRect) => void;
 
-// The handler and the view its anchor is measured against are one unit, so the type refuses either alone: a caller
-// cannot wire the menu with nowhere to place it.
-export type ExcerptWiring =
-  | {
-      onLongPressExcerpt: OnLongPressExcerpt;
-      anchorSpace: React.RefObject<View | null>;
-    }
-  | { onLongPressExcerpt?: never; anchorSpace?: never };
-
-interface MarkdownBaseProps {
+export interface MarkdownProps {
   source: string;
   className?: string;
   testID?: string;
+  onLongPressExcerpt?: OnLongPressExcerpt;
+  // The view a long-press anchor is measured against, which is the one the excerpt overlay fills. Required, not
+  // optional: an anchor measured against nothing lands in the wrong space, which is the bug this whole path fixes.
+  anchorSpace: React.RefObject<View | null>;
   // Namespace prepended to unit keys so highlights never collide across messages.
   highlightPrefix?: string;
   // Full key (prefix:unitKey) of the unit to tint while its menu is open.
   activeHighlightKey?: string;
 }
-
-export type MarkdownProps = MarkdownBaseProps & ExcerptWiring;
 // Opens a markdown link externally; a rejected promise (bad scheme / no handler) is logged, never thrown, so a malformed LLM link can't crash the row.
 function openLink(href: string): void {
   Linking.openURL(href).catch((error: unknown) => {
