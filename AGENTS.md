@@ -363,9 +363,9 @@ Workarounds for known New-Architecture quirks. Apply categorically:
 
 ## Platform notes (Android)
 
-- **`measureInWindow` carries the surface's viewport offset** — minus the status bar under edge-to-edge, zero on iOS. Anchor an overlay against its own ancestor instead (`anchorRelativeTo`), both readings taken in one press; not `measureLayout`, which drops the list's scroll offset too.
-- **Hardware back reaches the navigator, not an absolute overlay.** `<Modal>` intercepts it via `onRequestClose`, which is how `<Sheet>` is covered; `ExcerptMenu` registers a `BackHandler` while open. Whether another overlay needs one is a question for the device, not for inference.
-- **A blur the design leans on may not be there.** `Sheet` and `ExcerptMenu` both drop theirs on Android, the fallback being too uneven to dim with, so a tone tuned to sit beside one has to be replaced: the excerpt dim takes `scrim`.
+- **`measureInWindow` carries the viewport offset** (minus the status bar; zero on iOS) — anchor against the overlay's own ancestor, both reads in one press (`anchorRelativeTo`); `measureLayout` also drops scroll offset.
+- **Hardware back skips absolute overlays** — `<Modal>` catches it via `onRequestClose`; `ExcerptMenu` registers its own `BackHandler`.
+- **Scrims go blur-free here**, so a tone tuned beside a blur has to be replaced — the excerpt dim takes `scrim`.
 
 ---
 
