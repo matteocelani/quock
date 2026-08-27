@@ -18,7 +18,8 @@ ROOT = Path(__file__).resolve().parents[2] / "screenshots"
 OUT = Path(__file__).resolve().parent
 FRAME_PNG = OUT / "device-iphone-16-pro-max-natural.png"
 
-W, H = 1320, 2868
+# App Store Connect 6.7" portrait. 6.9" (1320×2868) is rejected on this listing.
+W, H = 1284, 2778
 SCALE = 2
 CW, CH = W * SCALE, H * SCALE
 
