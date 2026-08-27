@@ -21,14 +21,16 @@ A community-built mobile client for [Ollama Cloud](https://ollama.com). Chat wit
 
 **Quock is a mobile app for using [Ollama Cloud](https://ollama.com) on your phone** — a native chat client for iPhone and Android. Sign in once with your `ollama.com` account, pick any cloud-hosted model — Gemma, Qwen, Llama, GPT-OSS, DeepSeek, and more — and start typing. Answers stream back word by word.
 
-It's deliberately small and focused: **open the app, tap a model, type — a streamed reply in under three taps from home.** Your chat history lives in a local database on the device; the only thing that ever leaves your phone is the message you actively send.
+It's deliberately small and focused: **open the app, tap a model, type — a streamed reply in under three taps from home.** Your chat history lives in a local database on the device; the only thing that ever leaves your phone is the conversation you are actively sending.
 
 ## What it does
 
 - 💬 **Chat in your pocket** — sign in once, pick a model, and start typing. Responses stream back word-by-word.
 - 🧠 **Thinking & web search** — turn on reasoning for models that support it, or let the model search the web mid-answer. Both are per-chat toggles you set once.
-- 🔒 **Conversations stay on your phone** — chat history lives in a local database on your device. The only thing that travels to the cloud is the message you actively send.
+- ✨ **Act on part of an answer** — long-press any paragraph of a reply to send just that piece to a deeper question or a web search, without retyping it.
+- 🔒 **Conversations stay on your phone** — chat history lives in a local database on your device. The only thing that travels to the cloud is the conversation you are actively sending.
 - 🖼️ **Add images and screenshots** — drop a photo into the conversation when you're using a vision-capable model.
+- 📄 **Ask about a document** — attach a PDF and question it. Quock reads its text layer, or runs OCR on your device when there is none, and keeps the pages in view as the conversation continues.
 - 🎨 **Quietly beautiful** — light, dark, and system themes with frosted-glass surfaces, smooth animations, and instant scrolling even on long chats.
 
 ## Screenshots
