@@ -6,7 +6,7 @@ web-build/
 .env.local
 
 # Native build artifacts
-ios/
+/ios/
 android/
 *.apk
 *.aab
