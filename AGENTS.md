@@ -1,6 +1,6 @@
 # AGENTS.md — Quock
 
-Single source of truth for any AI coding agent operating on this repository (Claude Code, Cursor, Codex, Gemini, Aider, Continue, …). `CLAUDE.md` is a 1-line shim that points here. Slash command procedures live in `.agent/commands/{commit,pr,code-review}.md` and read this file at the start of every iteration.
+Single source of truth for any AI coding agent operating on this repository (Claude Code, Cursor, Codex, Gemini, Aider, Continue, …). `CLAUDE.md` is a 1-line shim that points here. Slash command procedures live in `.agent/commands/{issue,commit,pr,code-review,release}.md` and read this file at the start of every iteration.
 
 ---
 
@@ -20,7 +20,7 @@ Working memory is not persistent across tasks. Re-read at the start of every ite
 
 1. This file end-to-end.
 2. The file the task touches end-to-end, plus its immediate consumers (`grep -rn "SymbolName"`).
-3. The slash command procedure when invoking `/commit`, `/pr`, or `/review` — `.agent/commands/{commit,pr,code-review}.md`.
+3. The slash command procedure when invoking `/issue`, `/commit`, `/pr`, or `/review` — `.agent/commands/{issue,commit,pr,code-review}.md`.
 
 When a rule is missing, contradictory, or silent on the exact question, surface the gap and ask the human. Do not guess.
 
@@ -429,7 +429,7 @@ The docs are the contract. If a rule in AGENTS.md no longer matches reality:
 | `refactor/` | Refactor without new feature or fix | `refactor/sheet-primitive` |
 | `release/X.Y.Z` | Release line cut from `develop` (or from `main` for a patch to the live version). Absorbs store review; fixes land here and are cherry-picked back to `develop`. | `release/0.1.2` |
 
-Branch names are kebab-case, descriptive, no ticket numbers (Quock has no tracker in repo).
+Branch names are kebab-case, descriptive, no ticket numbers. GitHub issues are the tracker, but the number stays out of the branch name — the closing PR carries it as `Fixes #<n>`.
 
 ### Commit pattern
 
@@ -457,10 +457,11 @@ The full flow — branch model, when the version bump happens (first step of a r
 
 ## Slash commands
 
-Procedures live in `.agent/commands/`. Each is an iterative loop: read AGENTS.md, check the diff, fix violations, restart. The cycle closes only when a clean pass produces zero violations.
+Procedures live in `.agent/commands/`. `/commit`, `/pr` and `/review` are iterative loops: read AGENTS.md, check the diff, fix violations, restart — the cycle closes only when a clean pass produces zero violations. `/issue` and `/release-start` are linear, because neither produces a diff to re-verify.
 
 | Command | Purpose | Rule file |
 | --- | --- | --- |
+| `/issue` | Classify + dedup + point at the code + `gh issue create` | `.agent/commands/issue.md` |
 | `/commit` | Stage + diff + Conventional Commit + push | `.agent/commands/commit.md` |
 | `/pr` | Run `/review` + rebase on `develop` + push + `gh pr create` | `.agent/commands/pr.md` |
 | `/review` | Self-review + adversarial panel (independent critics + skeptic verify per finding) + auto-fix loop | `.agent/commands/code-review.md` |
