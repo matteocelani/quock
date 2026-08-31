@@ -36,9 +36,7 @@ It's deliberately small and focused: **open the app, tap a model, type — a str
 ## Screenshots
 
 <div align="center">
-  <img src="docs/screenshots/home.png"    width="30%" alt="Pick a model and start typing" />
-  <img src="docs/screenshots/compose.png" width="30%" alt="Attach files, web search, and thinking" />
-  <img src="docs/screenshots/chat.png"    width="30%" alt="Chat with live reasoning" />
+  <img src="docs/screenshots/0.2.png" width="100%" alt="Pick a model, attach a document, and watch the model think" />
 </div>
 
 ## Quick start
