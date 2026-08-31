@@ -1,7 +1,7 @@
 ---
 name: Feature request
 about: Suggest an idea for Quock
-labels: enhancement
+labels: feature
 ---
 
 **The problem**
