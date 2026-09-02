@@ -68,9 +68,15 @@ export const COMPOSER_MAX_LINES = 8;
 export const ATTACH_SHEET_SNAP = "25%" as const;
 // Taller snap when the model exposes tool toggles (web search, thinking) so the Tools section clears the safe area — 37% covers the sheet card's internal home-indicator padding on 812-874pt devices (33% left the second tool row ~15pt inside the safe-area band).
 export const ATTACH_SHEET_SNAP_WITH_TOOLS = "37%" as const;
+// Three tool rows (web search + thinking + agent) would clip under the 37% two-row snap; one notch up keeps the
+// section above the safe-area band.
+export const ATTACH_SHEET_SNAP_WITH_AGENT = "45%" as const;
 // Web search: results per query (Ollama default 5, max 10) and a ceiling on agentic tool rounds so a misbehaving model can't loop forever.
 export const WEB_SEARCH_MAX_RESULTS = 5;
 export const WEB_SEARCH_MAX_TOOL_ROUNDS = 4;
+
+// Memories injected as system context per agent send: enough continuity, bounded tokens (~30 lines x 200 chars).
+export const AGENT_MEMORY_INJECT_MAX = 30;
 export const CHAT_HISTORY_SHEET_SNAP = "75%" as const;
 // Select-text sheet: tall so a long reply is comfortable to read and select.
 export const SELECT_TEXT_SHEET_SNAP = "85%" as const;

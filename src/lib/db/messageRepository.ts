@@ -30,6 +30,7 @@ interface MessageRow {
   web_search_failed: number;
   sent_with_think: number;
   sent_with_web_search: number;
+  sent_with_agent: number;
 }
 
 function rowToMessage(row: MessageRow): DbMessage {
@@ -49,6 +50,7 @@ function rowToMessage(row: MessageRow): DbMessage {
     webSearchFailed: row.web_search_failed === 1,
     sentWithThink: row.sent_with_think === 1,
     sentWithWebSearch: row.sent_with_web_search === 1,
+    sentWithAgent: row.sent_with_agent === 1,
   };
 }
 // Whitelist used by `update()` so nothing user-controlled ever reaches the raw SQL string.
@@ -69,6 +71,7 @@ const UPDATABLE_COLUMNS: Record<
   webSearchFailed: "web_search_failed",
   sentWithThink: "sent_with_think",
   sentWithWebSearch: "sent_with_web_search",
+  sentWithAgent: "sent_with_agent",
 };
 // Append input lets callers omit lifecycle/derived columns; the repo defaults `status='complete'`, `errorCode=null`, and all the boolean flags to false.
 export type MessageAppendInput = Omit<
@@ -81,6 +84,7 @@ export type MessageAppendInput = Omit<
   | "webSearchFailed"
   | "sentWithThink"
   | "sentWithWebSearch"
+  | "sentWithAgent"
 > &
   Partial<
     Pick<
@@ -90,6 +94,7 @@ export type MessageAppendInput = Omit<
       | "webSearchFailed"
       | "sentWithThink"
       | "sentWithWebSearch"
+      | "sentWithAgent"
     >
   >;
 
@@ -101,7 +106,7 @@ export class MessageRepository {
       SELECT id, chat_id, role, content, thinking, model, created_at,
              updated_at, thinking_time_start, thinking_time_end,
              status, error_code, web_search_failed,
-             sent_with_think, sent_with_web_search
+             sent_with_think, sent_with_web_search, sent_with_agent
       FROM messages
       WHERE chat_id = ?
       ORDER BY created_at ASC, id ASC
@@ -117,6 +122,7 @@ export class MessageRepository {
     const webSearchFailed: boolean = input.webSearchFailed ?? false;
     const sentWithThink: boolean = input.sentWithThink ?? false;
     const sentWithWebSearch: boolean = input.sentWithWebSearch ?? false;
+    const sentWithAgent: boolean = input.sentWithAgent ?? false;
     const result = await this.db.runAsync(
       `
       INSERT INTO messages (
@@ -124,8 +130,8 @@ export class MessageRepository {
         created_at, updated_at,
         thinking_time_start, thinking_time_end,
         status, error_code, web_search_failed,
-        sent_with_think, sent_with_web_search
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        sent_with_think, sent_with_web_search, sent_with_agent
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         input.chatId,
@@ -142,6 +148,7 @@ export class MessageRepository {
         webSearchFailed ? 1 : 0,
         sentWithThink ? 1 : 0,
         sentWithWebSearch ? 1 : 0,
+        sentWithAgent ? 1 : 0,
       ],
     );
     return {
@@ -154,6 +161,7 @@ export class MessageRepository {
       webSearchFailed,
       sentWithThink,
       sentWithWebSearch,
+      sentWithAgent,
     };
   }
   async update(

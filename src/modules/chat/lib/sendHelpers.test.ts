@@ -45,6 +45,7 @@ function dbMsg(
     webSearchFailed: false,
     sentWithThink: false,
     sentWithWebSearch: false,
+    sentWithAgent: false,
   };
 }
 

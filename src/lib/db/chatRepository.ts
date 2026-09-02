@@ -17,6 +17,7 @@ interface ChatRow {
   model: string | null;
   think_enabled: number;
   web_search_enabled: number;
+  agent_enabled: number;
 }
 
 interface ChatSummaryRow {
@@ -37,6 +38,7 @@ function rowToChat(row: ChatRow): DbChat {
     model: row.model,
     thinkEnabled: row.think_enabled === 1,
     webSearchEnabled: row.web_search_enabled === 1,
+    agentEnabled: row.agent_enabled === 1,
   };
 }
 
@@ -148,7 +150,7 @@ export class ChatRepository {
   async get(id: ChatId): Promise<DbChat | null> {
     const userId = this.getUserId();
     const row = await this.db.getFirstAsync<ChatRow>(
-      "SELECT id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled FROM chats WHERE id = ? AND user_id = ?",
+      "SELECT id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled, agent_enabled FROM chats WHERE id = ? AND user_id = ?",
       [id, userId],
     );
     return row ? rowToChat(row) : null;
@@ -173,6 +175,7 @@ export class ChatRepository {
       model: null,
       thinkEnabled: false,
       webSearchEnabled: true,
+      agentEnabled: false,
     };
   }
   // Pins a model to this chat so it persists across restarts and stays scoped to this chat alone. We deliberately do NOT touch updated_at: changing the model isn't conversational activity and shouldn't reorder the history list.
@@ -201,6 +204,12 @@ export class ChatRepository {
       "UPDATE chats SET web_search_enabled = ? WHERE id = ?",
       [enabled ? 1 : 0, id],
     );
+  }
+  async setAgentEnabled(id: ChatId, enabled: boolean): Promise<void> {
+    await this.db.runAsync("UPDATE chats SET agent_enabled = ? WHERE id = ?", [
+      enabled ? 1 : 0,
+      id,
+    ]);
   }
   async rename(id: ChatId, title: string): Promise<void> {
     const now = Date.now();

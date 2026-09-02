@@ -5,12 +5,14 @@ import React from "react";
 import { AttachmentRepository } from "@/lib/db/attachmentRepository";
 import { ChatRepository } from "@/lib/db/chatRepository";
 import { openDb } from "@/lib/db/client";
+import { MemoryRepository } from "@/lib/db/memoryRepository";
 import { MessageRepository } from "@/lib/db/messageRepository";
 
 export interface DbContextValue {
   chats: ChatRepository;
   messages: MessageRepository;
   attachments: AttachmentRepository;
+  memories: MemoryRepository;
 }
 
 interface DbContextState {
@@ -38,6 +40,7 @@ function buildRepositories(
     chats: new ChatRepository(db, getUserId),
     messages: new MessageRepository(db),
     attachments: new AttachmentRepository(db),
+    memories: new MemoryRepository(db, getUserId),
   };
 }
 

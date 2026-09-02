@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
+import Bot from "lucide-react-native/icons/bot";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
 import Globe from "lucide-react-native/icons/globe";
 import Palette from "lucide-react-native/icons/palette";
@@ -23,6 +24,7 @@ import {
   type ThemeMode,
 } from "@/lib/theme/ThemeContext";
 import { iconSize, size, strokeWidth } from "@/lib/design/tokens";
+import { AGENT_MAX_TOOL_ROUNDS_CHOICES } from "@/lib/constants/magic-numbers";
 import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { formatModelName } from "@/modules/models/lib/formatModelName";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
@@ -37,9 +39,11 @@ import {
   SETTINGS_SCROLL_PAD_TOP,
 } from "@/modules/settings/constants";
 import { useSettingsStore } from "@/lib/stores/settings.store";
+import { useDb } from "@/lib/contexts/DbContext";
+import { useToast } from "@/lib/hooks/useToast";
 
 // The two excerpt-menu actions whose wording is editable.
-type ExcerptAction = "deepDive" | "webSearch";
+type ExcerptAction = "deepDive" | "webSearch" | "agent";
 
 const THEME_OPTIONS: readonly SegmentedOption[] = [
   { value: "system", label: "System" },
@@ -82,18 +86,31 @@ export function SettingsView({
   const setWebSearchInstruction = useSettingsStore(
     (st) => st.setWebSearchInstruction,
   );
+  const agentInstructions = useSettingsStore((st) => st.agentInstructions);
+  const setAgentInstructions = useSettingsStore(
+    (st) => st.setAgentInstructions,
+  );
+  const agentMaxToolRounds = useSettingsStore((st) => st.agentMaxToolRounds);
+  const setAgentMaxToolRounds = useSettingsStore(
+    (st) => st.setAgentMaxToolRounds,
+  );
+  const { memories } = useDb();
+  const toast = useToast();
   // Which excerpt action is being reworded, and the live draft. Null = the editor is closed.
   const [editingAction, setEditingAction] = useState<ExcerptAction | null>(
     null,
   );
+  const [isClearMemoryOpen, setIsClearMemoryOpen] = useState<boolean>(false);
   const [draft, setDraft] = useState<string>("");
   const openEditor = useCallback((action: ExcerptAction): void => {
     setDraft(
       action === "deepDive"
         ? (useSettingsStore.getState().deepDiveInstruction ??
             DEFAULT_DEEP_DIVE_INSTRUCTION)
-        : (useSettingsStore.getState().webSearchInstruction ??
-            DEFAULT_WEB_SEARCH_INSTRUCTION),
+        : action === "webSearch"
+          ? (useSettingsStore.getState().webSearchInstruction ??
+            DEFAULT_WEB_SEARCH_INSTRUCTION)
+          : (useSettingsStore.getState().agentInstructions ?? ""),
     );
     setEditingAction(action);
   }, []);
@@ -110,8 +127,18 @@ export function SettingsView({
   const saveEditor = useCallback((): void => {
     if (editingAction === "deepDive") setDeepDiveInstruction(draft);
     if (editingAction === "webSearch") setWebSearchInstruction(draft);
+    if (editingAction === "agent") setAgentInstructions(draft);
     setEditingAction(null);
-  }, [draft, editingAction, setDeepDiveInstruction, setWebSearchInstruction]);
+  }, [
+    draft,
+    editingAction,
+    setDeepDiveInstruction,
+    setWebSearchInstruction,
+    setAgentInstructions,
+  ]);
+  const handleEditAgent = useCallback((): void => {
+    openEditor("agent");
+  }, [openEditor]);
   const handleThemeChange = useCallback(
     (next: string): void => {
       setThemeMode(next as ThemeMode);
@@ -138,11 +165,19 @@ export function SettingsView({
         {/* Same dialog the rename flow uses: a multiline field over the two actions. */}
         <ConfirmDialog
           visible={editingAction !== null}
-          title={editingAction === "webSearch" ? "Web search" : "Deep dive"}
+          title={
+            editingAction === "webSearch"
+              ? "Web search"
+              : editingAction === "agent"
+                ? "Agent instructions"
+                : "Deep dive"
+          }
           message={
             editingAction === "webSearch"
               ? "Sent with the excerpt when you tap Web search."
-              : "Sent with the excerpt when you tap Deep dive."
+              : editingAction === "agent"
+                ? "Standing instructions the agent follows in every conversation where agent mode is on."
+                : "Sent with the excerpt when you tap Deep dive."
           }
           confirmLabel="Save"
           inputValue={draft}
@@ -153,10 +188,32 @@ export function SettingsView({
           onConfirm={saveEditor}
           onCancel={closeEditor}
         />
+        {/* Same pattern as ClearChatsChooser: the confirm dialog owns the destructive action, toast reports it. */}
+        <ConfirmDialog
+          visible={isClearMemoryOpen}
+          title="Clear agent memory"
+          message="Every fact the agent saved for this account is deleted. This cannot be undone."
+          confirmLabel="Clear"
+          destructive
+          onConfirm={(): void => {
+            setIsClearMemoryOpen(false);
+            void (async (): Promise<void> => {
+              try {
+                await memories.clearAll();
+                toast({ title: "Agent memory cleared", tone: "success" });
+              } catch (err) {
+                console.warn("SettingsView: failed to clear agent memory", err);
+                toast({ title: "Could not clear agent memory", tone: "error" });
+              }
+            })();
+          }}
+          onCancel={(): void => setIsClearMemoryOpen(false)}
+        />
       </>
     ),
     [
       isChooserOpen,
+      isClearMemoryOpen,
       totalChatBytes,
       deviceBytes,
       clearMine,
@@ -166,6 +223,8 @@ export function SettingsView({
       editingAction,
       saveEditor,
       closeEditor,
+      memories,
+      toast,
     ],
   );
   useEffect(() => {
@@ -247,6 +306,46 @@ export function SettingsView({
                 strokeWidth={strokeWidth.bold}
               />
             }
+            showDivider={false}
+          />
+        </Section>
+        <Section label="Agent">
+          <ListRow
+            icon={Bot}
+            label="Instructions"
+            subtitle={agentInstructions === null ? "None" : "Custom"}
+            onPress={handleEditAgent}
+            trailing={
+              <ChevronRight
+                size={iconSize.md}
+                color={colors.labelTertiary}
+                strokeWidth={strokeWidth.bold}
+              />
+            }
+          />
+          <ListRow
+            icon={Bot}
+            label="Max tool rounds"
+            subtitle="How many tool steps the agent may chain before it must answer"
+            trailing={
+              <View className="pr-2" style={{ width: size.segmentedSlot }}>
+                <SegmentedControl
+                  options={AGENT_MAX_TOOL_ROUNDS_CHOICES.map((n) => ({
+                    value: String(n),
+                    label: String(n),
+                  }))}
+                  value={String(agentMaxToolRounds)}
+                  onChange={(next): void => setAgentMaxToolRounds(Number(next))}
+                  size="compact"
+                />
+              </View>
+            }
+          />
+          <ListRow
+            icon={Trash2}
+            label="Clear agent memory"
+            destructive
+            onPress={(): void => setIsClearMemoryOpen(true)}
             showDivider={false}
           />
         </Section>

@@ -2,6 +2,10 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import {
+  AGENT_MAX_TOOL_ROUNDS_CHOICES,
+  AGENT_MAX_TOOL_ROUNDS_DEFAULT,
+} from "@/lib/constants/magic-numbers";
 import { mmkvStorage } from "@/lib/stores/mmkv-storage";
 
 export type ThemeMode = "system" | "light" | "dark";
@@ -16,6 +20,10 @@ interface SettingsState {
   // reaches everyone instead of being shadowed by a copy written into storage on first launch.
   deepDiveInstruction: string | null;
   webSearchInstruction: string | null;
+  // Standing instructions the agent follows in every conversation where agent mode is on. Null = no extra instruction.
+  agentInstructions: string | null;
+  // Tool-loop ceiling applied to agent sends. Web search keeps its own compile-time cap.
+  agentMaxToolRounds: number;
   setThemeMode: (mode: ThemeMode) => void;
   setSelectedModelName: (name: string | null) => void;
   setHapticsEnabled: (enabled: boolean) => void;
@@ -24,13 +32,17 @@ interface SettingsState {
   /** Null (or blank) restores the shipped wording. */
   setDeepDiveInstruction: (instruction: string | null) => void;
   setWebSearchInstruction: (instruction: string | null) => void;
+  setAgentInstructions: (instruction: string | null) => void;
+  setAgentMaxToolRounds: (rounds: number) => void;
 }
 
 const DEFAULT_THEME: ThemeMode = "system";
 const DEFAULT_HAPTICS = true;
 
 // An instruction the user has blanked is not a valid prompt, so it collapses back to null = the shipped default.
-export function normaliseInstruction(instruction: string | null): string | null {
+export function normaliseInstruction(
+  instruction: string | null,
+): string | null {
   const trimmed = instruction?.trim() ?? "";
   return trimmed.length > 0 ? trimmed : null;
 }
@@ -44,6 +56,8 @@ export const useSettingsStore = create<SettingsState>()(
       aiConsentAcceptedAt: null,
       deepDiveInstruction: null,
       webSearchInstruction: null,
+      agentInstructions: null,
+      agentMaxToolRounds: AGENT_MAX_TOOL_ROUNDS_DEFAULT,
       setThemeMode: (themeMode): void => {
         set({ themeMode });
       },
@@ -65,11 +79,31 @@ export const useSettingsStore = create<SettingsState>()(
       setWebSearchInstruction: (instruction): void => {
         set({ webSearchInstruction: normaliseInstruction(instruction) });
       },
+      setAgentInstructions: (instruction): void => {
+        set({ agentInstructions: normaliseInstruction(instruction) });
+      },
+      setAgentMaxToolRounds: (agentMaxToolRounds): void => {
+        set({ agentMaxToolRounds });
+      },
     }),
     {
       name: "quock.settings",
       storage: createJSONStorage(() => mmkvStorage),
       version: 1,
+      // A stale MMKV value (edited by hand or left from an older build) must never break the SegmentedControl
+      // that renders only the AGENT_MAX_TOOL_ROUNDS_CHOICES — clamp a foreign value back to the default.
+      merge: (persisted, current) => {
+        const base = { ...current, ...(persisted as object) } as SettingsState;
+        const rounds = (persisted as { agentMaxToolRounds?: unknown })
+          ?.agentMaxToolRounds;
+        if (
+          typeof rounds !== "number" ||
+          !(AGENT_MAX_TOOL_ROUNDS_CHOICES as readonly number[]).includes(rounds)
+        ) {
+          base.agentMaxToolRounds = AGENT_MAX_TOOL_ROUNDS_DEFAULT;
+        }
+        return base;
+      },
       // Only the user-visible prefs persist; action fns are recreated by `create` on each app boot.
       partialize: (state) => ({
         themeMode: state.themeMode,
@@ -78,6 +112,8 @@ export const useSettingsStore = create<SettingsState>()(
         aiConsentAcceptedAt: state.aiConsentAcceptedAt,
         deepDiveInstruction: state.deepDiveInstruction,
         webSearchInstruction: state.webSearchInstruction,
+        agentInstructions: state.agentInstructions,
+        agentMaxToolRounds: state.agentMaxToolRounds,
       }),
     },
   ),
