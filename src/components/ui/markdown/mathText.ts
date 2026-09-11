@@ -284,7 +284,6 @@ const SPACERS: Record<string, string> = {
   " ": " ",
   "!": "",
 };
-// Escapes that stand for the literal character.
 const ESCAPED_LITERALS = new Set([
   "{",
   "}",
@@ -322,8 +321,8 @@ function readGroup(
   }
   return null;
 }
-// Reads the argument of a command: a braced group, a whole command when the argument is one (`^\infty` is a single
-// argument, not a lone backslash), or the character that follows.
+// A command is one argument: taking the single character after `^\infty` would split it and leave `infty` loose in
+// the text.
 function readArgument(
   input: string,
   at: number,
@@ -338,7 +337,7 @@ function readArgument(
   if (char === undefined || char === " ") return null;
   return { body: char, end: at + 1 };
 }
-// A fraction part only needs parentheses when it is more than a bare number, identifier or single symbol.
+// Flattened onto one line a composite part would bind to the slash alone: `a+b/c` is not the fraction `(a+b)/c`.
 function wrapPart(part: string): string {
   if ([...part].length <= 1) return part;
   return /^[A-Za-z0-9.]+$/.test(part) ? part : `(${part})`;
@@ -506,8 +505,14 @@ export function mathToSegments(latex: string): MathSegment[] {
     const isVariable =
       isLetterRun && run.length === 1 && !UPPERCASE_GREEK.test(run);
     const previous = segments[segments.length - 1];
-    if (previous && previous.isVariable === isVariable) previous.text += run;
-    else segments.push({ text: run, isVariable });
+    if (previous && previous.isVariable === isVariable) {
+      segments[segments.length - 1] = {
+        text: previous.text + run,
+        isVariable,
+      };
+    } else {
+      segments.push({ text: run, isVariable });
+    }
     i = end;
   }
   return segments;
