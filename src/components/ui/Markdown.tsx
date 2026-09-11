@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { CodeBlock } from "@/components/ui/CodeBlock";
 import { anchorRelativeTo } from "@/components/ui/markdown/anchorRect";
+import { mathToSegments } from "@/components/ui/markdown/mathText";
 import type { AnchorRect } from "@/lib/types/geometry";
 import {
   type BlockNode,
@@ -42,6 +43,15 @@ function openLink(href: string): void {
     console.warn("Markdown: failed to open link", href, error);
   });
 }
+// Variables italic, numbers and words upright — the convention every math typesetter follows, done with the font's own
+// italic so no glyph is missing on a device.
+function renderMath(latex: string): React.ReactElement[] {
+  return mathToSegments(latex).map((segment, index) => (
+    <Text key={index} className={clsx(segment.isVariable && "italic")}>
+      {segment.text}
+    </Text>
+  ));
+}
 // Inline `code` stays inside the parent Text flow as a styled Text — using the View-based <Code/> would break wrapping.
 function renderInline(node: InlineNode, key: number): React.ReactElement {
   switch (node.type) {
@@ -69,6 +79,8 @@ function renderInline(node: InlineNode, key: number): React.ReactElement {
           {node.value}
         </Text>
       );
+    case "math":
+      return <Text key={key}>{renderMath(node.value)}</Text>;
     case "link":
       return (
         <Text
@@ -115,6 +127,7 @@ const HEADING_MARGIN_BOTTOM: Record<HeadingLevel, number> = {
 };
 const BLOCK_MARGIN_BOTTOM: Partial<Record<BlockNode["type"], number>> = {
   paragraph: 10.5,
+  math: 10.5,
   list: 10.5,
   orderedList: 10.5,
   blockquote: 10.5,
@@ -188,6 +201,19 @@ function renderBlock(
       );
     case "rule":
       return <View key={key} className="my-4 h-px bg-border" />;
+    // Display math is centered on its own line, as every math renderer sets it.
+    case "math":
+      return (
+        <View key={key} className="mb-3 items-center">
+          <Text
+            suppressHighlighting
+            onLongPress={onLongPress}
+            className="font-sans text-body text-foreground text-center"
+          >
+            {renderMath(node.value)}
+          </Text>
+        </View>
+      );
     case "code":
       return (
         <View key={key} className="mb-3">
