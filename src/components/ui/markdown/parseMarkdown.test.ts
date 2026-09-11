@@ -2,6 +2,7 @@ import {
   parseInline,
   parseMarkdown,
 } from "@/components/ui/markdown/parseMarkdown";
+import { markdownToPlainText } from "@/components/ui/markdown/toPlainText";
 
 describe("parseMarkdown", () => {
   it("emits a single paragraph for a single line of text", () => {
@@ -351,6 +352,272 @@ describe("parseMarkdown", () => {
     ]);
     expect(parseInline("[](https://x.com)")).toEqual([
       { type: "text", value: "[](https://x.com)" },
+    ]);
+  });
+
+  it("parses inline math between single dollars", () => {
+    expect(parseInline("the value $g$ is known")).toEqual([
+      { type: "text", value: "the value " },
+      { type: "math", value: "g" },
+      { type: "text", value: " is known" },
+    ]);
+  });
+
+  it("parses inline math in the escaped-parenthesis form", () => {
+    expect(parseInline("the area \\(x^2\\) grows")).toEqual([
+      { type: "text", value: "the area " },
+      { type: "math", value: "x^2" },
+      { type: "text", value: " grows" },
+    ]);
+  });
+
+  it("leaves a lone price as text: nothing closes the span", () => {
+    expect(parseInline("costs $5 in total")).toEqual([
+      { type: "text", value: "costs $5 in total" },
+    ]);
+  });
+
+  it("leaves two prices as text: the closing dollar sits after a space", () => {
+    expect(parseInline("between $5 and $10 off")).toEqual([
+      { type: "text", value: "between $5 and $10 off" },
+    ]);
+  });
+
+  it("leaves a price range as text: digits and separators are not an equation", () => {
+    expect(parseInline("costs $5-$10")).toEqual([
+      { type: "text", value: "costs $5-$10" },
+    ]);
+  });
+
+  it("leaves parenthesised prices as text: the span closes a bracket it never opened", () => {
+    expect(parseInline("the price ($5) and the discount ($2)")).toEqual([
+      { type: "text", value: "the price ($5) and the discount ($2)" },
+    ]);
+  });
+
+  it("renders an escaped dollar as a literal, and it never opens math", () => {
+    expect(parseInline("costs \\$5 and not \\$10")).toEqual([
+      { type: "text", value: "costs $5 and not $10" },
+    ]);
+  });
+
+  it("leaves a whole sentence of prices as text, however the dollars pair up", () => {
+    const line =
+      "costs $5, between $5 and $10, range $5-$10, the price ($5) and the discount ($2), and \\$20 off";
+    expect(parseInline(line)).toEqual([
+      {
+        type: "text",
+        value:
+          "costs $5, between $5 and $10, range $5-$10, the price ($5) and the discount ($2), and $20 off",
+      },
+    ]);
+  });
+
+  it("keeps real math in the same sentence as the prices", () => {
+    expect(parseInline("costs $5 but $g = 2$ is still math")).toEqual([
+      { type: "text", value: "costs $5 but " },
+      { type: "math", value: "g = 2" },
+      { type: "text", value: " is still math" },
+    ]);
+  });
+
+  it("never lets a math span reach across a code span", () => {
+    expect(parseInline("costs $5 and the var `$PATH` counts")).toEqual([
+      { type: "text", value: "costs $5 and the var " },
+      { type: "code", value: "$PATH" },
+      { type: "text", value: " counts" },
+    ]);
+  });
+
+  it("leaves dollars inside a fenced block untouched", () => {
+    expect(parseMarkdown("```sh\necho $HOME\n```")).toEqual([
+      { type: "code", lang: "sh", value: "echo $HOME" },
+    ]);
+  });
+
+  it("parses a multi-line display block, punctuation and all", () => {
+    const src = [
+      "$$",
+      "\\begin{cases}",
+      "g + m = 39 \\\\",
+      "2g + 4m = 100",
+      "\\end{cases}",
+      "$$",
+    ].join("\n");
+    expect(parseMarkdown(src)).toEqual([
+      {
+        type: "math",
+        value:
+          "\\begin{cases}\ng + m = 39 \\\\\n2g + 4m = 100\n\\end{cases}",
+      },
+    ]);
+  });
+
+  it("parses the bracket display form", () => {
+    expect(parseMarkdown("\\[x = 1\\]")).toEqual([
+      { type: "math", value: "x = 1" },
+    ]);
+  });
+
+  it("cuts the paragraph around display math written inline with the prose", () => {
+    expect(parseMarkdown("System: $$g + m = 39$$ and then")).toEqual([
+      {
+        type: "paragraph",
+        children: [{ type: "text", value: "System: " }],
+      },
+      { type: "math", value: "g + m = 39" },
+      { type: "paragraph", children: [{ type: "text", value: " and then" }] },
+    ]);
+  });
+
+  it("gives consecutive display equations a block each instead of one run-on line", () => {
+    const blocks = parseMarkdown("So: $$78 + 2m = 100$$ $$2m = 22$$");
+    expect(blocks).toEqual([
+      { type: "paragraph", children: [{ type: "text", value: "So: " }] },
+      { type: "math", value: "78 + 2m = 100" },
+      { type: "math", value: "2m = 22" },
+    ]);
+  });
+
+  it("keeps the prose after a self-contained display span on the line", () => {
+    expect(parseMarkdown("$$x = 1$$ and some text\nanother line")).toEqual([
+      { type: "math", value: "x = 1" },
+      {
+        type: "paragraph",
+        children: [{ type: "text", value: " and some text another line" }],
+      },
+    ]);
+  });
+
+  it("drops an orphan delimiter instead of circling on it", () => {
+    expect(parseMarkdown("$$\n\ntext after")).toEqual([
+      { type: "paragraph", children: [{ type: "text", value: "text after" }] },
+    ]);
+  });
+
+  it("bounds an unterminated display block at the blank line", () => {
+    expect(parseMarkdown("$$\n2m = 22\n\ntext after")).toEqual([
+      { type: "math", value: "2m = 22" },
+      { type: "paragraph", children: [{ type: "text", value: "text after" }] },
+    ]);
+  });
+
+  it("parses math inside a heading", () => {
+    expect(parseMarkdown("## Heading with $x^2$")).toEqual([
+      {
+        type: "heading",
+        level: 2,
+        children: [
+          { type: "text", value: "Heading with " },
+          { type: "math", value: "x^2" },
+        ],
+      },
+    ]);
+  });
+
+  it("parses math inside table cells", () => {
+    const md = [
+      "| Quantity | Value |",
+      "|---|---|",
+      "| Mass $m$ | $4m = 100$ |",
+    ].join("\n");
+    expect(parseMarkdown(md)).toEqual([
+      {
+        type: "table",
+        headers: [
+          [{ type: "text", value: "Quantity" }],
+          [{ type: "text", value: "Value" }],
+        ],
+        rows: [
+          [
+            [
+              { type: "text", value: "Mass " },
+              { type: "math", value: "m" },
+            ],
+            [{ type: "math", value: "4m = 100" }],
+          ],
+        ],
+      },
+    ]);
+  });
+
+  it("parses math inside a blockquote", () => {
+    expect(parseMarkdown("> In short $2m = 22 \\implies m = 11$.")).toEqual([
+      {
+        type: "blockquote",
+        children: [
+          {
+            type: "paragraph",
+            children: [
+              { type: "text", value: "In short " },
+              { type: "math", value: "2m = 22 \\implies m = 11" },
+              { type: "text", value: "." },
+            ],
+          },
+        ],
+      },
+    ]);
+  });
+
+  // One long paragraph, 1200 dollars: the scan has to stay linear or streaming re-parses it once per chunk.
+  it("parses a long dollar-heavy reply in one pass", () => {
+    const source = "The cost is $5 and the estimate $x = 2$ still holds. ".repeat(
+      400,
+    );
+    const blocks = parseMarkdown(source);
+    expect(blocks).toHaveLength(1);
+    const paragraph = blocks[0];
+    if (paragraph.type !== "paragraph") throw new Error("expected a paragraph");
+    expect(paragraph.children.filter((n) => n.type === "math")).toHaveLength(
+      400,
+    );
+  });
+
+  // Streaming re-parses a longer prefix on every chunk, so a half-arrived equation has to be a safe parse on its own.
+  it("survives every prefix of a streamed reply", () => {
+    const reply = [
+      "## Solution",
+      "",
+      "This is a classic system of equations.",
+      "",
+      "$$",
+      "\\begin{cases}",
+      "g + m = 39 \\\\",
+      "2g + 4m = 100",
+      "\\end{cases}",
+      "$$",
+      "",
+      "Substituting: $$2(39 - m) + 4m = 100$$ $$78 + 2m = 100$$",
+      "",
+      "Check: heads $28 + 11 = 39$, legs $(28 \\times 2) + (11 \\times 4) = 100$.",
+    ].join("\n");
+    const settled = "This is a classic system of equations.";
+    for (let end = 1; end <= reply.length; end += 1) {
+      const partial = reply.slice(0, end);
+      for (const block of parseMarkdown(partial)) {
+        if (block.type !== "math") continue;
+        // An open delimiter must never reach forward into the prose that follows it.
+        expect(block.value).not.toContain("Substituting");
+        expect(block.value).not.toContain("Check");
+      }
+      // Whatever has already landed stays readable while the rest is still arriving.
+      if (partial.includes(settled)) {
+        expect(markdownToPlainText(partial)).toContain(settled);
+      }
+    }
+  });
+
+  it("keeps display math inline inside a list item, with no orphan dollars", () => {
+    expect(parseMarkdown("- result: $$m = 11$$")).toEqual([
+      {
+        type: "list",
+        items: [
+          [
+            { type: "text", value: "result: " },
+            { type: "math", value: "m = 11" },
+          ],
+        ],
+      },
     ]);
   });
 });

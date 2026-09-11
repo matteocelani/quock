@@ -1,21 +1,28 @@
-// Minimal dependency-free markdown parser for the chat surface. Handles headings (1-6), fenced code, bullet lists, GFM pipe tables, paragraphs; inline code/bold/italic/links. Greedy left-to-right inline scan; code spans take priority over emphasis and links.
+// Minimal dependency-free markdown parser for the chat surface. Handles headings (1-6), fenced code, bullet lists, GFM pipe tables, display math, paragraphs; inline code/bold/italic/links/math. Greedy left-to-right inline scan; code spans take priority over emphasis and links.
 
 export type InlineNode =
   | { type: "text"; value: string }
   | { type: "code"; value: string }
   | { type: "bold"; value: string }
   | { type: "italic"; value: string }
+  | { type: "math"; value: string }
   | { type: "link"; value: string; href: string };
 
 export type BlockNode =
   | { type: "paragraph"; children: InlineNode[] }
   | { type: "heading"; level: 1 | 2 | 3 | 4 | 5 | 6; children: InlineNode[] }
   | { type: "code"; lang?: string; value: string }
+  | { type: "math"; value: string }
   | { type: "list"; items: InlineNode[][] }
   | { type: "orderedList"; start: number; items: InlineNode[][] }
   | { type: "blockquote"; children: BlockNode[] }
   | { type: "rule" }
   | { type: "table"; headers: InlineNode[][]; rows: InlineNode[][][] };
+// Both LaTeX display forms; models pick either, sometimes both in one reply.
+const DISPLAY_DELIMITERS = [
+  { open: "$$", close: "$$" },
+  { open: "\\[", close: "\\]" },
+] as const;
 // A GFM table delimiter row is all dashes/colons/pipes, e.g. `|---|:--:|`. Requiring it on the line after the header is what stops a lone `|` paragraph from misfiring as a table.
 function isTableDelimiter(line: string): boolean {
   return line.includes("-") && /^\s*\|?(\s*:?-+:?\s*\|)+\s*:?-+:?\s*\|?\s*$/.test(line);
@@ -31,10 +38,85 @@ function splitTableRow(line: string): string[] {
 function isThematicBreak(line: string): boolean {
   return /^ {0,3}([-*_])( *\1){2,} *$/.test(line);
 }
+// A delimiter opening a block the line never closes. A self-contained `$$…$$` is deliberately NOT one: it stays with
+// its paragraph, where the splitter can cut the prose around it instead of the scan swallowing the lines below.
+function openDisplayDelimiter(
+  line: string,
+): (typeof DISPLAY_DELIMITERS)[number] | null {
+  const trimmed = line.trim();
+  for (const delimiter of DISPLAY_DELIMITERS) {
+    if (!trimmed.startsWith(delimiter.open)) continue;
+    const rest = trimmed.slice(delimiter.open.length);
+    return rest.includes(delimiter.close) ? null : delimiter;
+  }
+  return null;
+}
+// A display block claimed line-by-line rather than inside the paragraph, so a `-` or `|` in the equation is never read
+// as a bullet or a table row. A blank line ends it: an unterminated `$$` then costs one paragraph, not the whole reply.
+function readDisplayMath(
+  lines: string[],
+  start: number,
+): { value: string; next: number } | null {
+  const delimiter = openDisplayDelimiter(lines[start]);
+  if (delimiter === null) return null;
+  const head = lines[start].trim().slice(delimiter.open.length);
+  const body: string[] = head.trim().length > 0 ? [head] : [];
+  let i = start + 1;
+  while (i < lines.length && lines[i].trim() !== "") {
+    const current = lines[i].trim();
+    if (current.endsWith(delimiter.close)) {
+      const tail = current.slice(0, -delimiter.close.length);
+      if (tail.trim().length > 0) body.push(tail);
+      return { value: body.join("\n"), next: i + 1 };
+    }
+    body.push(lines[i]);
+    i += 1;
+  }
+  // Unterminated: emit what arrived, so a streaming equation forms in place the way a fenced code block does. `next`
+  // always moves past the opener, or an orphan `$$` would leave the block scanner circling the same line.
+  return { value: body.join("\n"), next: i };
+}
+
+interface ParagraphPart {
+  value: string;
+  isMath: boolean;
+}
+// Display math written inline with the prose (`System: $$x = 1$$`) still owns its own line, so the paragraph is cut
+// around it instead of the equation being dragged into the text flow.
+function splitDisplayMath(text: string): ParagraphPart[] {
+  const parts: ParagraphPart[] = [];
+  let cursor = 0;
+  while (cursor < text.length) {
+    let found: { start: number; end: number; value: string } | null = null;
+    for (const delimiter of DISPLAY_DELIMITERS) {
+      const start = text.indexOf(delimiter.open, cursor);
+      if (start === -1) continue;
+      const from = start + delimiter.open.length;
+      const close = text.indexOf(delimiter.close, from);
+      if (close === -1) continue;
+      const value = text.slice(from, close);
+      if (value.trim().length === 0) continue;
+      if (found === null || start < found.start) {
+        found = { start, end: close + delimiter.close.length, value };
+      }
+    }
+    if (found === null) break;
+    if (found.start > cursor) {
+      parts.push({ value: text.slice(cursor, found.start), isMath: false });
+    }
+    parts.push({ value: found.value, isMath: true });
+    cursor = found.end;
+  }
+  if (cursor < text.length) {
+    parts.push({ value: text.slice(cursor), isMath: false });
+  }
+  return parts;
+}
 // True when a line opens a non-paragraph block, so the paragraph scanner stops before it instead of swallowing it.
 function isBlockStart(line: string, next: string | undefined): boolean {
   return (
     line.startsWith("```") ||
+    openDisplayDelimiter(line) !== null ||
     /^(#{1,6})\s+/.test(line) ||
     /^[-*] +/.test(line) ||
     /^\d+\.\s+/.test(line) ||
@@ -68,6 +150,16 @@ export function parseMarkdown(source: string): BlockNode[] {
       const node: BlockNode = { type: "code", value: codeLines.join("\n") };
       if (lang.length > 0) node.lang = lang;
       blocks.push(node);
+      continue;
+    }
+    // Display math opening its own line — claimed before every other block so the equation's own punctuation is safe.
+    const display = readDisplayMath(lines, i);
+    if (display !== null) {
+      // An orphan delimiter carries no equation; it is dropped the way an orphan backtick already is.
+      if (display.value.trim().length > 0) {
+        blocks.push({ type: "math", value: display.value });
+      }
+      i = display.next;
       continue;
     }
     // Heading — levels 1-6 (CommonMark). 7+ hashes isn't a heading, so it falls through to a paragraph.
@@ -163,13 +255,73 @@ export function parseMarkdown(source: string): BlockNode[] {
       .join(" ")
       .replace(/`{2,}/g, "")
       .replace(/\s{2,}/g, " ");
-    blocks.push({
-      type: "paragraph",
-      children: parseInline(sanitised),
-    });
+    for (const part of splitDisplayMath(sanitised)) {
+      if (part.isMath) {
+        blocks.push({ type: "math", value: part.value });
+        continue;
+      }
+      if (part.value.trim().length === 0) continue;
+      blocks.push({
+        type: "paragraph",
+        children: parseInline(part.value),
+      });
+    }
   }
   return blocks;
 }
+// A span of digits and separators is a price range ("$5-$10"), never an equation.
+const NUMERIC_ONLY = /^[\d.,\s+-]+$/;
+// Two words is prose the scan wandered into, not a formula — unless a command marks the span as real LaTeX.
+const PROSE_WORDS = /[A-Za-z]{2,}[^A-Za-z]+[A-Za-z]{2,}/;
+// A parenthesis the span opens but never closes means the pairing ran past where the prose does ("$10, the price (").
+function hasBalancedParens(value: string): boolean {
+  let depth = 0;
+  for (const char of value) {
+    if (char === "(") depth += 1;
+    else if (char === ")") {
+      depth -= 1;
+      if (depth < 0) return false;
+    }
+  }
+  return depth === 0;
+}
+// `\$` is a literal dollar, so it can never close a math span.
+function indexOfUnescapedDollar(input: string, from: number): number {
+  for (let i = from; i < input.length; i += 1) {
+    if (input[i] === "$" && input[i - 1] !== "\\") return i;
+  }
+  return -1;
+}
+// Model prose is full of prices, and one sentence can hold enough dollars to pair up several wrong ways. A span is
+// math only when it reads like math from every side, so an ambiguous pair stays the literal text the reader expects.
+function isInlineMath(value: string, after: string | undefined): boolean {
+  if (value.length === 0) return false;
+  if (value.startsWith(" ") || value.endsWith(" ")) return false;
+  if (NUMERIC_ONLY.test(value)) return false;
+  if (value.includes("`") || value.includes("\n")) return false;
+  // A digit straight after the closer is the second half of a price pair, never the character following an equation.
+  if (after !== undefined && /\d/.test(after)) return false;
+  if (!hasBalancedParens(value)) return false;
+  return !PROSE_WORDS.test(value) || value.includes("\\");
+}
+
+// The `\$` escape emits its literal mid-run, so a stretch of prose would otherwise arrive as two text nodes.
+function mergeText(nodes: InlineNode[]): InlineNode[] {
+  const merged: InlineNode[] = [];
+  for (const node of nodes) {
+    const previous = merged[merged.length - 1];
+    if (node.type === "text" && previous?.type === "text") {
+      merged[merged.length - 1] = {
+        type: "text",
+        value: previous.value + node.value,
+      };
+      continue;
+    }
+    merged.push(node);
+  }
+  return merged;
+}
+
 // Exported for tests; the renderer walks BlockNode children itself.
 export function parseInline(input: string): InlineNode[] {
   const out: InlineNode[] = [];
@@ -196,6 +348,53 @@ export function parseInline(input: string): InlineNode[] {
         i = close + 1;
         textStart = i;
         continue;
+      }
+    }
+    // A model writing about money escapes the sign, and `\(x\)` is the other inline math form.
+    if (ch === "\\") {
+      const next = input[i + 1];
+      if (next === "$") {
+        flushText(i);
+        out.push({ type: "text", value: "$" });
+        i += 2;
+        textStart = i;
+        continue;
+      }
+      if (next === "(") {
+        const close = input.indexOf("\\)", i + 2);
+        if (close !== -1) {
+          const value = input.slice(i + 2, close);
+          if (value.trim().length > 0) {
+            flushText(i);
+            out.push({ type: "math", value });
+            i = close + 2;
+            textStart = i;
+            continue;
+          }
+        }
+      }
+    }
+    // Inline math. `$$…$$` reaching here is display math inside a row no block can split — a list item, a table cell.
+    if (ch === "$") {
+      const isDouble = input[i + 1] === "$";
+      const open = isDouble ? i + 2 : i + 1;
+      const close = isDouble
+        ? input.indexOf("$$", open)
+        : indexOfUnescapedDollar(input, open);
+      if (close !== -1) {
+        const value = input.slice(open, close);
+        const closer = isDouble ? 2 : 1;
+        if (
+          isDouble
+            ? value.trim().length > 0
+            : isInlineMath(value, input[close + closer])
+        ) {
+          flushText(i);
+          out.push({ type: "math", value });
+          i = close + (isDouble ? 2 : 1);
+          textStart = i;
+          continue;
+        }
       }
     }
     // Link [text](href) — after code so a code span still wins; the label is plain text, and malformed forms fall through as literal text.
@@ -253,5 +452,5 @@ export function parseInline(input: string): InlineNode[] {
     i += 1;
   }
   flushText(input.length);
-  return out;
+  return mergeText(out);
 }
