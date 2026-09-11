@@ -1,15 +1,19 @@
 // Flattens the markdown AST to plain, readable text: drops inline styling (bold/italic/code marks, heading hashes)
 // but keeps structure (line breaks, list bullets/numbers) so a long reply stays legible to read and select.
 
+import { mathToPlainText } from "@/components/ui/markdown/mathText";
 import {
   type BlockNode,
   type InlineNode,
   parseMarkdown,
 } from "@/components/ui/markdown/parseMarkdown";
 
-// Every inline node carries the raw `value`; concatenating them drops the styling and keeps the words.
+// Every inline node carries the raw `value`; concatenating them drops the styling and keeps the words. Math is the
+// exception: its value is LaTeX source, and what you select should be what you read.
 export function inlineToPlainText(nodes: InlineNode[]): string {
-  return nodes.map((n) => n.value).join("");
+  return nodes
+    .map((n) => (n.type === "math" ? mathToPlainText(n.value) : n.value))
+    .join("");
 }
 
 export function blockToPlainText(node: BlockNode): string {
@@ -19,6 +23,8 @@ export function blockToPlainText(node: BlockNode): string {
       return inlineToPlainText(node.children);
     case "code":
       return node.value;
+    case "math":
+      return mathToPlainText(node.value);
     case "list":
       return node.items.map((item) => `• ${inlineToPlainText(item)}`).join("\n");
     case "orderedList":

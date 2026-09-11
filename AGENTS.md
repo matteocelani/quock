@@ -301,6 +301,8 @@ The parser at `src/components/ui/markdown/parseMarkdown.ts` is intentionally per
 - Whitespace-only inline code spans are skipped (orphan backticks would otherwise render as empty chips).
 - Paragraph source is sanitised before inline parsing: runs of 2+ backticks are stripped (LLM-emitted noise), whitespace is collapsed.
 - CommonMark-style emphasis: the `*` / `**` marker must hug non-whitespace on both sides, otherwise the asterisks stay as literal text.
+- LaTeX math: `$…$` / `\(…\)` inline, `$$…$$` / `\[…\]` display. Model prose is full of prices, so a `$` pair becomes math only when it hugs both delimiters, is not pure digits (`$5-$10`), and reaches across neither a code span nor a bracket it never opened; `\$` is a literal dollar. Display math owns its own block even when written inline with the prose, and an unterminated `$$` is bounded by the next blank line so a half-streamed equation costs one paragraph, not the whole reply.
+- No typesetting engine (that would be a new dependency): `src/components/ui/markdown/mathText.ts` translates the commands models actually emit into Unicode, italicises single-letter variables the way every math renderer does, and leaves an unknown command visible as source rather than guessing a word.
 
 ### Testing
 
