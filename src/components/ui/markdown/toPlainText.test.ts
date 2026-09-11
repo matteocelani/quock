@@ -50,6 +50,17 @@ describe("markdownToPlainText", () => {
     expect(markdownToPlainText(md)).toBe("Max temp: 26\nSky: Cloudy");
   });
 
+  it("selects and copies math as it reads, not as LaTeX source", () => {
+    expect(markdownToPlainText("So $g = 39 - m$ hens")).toBe(
+      "So g = 39 - m hens",
+    );
+  });
+
+  it("keeps a display equation on its own, one row per line", () => {
+    const md = "$$\\begin{cases} a = 1 \\\\ b = 2 \\end{cases}$$";
+    expect(markdownToPlainText(md)).toBe("a = 1\nb = 2");
+  });
+
   it("renders a wider table as one labelled block per row", () => {
     const md = [
       "| Day | Temp | Sky |",

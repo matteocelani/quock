@@ -26,6 +26,21 @@ describe("groupIntoUnits", () => {
     ]);
   });
 
+  // The excerpt is what a Deep dive sends back to the model, so an equation has to reach it as text, not as source.
+  it("folds a display equation into its section as readable text", () => {
+    const u = units("## Check\n\nHeads:\n\n$$g + m = 39 \\checkmark$$");
+    const section = "Check\n\nHeads:\n\ng + m = 39 ✓";
+    expect(u).toEqual([
+      { key: "s0", text: section },
+      { key: "s0", text: section },
+      { key: "s0", text: section },
+    ]);
+  });
+
+  it("gives a standalone equation an excerpt unit of its own", () => {
+    expect(units("$$2m = 22$$")).toEqual([{ key: "b0", text: "2m = 22" }]);
+  });
+
   it("atomizes a top-level list to per-item keys and texts", () => {
     expect(units("- pasta\n- tuna\n- basil")).toEqual([
       {
