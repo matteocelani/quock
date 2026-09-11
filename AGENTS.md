@@ -91,7 +91,7 @@ src/
   lib/                    Infra shared by 2+ modules: api/, db/, design/, contexts/, theme/, stores/, hooks/, constants/, types/.
 ```
 
-Features today: `chat`, `auth`, `models`, `settings`.
+Features today: `chat`, `auth`, `models`, `settings` — plus `agent` (per-chat agent mode: on-device memory tools, device/utility tools, injected system context; registry in `src/modules/chat/lib/tools.ts`, memory in `src/lib/db/memoryRepository.ts`).
 
 **Placement rule.** Used by 2+ modules → `src/lib/` (or `components/ui/` for a primitive). Used by one module → inside that module. Used by one file → named constant at top of that file. When a module-local unit gets a second consumer, promote it in the same PR.
 
@@ -108,6 +108,7 @@ Features today: `chat`, `auth`, `models`, `settings`.
 | Streaming wire shape (chat) | `src/modules/chat/api/chat.ts` |
 | Streaming pipeline (buffers, abort) | `src/modules/chat/lib/streamPipeline.ts` |
 | Repository pattern | `src/lib/db/chatRepository.ts` · `messageRepository.ts` · `attachmentRepository.ts` |
+| Memory repository (agent) | `src/lib/db/memoryRepository.ts` |
 | DB schema | `src/lib/db/schema.ts` |
 | Branded ID types | `src/lib/types/ids.ts` |
 | Design tokens (numeric) | `src/lib/design/tokens.ts` |
