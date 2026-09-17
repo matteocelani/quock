@@ -59,6 +59,16 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-dontwarn com.gemalto.jp2.JP2Decoder"
+          }
+        }
       ]
     ],
     "experiments": {
