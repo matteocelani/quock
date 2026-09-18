@@ -87,6 +87,7 @@ function makeCtx() {
     client: {} as ApiClient,
     chatId: CHAT_ID,
     messages: { update } as unknown as MessageRepository,
+    memories: null,
     queryClient,
     startStream: jest.fn(),
     endStream,
@@ -163,7 +164,10 @@ describe("runStream tool-round loop", () => {
 
     expect(mockSendChat).toHaveBeenCalledTimes(2);
     expect(mockExecuteTool).toHaveBeenCalledTimes(1);
-    expect(mockExecuteTool).toHaveBeenCalledWith(ctx.client, wsCall("ollama news"));
+    expect(mockExecuteTool).toHaveBeenCalledWith(
+      { client: ctx.client, memories: null },
+      wsCall("ollama news"),
+    );
 
     // The second turn carries the assistant tool-call turn plus the tool result.
     const secondTurnMessages = mockSendChat.mock.calls[1][1].messages;
