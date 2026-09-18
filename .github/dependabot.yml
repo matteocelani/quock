@@ -1,0 +1,26 @@
+# Dependabot defaults to the repo's default branch, and a PR against `main` is unmergeable here — that branch only
+# moves on an approved release. Security updates ignore this setting and still open against `main`.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "chore(deps)"
+    # A PR per transitive toolchain bump is noise with no signal, so minor and patch arrive as one weekly branch.
+    # Majors stay separate, because those are the ones worth reading.
+    groups:
+      toolchain:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    # The PDF renderer is pinned exactly because a bump resolves unpatched and breaks the iOS build, and CI never
+    # builds natively so it would pass green. React Native is the locked stack, moved only on a deliberate SDK upgrade.
+    ignore:
+      - dependency-name: "react-native-pdf-page-image"
+      - dependency-name: "react-native"
