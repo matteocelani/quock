@@ -85,6 +85,7 @@ Expo SDK 55 (New Architecture, Fabric, TurboModules) · React 19 + React Native 
 app/                      Expo Router routes (repo ROOT, not src/) — every file is a route, no components.
 codegen/                  Generated Go type mirror (gotypes.gen.ts), imported as @/gotypes. Never hand-edit.
 assets/                   Static app resources (app.json icons, splash, doc PDFs). In-app SVG icons live in src/assets/icons/.
+modules/                  Local Expo native modules (Swift/Kotlin + expo-module.config.json). Autolinked at prebuild; adds no npm package.
 src/
   modules/<feature>/      Feature business logic: hooks/, stores/, api/, lib/, context/, types.ts, constants.ts.
   components/             UI only — ui/ (primitives), <feature>/ (feature UI), layout/, global/.
@@ -136,6 +137,7 @@ Features today: `chat`, `auth`, `models`, `settings`.
 | Dialog centered against the display, not the sheet | Pass it via the `overlays` slot of `<Sheet>` — otherwise an `absolute inset-0` dialog centers against the sheet body. |
 | Labeled CTA (Cancel, Confirm, Sign Out, Upgrade, …) | `<Button>` with the matching variant. Never compose raw `<Pressable bg-X rounded-full>`. Single sanctioned exception: `ConfirmDialog`'s internal `AlertAction` (the iOS 27 48pt alert tier sits between Button md/lg). |
 | Icon-only floating button | `<GlassOrb interactive>` with `borderRadius={999}`. |
+| New native capability | Only when the JS surface genuinely cannot reach it. A LOCAL Expo module in `modules/<name>/` — autolinked at prebuild, so it adds no npm package, and the generated root `ios/`/`android/` stay gitignored while the module's own native sources are committed. The JS wrapper is not part of it: the native side registers by name, so the wrapper follows the placement rule and lives with its consumer. Load it with `requireOptionalNativeModule` so the platforms you did not build for, and Jest, degrade to a no-op instead of throwing. No gate in this repo compiles native code — run a device build before calling it done. |
 | New magic number | Module-local → `src/modules/<feature>/constants.ts`. Shared by 2+ modules → `src/lib/constants/magic-numbers.ts`. Never inline. |
 | New design value (color, spacing, motion) | Extend one of the three design files (`colors.cjs`, `tailwind.config.js`, `tokens.ts`). Never inline at the use-site. |
 

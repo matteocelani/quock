@@ -23,6 +23,10 @@ import {
   type WireChatMessage,
 } from "@/modules/chat/api/chat";
 import {
+  holdBackgroundAssertion,
+  releaseBackgroundAssertion,
+} from "@/modules/chat/lib/backgroundAssertion";
+import {
   executeToolCall,
   type ToolDefinition,
   type WireToolCall,
@@ -332,6 +336,9 @@ export async function runStream(
   let tokenCount = 0;
   let turnMessages = wireMessages;
   let round = 0;
+  // Claimed while still in the foreground — the grace clock starts at backgrounding, not here — and immediately
+  // before the try, so nothing between the claim and the finally that releases it can throw.
+  holdBackgroundAssertion();
   try {
     while (true) {
       const pendingToolCalls: WireToolCall[] = [];
@@ -489,5 +496,6 @@ export async function runStream(
     throw err;
   } finally {
     foregroundWatch.remove();
+    releaseBackgroundAssertion();
   }
 }

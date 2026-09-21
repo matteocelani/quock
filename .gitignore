@@ -7,7 +7,7 @@ web-build/
 
 # Native build artifacts
 /ios/
-android/
+/android/
 *.apk
 *.aab
 *.ipa
