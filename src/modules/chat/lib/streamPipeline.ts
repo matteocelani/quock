@@ -2,8 +2,10 @@
 
 import type { QueryClient } from "@tanstack/react-query";
 import type React from "react";
+import { AppState } from "react-native";
 import type { ApiClient } from "@/lib/api/client";
 import {
+  CloudAPIError,
   deriveMessageErrorCode,
   StreamInterruptedError,
 } from "@/lib/api/errors";
@@ -165,6 +167,13 @@ export async function runStream(
     haptics,
     controllerRef,
   } = ctx;
+  // A suspended app cannot drain its own socket, so recording the trip is what lets the catch tell that death apart
+  // from a real network failure. Only `background`: `inactive` also fires for Control Center, which suspends nothing.
+  let hasLeftForeground = false;
+  // Subscribed before the stream is registered: a throw here must not strand a chat on the typing dots with no owner.
+  const foregroundWatch = AppState.addEventListener("change", (state) => {
+    if (state === "background") hasLeftForeground = true;
+  });
   const controller = new AbortController();
   controllerRef.current = controller;
   startStream(chatId, controller);
@@ -335,6 +344,9 @@ export async function runStream(
         signal: controller.signal,
       });
       for await (const event of events) {
+        // An event arriving once the user is back proves the socket outlived the trip, so the next failure is a real
+        // one. Only while active: iOS keeps delivering for a few seconds after backgrounding, before it suspends.
+        if (AppState.currentState === "active") hasLeftForeground = false;
         if (controller.signal.aborted) {
           // Drain quietly — the abort handler below owns the final write.
           continue;
@@ -462,9 +474,20 @@ export async function runStream(
       releaseIfCurrent();
       return;
     }
+    // A stream that died while the app was away is not a failure to report: the answer so far is already on disk, so
+    // it ends where a user-pressed Stop ends rather than behind a red chip that throws it away.
+    // CloudAPIError is excluded: the cloud answered, and an exhausted plan shown as "interrupted" explains nothing.
+    if (hasLeftForeground && !CloudAPIError.isCloudAPIError(err)) {
+      console.warn("runStream: the app was backgrounded mid-stream", err);
+      await writeStatus("interrupted", null);
+      releaseIfCurrent();
+      return;
+    }
     // Anything else: typed terminal state so the bubble renders the inline error chip + Retry.
     await writeStatus("error", deriveMessageErrorCode(err));
     releaseIfCurrent();
     throw err;
+  } finally {
+    foregroundWatch.remove();
   }
 }
