@@ -1,7 +1,7 @@
 // Asks iOS not to suspend the app while an answer is still streaming. Optional on purpose: the module ships for Apple
 // only, and Android neither needs it (the activity stops without the process being frozen) nor provides it.
 
-import { requireOptionalNativeModule } from "expo-modules-core";
+import { requireOptionalNativeModule } from "expo";
 
 interface BackgroundAssertionModule {
   hold: () => void;
