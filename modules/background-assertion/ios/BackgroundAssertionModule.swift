@@ -13,27 +13,32 @@ public class BackgroundAssertionModule: Module {
   public func definition() -> ModuleDefinition {
     Name("BackgroundAssertion")
 
-    // Taken while still in the foreground, as Apple asks — by the time an app is told it is backgrounding it has
-    // seconds left, which is too late to start asking.
+    // Fire-and-forget from JS. UIApplication is main-thread only, and hopping there also serialises the refcount.
     Function("hold") { [weak self] in
-      guard let self else { return }
-      self.holders += 1
-      guard self.taskId == .invalid else { return }
-      self.taskId = UIApplication.shared.beginBackgroundTask(withName: "quock.stream") { [weak self] in
-        // iOS is about to reclaim the time. Ending the task here is mandatory: an assertion left open past its
-        // expiry gets the app killed, and a kill loses the partial answer the pipeline has already flushed.
-        self?.endTask()
-      }
+      DispatchQueue.main.async { self?.beginIfNeeded() }
     }
-    .runOnQueue(.main)
 
     Function("release") { [weak self] in
-      guard let self else { return }
-      self.holders = max(0, self.holders - 1)
-      guard self.holders == 0 else { return }
-      self.endTask()
+      DispatchQueue.main.async { self?.releaseOne() }
     }
-    .runOnQueue(.main)
+  }
+
+  // Taken while still in the foreground, as Apple asks — by the time an app is told it is backgrounding it has
+  // seconds left, which is too late to start asking.
+  private func beginIfNeeded() {
+    holders += 1
+    guard taskId == .invalid else { return }
+    taskId = UIApplication.shared.beginBackgroundTask(withName: "quock.stream") { [weak self] in
+      // iOS is about to reclaim the time. Ending the task here is mandatory: an assertion left open past its expiry
+      // gets the app killed, and a kill loses the partial answer the pipeline has already flushed to SQLite.
+      self?.endTask()
+    }
+  }
+
+  private func releaseOne() {
+    holders = max(0, holders - 1)
+    guard holders == 0 else { return }
+    endTask()
   }
 
   private func endTask() {
