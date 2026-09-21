@@ -1,3 +1,4 @@
+import { STREAM_IDLE_TIMEOUT_MS } from "@/modules/chat/constants";
 import { parseJsonlFromResponse, parseJsonlStream } from "@/modules/chat/api/jsonl";
 
 // One chunk per `read()` call so chunk-boundary buffering is exercised deterministically.
@@ -93,5 +94,50 @@ describe("parseJsonlFromResponse", () => {
     await expect(
       collect(parseJsonlFromResponse<unknown>(response)),
     ).rejects.toThrow(/null/);
+  });
+});
+
+describe("parseJsonlStream idle deadline", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  // The failure this guards: a server that stops sending without closing leaves `read()` pending forever, and the
+  // turn above it keeps its typing dots for the life of the process.
+  it("gives up on a stream that goes silent", async () => {
+    jest.useFakeTimers();
+    // Never enqueues and never closes — a half-open socket as the reader sees it.
+    const stalled = new ReadableStream<Uint8Array>({ pull() {} });
+    const collected = collect(parseJsonlStream<unknown>(stalled));
+    const settled = expect(collected).rejects.toThrow(/Network request failed/);
+
+    await jest.advanceTimersByTimeAsync(STREAM_IDLE_TIMEOUT_MS + 1);
+
+    await settled;
+  });
+
+  // A long answer is legitimately slow; only the gap between chunks may trip the deadline, never the total.
+  it("keeps reading while chunks arrive inside the window", async () => {
+    jest.useFakeTimers();
+    const encoder = new TextEncoder();
+    let sent = 0;
+    const drip = new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        if (sent === 3) {
+          controller.close();
+          return;
+        }
+        sent += 1;
+        controller.enqueue(encoder.encode(`{"n":${sent}}\n`));
+      },
+    });
+    const collected = collect(parseJsonlStream<{ n: number }>(drip));
+
+    // Three gaps, each just under the deadline, so the total run is far longer than the deadline itself.
+    for (let i = 0; i < 4; i += 1) {
+      await jest.advanceTimersByTimeAsync(STREAM_IDLE_TIMEOUT_MS - 1);
+    }
+
+    expect(await collected).toEqual([{ n: 1 }, { n: 2 }, { n: 3 }]);
   });
 });
