@@ -2,6 +2,7 @@
 
 import type { QueryClient } from "@tanstack/react-query";
 import type React from "react";
+import { AppState } from "react-native";
 import type { ApiClient } from "@/lib/api/client";
 import {
   deriveMessageErrorCode,
@@ -175,6 +176,12 @@ export async function runStream(
     controllerRef.current = null;
     endStream(chatId);
   };
+  // A suspended app cannot drain its own socket, so recording the trip is what lets the catch tell that death apart
+  // from a real network failure. Only `background`: `inactive` also fires for Control Center, which suspends nothing.
+  let hasLeftForeground = false;
+  const foregroundWatch = AppState.addEventListener("change", (state) => {
+    if (state === "background") hasLeftForeground = true;
+  });
   const buffers: StreamBuffers = {
     content: "",
     rawContent: "",
@@ -462,9 +469,19 @@ export async function runStream(
       releaseIfCurrent();
       return;
     }
+    // A stream that died while the app was away was not a failure to report: the answer up to that point is already
+    // on disk, so it ends where a user-pressed Stop ends rather than behind a red chip that throws it away.
+    if (hasLeftForeground) {
+      console.warn("runStream: the app was backgrounded mid-stream", err);
+      await writeStatus("interrupted", null);
+      releaseIfCurrent();
+      return;
+    }
     // Anything else: typed terminal state so the bubble renders the inline error chip + Retry.
     await writeStatus("error", deriveMessageErrorCode(err));
     releaseIfCurrent();
     throw err;
+  } finally {
+    foregroundWatch.remove();
   }
 }

@@ -1,4 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
+import { AppState, type AppStateStatus } from "react-native";
 import type { ApiClient } from "@/lib/api/client";
 import type { MessageRepository } from "@/lib/db/messageRepository";
 import { queryKeys } from "@/lib/hooks/queryKeys";
@@ -320,5 +321,82 @@ describe("runStream tool-round loop", () => {
     await run(ctx);
 
     expect(setReasoning).toHaveBeenLastCalledWith(CHAT_ID, true);
+  });
+});
+
+describe("runStream when the app leaves the foreground", () => {
+  let warnSpy: jest.SpyInstance;
+  let appStateSpy: jest.SpyInstance;
+  let listeners: ((state: AppStateStatus) => void)[];
+
+  beforeEach(() => {
+    mockSendChat.mockReset();
+    mockExecuteTool.mockReset();
+    warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    listeners = [];
+    appStateSpy = jest
+      .spyOn(AppState, "addEventListener")
+      .mockImplementation((_type, handler) => {
+        listeners.push(handler as (state: AppStateStatus) => void);
+        return { remove: jest.fn() } as unknown as ReturnType<
+          typeof AppState.addEventListener
+        >;
+      });
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+    appStateSpy.mockRestore();
+  });
+
+  // A suspended process cannot drain its own socket, so the stream dies looking like a transport failure.
+  function scriptBackgroundDeath(background: boolean): void {
+    mockSendChat.mockImplementation(async function* () {
+      yield chatEvent("Half an ans");
+      if (background) for (const notify of listeners) notify("background");
+      throw new TypeError("Network request failed");
+    });
+  }
+
+  it("ends the turn interrupted, keeping what had streamed", async () => {
+    scriptBackgroundDeath(true);
+    const { ctx, update } = makeCtx();
+
+    await run(ctx);
+
+    expect(update).toHaveBeenLastCalledWith(
+      ASSISTANT_ID,
+      expect.objectContaining({
+        status: "interrupted",
+        errorCode: null,
+        content: "Half an ans",
+      }),
+    );
+  });
+
+  it("still reports a transport failure the app was present for", async () => {
+    scriptBackgroundDeath(false);
+    const { ctx, update } = makeCtx();
+
+    await expect(run(ctx)).rejects.toThrow("Network request failed");
+    expect(update).toHaveBeenLastCalledWith(
+      ASSISTANT_ID,
+      expect.objectContaining({ status: "error", errorCode: "network" }),
+    );
+  });
+
+  it("only a real backgrounding counts, not the transient inactive state", async () => {
+    mockSendChat.mockImplementation(async function* () {
+      yield chatEvent("Half an ans");
+      for (const notify of listeners) notify("inactive");
+      throw new TypeError("Network request failed");
+    });
+    const { ctx, update } = makeCtx();
+
+    await expect(run(ctx)).rejects.toThrow("Network request failed");
+    expect(update).toHaveBeenLastCalledWith(
+      ASSISTANT_ID,
+      expect.objectContaining({ status: "error" }),
+    );
   });
 });
