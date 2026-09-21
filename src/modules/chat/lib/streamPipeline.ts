@@ -153,9 +153,6 @@ export async function runStream(
   wireMessages: WireChatMessage[],
   think: boolean | undefined,
   tools: readonly ToolDefinition[] | undefined,
-  // Text an interrupted turn already had. The buffers start from it so every flush writes the whole answer, not just
-  // the part that arrived after resuming.
-  resumeFrom?: { content: string; thinking: string },
 ): Promise<void> {
   const {
     client,
@@ -188,9 +185,9 @@ export async function runStream(
     endStream(chatId);
   };
   const buffers: StreamBuffers = {
-    content: resumeFrom?.content ?? "",
-    rawContent: resumeFrom?.content ?? "",
-    thinking: resumeFrom?.thinking ?? "",
+    content: "",
+    rawContent: "",
+    thinking: "",
     inlineThinking: "",
     assistantId,
     pendingReactFlush: false,

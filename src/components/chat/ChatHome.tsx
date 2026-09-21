@@ -80,7 +80,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     if (chatGone) router.replace("/c");
   }, [chatGone, router]);
   const isStreaming = useIsStreaming(chatId);
-  const { regenerate, retry, continueTurn, editAndResend, abort, send } =
+  const { regenerate, retry, editAndResend, abort, send } =
     useSendMessage(chatId);
   const { model } = useChatModel(chatId);
   const canWebSearch = useHasToolsCapability(model?.name);
@@ -120,22 +120,6 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
       });
     },
     [isStreaming, retry, toast],
-  );
-  const handleContinue = useCallback(
-    (assistantMessageId: MessageId): void => {
-      if (isStreaming) {
-        toast({
-          title: "Already streaming",
-          description: "Stop the current response before continuing.",
-        });
-        return;
-      }
-      void continueTurn(assistantMessageId).catch((err: unknown) => {
-        console.error("ChatHome: continue failed", err);
-        toast({ title: "Couldn't continue", tone: "error" });
-      });
-    },
-    [continueTurn, isStreaming, toast],
   );
   const handleEdit = useCallback(
     (userMessageId: MessageId, newContent: string): void => {
@@ -284,7 +268,6 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
             onScrolledUpChange={setIsScrolledUp}
             onRegenerate={handleRegenerate}
             onRetry={handleRetry}
-            onContinue={handleContinue}
             onEdit={handleEdit}
             attachmentsByMessage={data?.attachmentsByMessage}
           />

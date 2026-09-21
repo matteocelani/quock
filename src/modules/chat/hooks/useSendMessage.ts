@@ -69,8 +69,6 @@ export interface UseSendMessageResult {
   send: (input: SendMessageInput) => Promise<void>;
   regenerate: (assistantMessageId: MessageId) => Promise<void>;
   retry: (assistantMessageId: MessageId) => Promise<void>;
-  // Resumes an interrupted turn from the text it already has, instead of paying for the whole answer again.
-  continueTurn: (assistantMessageId: MessageId) => Promise<void>;
   // Updates a user message's content, drops every message after it (the now-stale assistant replies), then re-runs the stream from the edited turn. Mirrors ChatGPT / Claude "edit message" semantics.
   editAndResend: (userMessageId: MessageId, newContent: string) => Promise<void>;
   abort: () => void;
@@ -124,7 +122,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       wireMessages: WireChatMessage[],
       think: boolean | undefined,
       tools: readonly ToolDefinition[] | undefined,
-      resumeFrom?: { content: string; thinking: string },
     ): Promise<void> => {
       await runStream(
         {
@@ -145,7 +142,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         wireMessages,
         think,
         tools,
-        resumeFrom,
       );
     },
     [
@@ -710,91 +706,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       webSearchEnabled,
     ],
   );
-  // Resume an interrupted turn instead of paying for it twice. The partial answer rides back as the trailing assistant
-  // message, which Ollama carries on from rather than answering afresh — verified to resume mid-word.
-  const continueTurn = React.useCallback(
-    async (assistantMessageId: MessageId): Promise<void> => {
-      if (!model) {
-        throw new Error("No model selected");
-      }
-      const dbMessages = await messages.listByChat(chatId);
-      const { assistantIndex } = locateAssistantTurn(
-        dbMessages,
-        assistantMessageId,
-        "Continue",
-      );
-      const partial = dbMessages[assistantIndex];
-      // Nothing had arrived before the interruption, so there is nothing to carry on from and a fresh attempt is the
-      // honest fallback.
-      if (partial.content.length === 0) {
-        await retry(assistantMessageId);
-        return;
-      }
-      // Status only: wiping the content is what Retry does, and it is the thing this action exists to avoid.
-      await messages.update(assistantMessageId, {
-        status: "pending",
-        errorCode: null,
-      });
-      await bumpSidebar(chats, queryClient, chatId);
-      const headSlice = dbMessages.slice(0, assistantIndex);
-      const resumed: DbMessage = {
-        ...partial,
-        status: "pending",
-        errorCode: null,
-        updatedAt: Date.now(),
-      };
-      const existing = queryClient.getQueryData<UseChatData>(
-        queryKeys.chat(chatId),
-      );
-      await patchChatCache(
-        queryClient,
-        chats,
-        chatId,
-        existing,
-        [...headSlice, resumed],
-        new Map(existing?.attachmentsByMessage ?? []),
-      );
-
-      let wireMessages: WireChatMessage[];
-      try {
-        const wire = toWireHistory(
-          headSlice,
-          await attachments.listByChatForWire(chatId, hasVision),
-          hasVision,
-        );
-        wireMessages = [
-          ...wire.messages,
-          { role: "assistant", content: partial.content },
-        ];
-      } catch (err) {
-        await failPending(assistantMessageId, err);
-        return;
-      }
-      await runStreamWithContext(
-        model.name,
-        assistantMessageId,
-        wireMessages,
-        forceThink || undefined,
-        webSearchEnabled && hasTools ? WEB_TOOLS : undefined,
-        { content: partial.content, thinking: partial.thinking ?? "" },
-      );
-    },
-    [
-      attachments,
-      chatId,
-      chats,
-      failPending,
-      forceThink,
-      hasTools,
-      hasVision,
-      messages,
-      model,
-      queryClient,
-      retry,
-      runStreamWithContext,
-      webSearchEnabled,
-    ],
-  );
   // Edit a user turn in place, drop everything after it (now stale), then re-stream from the edited turn. Honors the chat's think preference like a fresh send.
   const editAndResend = React.useCallback(
     async (userMessageId: MessageId, newContent: string): Promise<void> => {
@@ -908,7 +819,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
     ],
   );
   return React.useMemo<UseSendMessageResult>(
-    () => ({ send, regenerate, retry, continueTurn, editAndResend, abort, isStreaming }),
-    [send, regenerate, retry, continueTurn, editAndResend, abort, isStreaming],
+    () => ({ send, regenerate, retry, editAndResend, abort, isStreaming }),
+    [send, regenerate, retry, editAndResend, abort, isStreaming],
   );
 }
