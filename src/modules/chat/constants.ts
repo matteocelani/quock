@@ -95,6 +95,6 @@ export const CHAT_AUTO_TITLE_MAX_CHARS = 60;
 // two or three seconds never shows the light repeat.
 export const EXCERPT_GLOW_LAP_MS = 3200;
 
-// Longest gap between two chunks of one streamed answer before the connection is treated as dead. A half-open socket
-// never resolves its read, so without a deadline the turn keeps its typing dots and holds its resources forever.
-export const STREAM_IDLE_TIMEOUT_MS = 90_000;
+// Longest gap between two chunks of one streamed answer before the connection is treated as dead. Deliberately under
+// the 60s URLSession applies on iOS: whichever fires first owns the error, and the platform's arrives unclassifiable.
+export const STREAM_READ_DEADLINE_MS = 45_000;

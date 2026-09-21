@@ -1,4 +1,4 @@
-import { STREAM_IDLE_TIMEOUT_MS } from "@/modules/chat/constants";
+import { STREAM_READ_DEADLINE_MS } from "@/modules/chat/constants";
 import { parseJsonlFromResponse, parseJsonlStream } from "@/modules/chat/api/jsonl";
 
 // One chunk per `read()` call so chunk-boundary buffering is exercised deterministically.
@@ -111,7 +111,7 @@ describe("parseJsonlStream idle deadline", () => {
     const collected = collect(parseJsonlStream<unknown>(stalled));
     const settled = expect(collected).rejects.toThrow(/Network request failed/);
 
-    await jest.advanceTimersByTimeAsync(STREAM_IDLE_TIMEOUT_MS + 1);
+    await jest.advanceTimersByTimeAsync(STREAM_READ_DEADLINE_MS + 1);
 
     await settled;
   });
@@ -123,6 +123,11 @@ describe("parseJsonlStream idle deadline", () => {
     let sent = 0;
     const drip = new ReadableStream<Uint8Array>({
       async pull(controller) {
+        // The gap is the point: each chunk lands just before the deadline, so the run outlives it several times over
+        // without ever being silent for long enough to trip it.
+        await new Promise((resolve) => {
+          setTimeout(resolve, STREAM_READ_DEADLINE_MS - 1);
+        });
         if (sent === 3) {
           controller.close();
           return;
@@ -133,10 +138,7 @@ describe("parseJsonlStream idle deadline", () => {
     });
     const collected = collect(parseJsonlStream<{ n: number }>(drip));
 
-    // Three gaps, each just under the deadline, so the total run is far longer than the deadline itself.
-    for (let i = 0; i < 4; i += 1) {
-      await jest.advanceTimersByTimeAsync(STREAM_IDLE_TIMEOUT_MS - 1);
-    }
+    await jest.advanceTimersByTimeAsync(STREAM_READ_DEADLINE_MS * 4);
 
     expect(await collected).toEqual([{ n: 1 }, { n: 2 }, { n: 3 }]);
   });

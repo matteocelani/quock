@@ -1,7 +1,7 @@
 // JSONL streaming parser. Malformed JSON throws (caller maps it to StreamInterruptedError); the standalone `parseJsonlStream` overload lets tests skip building a fake Response.
 
 import { NetworkError } from "@/lib/api/errors";
-import { STREAM_IDLE_TIMEOUT_MS } from "@/modules/chat/constants";
+import { STREAM_READ_DEADLINE_MS } from "@/modules/chat/constants";
 
 // A half-open socket — the server stops sending without closing — leaves `read()` pending forever, and with it the
 // whole turn. Reported as a network failure because that is what it is from here.
@@ -14,12 +14,12 @@ async function readBeforeIdle(
       // Rejected before the cancel, not after: cancelling resolves the pending read, and whichever settles first
       // wins the race — so the other order ends the stream as a clean close instead of the failure it is.
       reject(
-        new NetworkError(new Error(`No data for ${STREAM_IDLE_TIMEOUT_MS}ms`)),
+        new NetworkError(new Error(`No data for ${STREAM_READ_DEADLINE_MS}ms`)),
       );
       reader.cancel().catch((err: unknown) => {
         console.warn("parseJsonlStream: could not cancel an idle stream", err);
       });
-    }, STREAM_IDLE_TIMEOUT_MS);
+    }, STREAM_READ_DEADLINE_MS);
   });
   try {
     return await Promise.race([reader.read(), idle]);
