@@ -1,6 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { AppState, type AppStateStatus } from "react-native";
 import type { ApiClient } from "@/lib/api/client";
+import { CloudAPIError } from "@/lib/api/errors";
 import type { MessageRepository } from "@/lib/db/messageRepository";
 import { queryKeys } from "@/lib/hooks/queryKeys";
 import type { UseHapticsResult } from "@/lib/hooks/useHaptics";
@@ -383,6 +384,52 @@ describe("runStream when the app leaves the foreground", () => {
       ASSISTANT_ID,
       expect.objectContaining({ status: "error", errorCode: "network" }),
     );
+  });
+
+  // Android stops the activity on a screen lock without suspending anything, so the socket outlives the trip and
+  // every later failure would otherwise be relabelled for the rest of the stream.
+  it("forgets the trip once an event proves the socket outlived it", async () => {
+    mockSendChat.mockImplementation(async function* () {
+      yield chatEvent("Half an ans");
+      for (const notify of listeners) notify("background");
+      yield chatEvent("wer kept coming");
+      throw new TypeError("Network request failed");
+    });
+    const { ctx, update } = makeCtx();
+
+    await expect(run(ctx)).rejects.toThrow("Network request failed");
+    expect(update).toHaveBeenLastCalledWith(
+      ASSISTANT_ID,
+      expect.objectContaining({ status: "error", errorCode: "network" }),
+    );
+  });
+
+  // The cloud answered, so the socket was alive: an exhausted plan reported as "interrupted" is a Retry loop that
+  // never explains itself.
+  it("still reports a cloud error raised after the trip", async () => {
+    mockSendChat.mockImplementation(async function* () {
+      yield chatEvent("Half an ans");
+      for (const notify of listeners) notify("background");
+      throw new CloudAPIError(403, "subscription_required");
+    });
+    const { ctx, update } = makeCtx();
+
+    await expect(run(ctx)).rejects.toThrow("subscription_required");
+    expect(update).toHaveBeenLastCalledWith(
+      ASSISTANT_ID,
+      expect.objectContaining({ status: "error", errorCode: "subscription" }),
+    );
+  });
+
+  it("removes the listener even when the failure propagates", async () => {
+    scriptBackgroundDeath(false);
+    const { ctx } = makeCtx();
+
+    await expect(run(ctx)).rejects.toThrow();
+    const subscription = appStateSpy.mock.results[0]?.value as {
+      remove: jest.Mock;
+    };
+    expect(subscription.remove).toHaveBeenCalled();
   });
 
   it("only a real backgrounding counts, not the transient inactive state", async () => {

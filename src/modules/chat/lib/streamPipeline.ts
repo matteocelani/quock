@@ -5,6 +5,7 @@ import type React from "react";
 import { AppState } from "react-native";
 import type { ApiClient } from "@/lib/api/client";
 import {
+  CloudAPIError,
   deriveMessageErrorCode,
   StreamInterruptedError,
 } from "@/lib/api/errors";
@@ -166,6 +167,13 @@ export async function runStream(
     haptics,
     controllerRef,
   } = ctx;
+  // A suspended app cannot drain its own socket, so recording the trip is what lets the catch tell that death apart
+  // from a real network failure. Only `background`: `inactive` also fires for Control Center, which suspends nothing.
+  let hasLeftForeground = false;
+  // Subscribed before the stream is registered: a throw here must not strand a chat on the typing dots with no owner.
+  const foregroundWatch = AppState.addEventListener("change", (state) => {
+    if (state === "background") hasLeftForeground = true;
+  });
   const controller = new AbortController();
   controllerRef.current = controller;
   startStream(chatId, controller);
@@ -176,12 +184,6 @@ export async function runStream(
     controllerRef.current = null;
     endStream(chatId);
   };
-  // A suspended app cannot drain its own socket, so recording the trip is what lets the catch tell that death apart
-  // from a real network failure. Only `background`: `inactive` also fires for Control Center, which suspends nothing.
-  let hasLeftForeground = false;
-  const foregroundWatch = AppState.addEventListener("change", (state) => {
-    if (state === "background") hasLeftForeground = true;
-  });
   const buffers: StreamBuffers = {
     content: "",
     rawContent: "",
@@ -342,6 +344,9 @@ export async function runStream(
         signal: controller.signal,
       });
       for await (const event of events) {
+        // A suspended process receives nothing, so an event arriving is proof the socket outlived the trip and the
+        // next failure is a real one. Without this the flag would stay set for the whole stream.
+        hasLeftForeground = false;
         if (controller.signal.aborted) {
           // Drain quietly — the abort handler below owns the final write.
           continue;
@@ -471,7 +476,9 @@ export async function runStream(
     }
     // A stream that died while the app was away was not a failure to report: the answer up to that point is already
     // on disk, so it ends where a user-pressed Stop ends rather than behind a red chip that throws it away.
-    if (hasLeftForeground) {
+    // A CloudAPIError is excluded by construction: the cloud answered, so the socket was alive and the user needs the
+    // reason — an exhausted plan reported as "interrupted" is a Retry loop that never explains itself.
+    if (hasLeftForeground && !CloudAPIError.isCloudAPIError(err)) {
       console.warn("runStream: the app was backgrounded mid-stream", err);
       await writeStatus("interrupted", null);
       releaseIfCurrent();
