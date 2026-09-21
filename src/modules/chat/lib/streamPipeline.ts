@@ -23,6 +23,10 @@ import {
   type WireChatMessage,
 } from "@/modules/chat/api/chat";
 import {
+  holdBackgroundAssertion,
+  releaseBackgroundAssertion,
+} from "@/modules/chat/lib/backgroundAssertion";
+import {
   executeToolCall,
   type ToolDefinition,
   type WireToolCall,
@@ -174,6 +178,9 @@ export async function runStream(
   const foregroundWatch = AppState.addEventListener("change", (state) => {
     if (state === "background") hasLeftForeground = true;
   });
+  // Claimed now, while still in the foreground: by the time an app is told it is backgrounding it has seconds left,
+  // which is too late to ask. Released in the finally, so the grace window is never held past the stream.
+  holdBackgroundAssertion();
   const controller = new AbortController();
   controllerRef.current = controller;
   startStream(chatId, controller);
@@ -489,5 +496,6 @@ export async function runStream(
     throw err;
   } finally {
     foregroundWatch.remove();
+    releaseBackgroundAssertion();
   }
 }
