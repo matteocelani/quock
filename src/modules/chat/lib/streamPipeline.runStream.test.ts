@@ -325,6 +325,65 @@ describe("runStream tool-round loop", () => {
   });
 });
 
+describe("runStream resuming an interrupted turn", () => {
+  let warnSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    mockSendChat.mockReset();
+    mockExecuteTool.mockReset();
+    warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+  });
+
+  // The whole point of Continue: every flush has to write the finished answer, not just the half that arrived second.
+  it("writes the seeded text plus what arrives, not only the new part", async () => {
+    scriptTurns([[chatEvent("wer to the question")]]);
+    const { ctx, queryClient, update } = makeCtx();
+
+    await runStream(
+      ctx,
+      "kimi",
+      ASSISTANT_ID,
+      USER_MESSAGES,
+      undefined,
+      undefined,
+      { content: "Half an ans", thinking: "" },
+    );
+
+    expect(tailMessage(queryClient).content).toBe("Half an answer to the question");
+    expect(update).toHaveBeenLastCalledWith(
+      ASSISTANT_ID,
+      expect.objectContaining({
+        content: "Half an answer to the question",
+        status: "complete",
+      }),
+    );
+  });
+
+  it("keeps reasoning the interrupted turn had already shown", async () => {
+    scriptTurns([[chatEvent("done")]]);
+    const { ctx, update } = makeCtx();
+
+    await runStream(
+      ctx,
+      "kimi",
+      ASSISTANT_ID,
+      USER_MESSAGES,
+      undefined,
+      undefined,
+      { content: "", thinking: "weighing it up" },
+    );
+
+    expect(update).toHaveBeenLastCalledWith(
+      ASSISTANT_ID,
+      expect.objectContaining({ thinking: "weighing it up" }),
+    );
+  });
+});
+
 describe("runStream when the app leaves the foreground", () => {
   let warnSpy: jest.SpyInstance;
   let appStateSpy: jest.SpyInstance;

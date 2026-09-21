@@ -7,6 +7,7 @@ import { Text, View } from "react-native";
 import Copy from "lucide-react-native/icons/copy";
 import Globe from "lucide-react-native/icons/globe";
 import Highlighter from "lucide-react-native/icons/highlighter";
+import ArrowRight from "lucide-react-native/icons/arrow-right";
 import RotateCw from "lucide-react-native/icons/rotate-cw";
 import { type LucideIcon } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
@@ -37,6 +38,7 @@ export interface AssistantMessageProps {
   anchorSpace: React.RefObject<View | null>;
   onRegenerate?: (assistantMessageId: MessageId) => void;
   onRetry?: (assistantMessageId: MessageId) => void;
+  onContinue?: (assistantMessageId: MessageId) => void;
 }
 
 // Copy keyed off the persisted error code, worded so the user can tell whose side the failure is on (Ollama / their connection / the Quock app) and route a report accordingly.
@@ -126,6 +128,7 @@ function AssistantMessageImpl({
   anchorSpace,
   onRegenerate,
   onRetry,
+  onContinue,
 }: AssistantMessageProps): React.ReactElement {
   const colors = useThemeColors();
   const toast = useToast();
@@ -154,6 +157,9 @@ function AssistantMessageImpl({
   const handleRegenerate = useCallback((): void => {
     onRegenerate?.(message.id);
   }, [onRegenerate, message.id]);
+  const handleContinue = useCallback((): void => {
+    onContinue?.(message.id);
+  }, [onContinue, message.id]);
   const handleRetry = useCallback((): void => {
     onRetry?.(message.id);
   }, [onRetry, message.id]);
@@ -250,11 +256,12 @@ function AssistantMessageImpl({
             <Text className="font-sans italic text-footnote text-muted-foreground mr-2">
               Interrupted
             </Text>
-            {onRetry !== undefined ? (
-              <Button variant="secondary" size="sm" onPress={handleRetry}>
-                <RotateCw size={iconSize.xs} color={colors.label} />
+            {/* The answer so far is still on the row, so the action resumes it — and the word has to say so. */}
+            {onContinue !== undefined ? (
+              <Button variant="secondary" size="sm" onPress={handleContinue}>
+                <ArrowRight size={iconSize.xs} color={colors.label} />
                 <Text className="ml-1 font-sans font-medium text-footnote text-label">
-                  Retry
+                  Continue
                 </Text>
               </Button>
             ) : null}

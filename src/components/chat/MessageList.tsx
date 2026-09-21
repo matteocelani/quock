@@ -41,6 +41,7 @@ export interface MessageListProps {
   onScrolledUpChange?: (isScrolledUp: boolean) => void;
   onRegenerate?: (assistantMessageId: MessageId) => void;
   onRetry?: (assistantMessageId: MessageId) => void;
+  onContinue?: (assistantMessageId: MessageId) => void;
   onEdit?: (userMessageId: MessageId, newContent: string) => void;
   attachmentsByMessage?: ReadonlyMap<MessageId, DbAttachment[]>;
   anchorSpace: React.RefObject<View | null>;
@@ -55,6 +56,7 @@ function MessageListInner(
     onScrolledUpChange,
     onRegenerate,
     onRetry,
+    onContinue,
     onEdit,
     attachmentsByMessage,
     anchorSpace,
@@ -103,9 +105,10 @@ function MessageListInner(
       };
       if (onRegenerate !== undefined) aProps.onRegenerate = onRegenerate;
       if (onRetry !== undefined) aProps.onRetry = onRetry;
+      if (onContinue !== undefined) aProps.onContinue = onContinue;
       return <AssistantMessage {...aProps} />;
     },
-    [messages.length, isStreaming, onRegenerate, onRetry, onEdit, attachmentsByMessage, anchorSpace],
+    [messages.length, isStreaming, onRegenerate, onRetry, onContinue, onEdit, attachmentsByMessage, anchorSpace],
   );
   const keyExtractor = useCallback(
     (item: DbMessage): string => String(item.id),
