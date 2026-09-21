@@ -334,6 +334,7 @@ describe("runStream when the app leaves the foreground", () => {
     mockSendChat.mockReset();
     mockExecuteTool.mockReset();
     warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
+    setAppState("active");
     listeners = [];
     appStateSpy = jest
       .spyOn(AppState, "addEventListener")
@@ -348,7 +349,6 @@ describe("runStream when the app leaves the foreground", () => {
   afterEach(() => {
     warnSpy.mockRestore();
     appStateSpy.mockRestore();
-    setAppState("active");
   });
 
   // `currentState` is a plain property on the AppState module, so the tests move it the way the OS would.
@@ -402,8 +402,10 @@ describe("runStream when the app leaves the foreground", () => {
     mockSendChat.mockImplementation(async function* () {
       yield chatEvent("Half an ans");
       for (const notify of listeners) notify("background");
+      setAppState("background");
+      yield chatEvent("wer kept");
       setAppState("active");
-      yield chatEvent("wer kept coming");
+      yield chatEvent(" coming");
       throw new TypeError("Network request failed");
     });
     const { ctx, update } = makeCtx();
@@ -461,6 +463,25 @@ describe("runStream when the app leaves the foreground", () => {
       remove: jest.Mock;
     };
     expect(subscription.remove).toHaveBeenCalled();
+  });
+
+  // `inactive` is the app switcher and the Control Center shade: visible but not suspended, and not a return either.
+  it("does not treat the inactive shade as the user coming back", async () => {
+    mockSendChat.mockImplementation(async function* () {
+      yield chatEvent("Half an ans");
+      for (const notify of listeners) notify("background");
+      setAppState("inactive");
+      yield chatEvent("wer still landing");
+      throw new TypeError("Network request failed");
+    });
+    const { ctx, update } = makeCtx();
+
+    await run(ctx);
+
+    expect(update).toHaveBeenLastCalledWith(
+      ASSISTANT_ID,
+      expect.objectContaining({ status: "interrupted", errorCode: null }),
+    );
   });
 
   it("only a real backgrounding counts, not the transient inactive state", async () => {

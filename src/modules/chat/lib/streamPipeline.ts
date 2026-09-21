@@ -474,10 +474,9 @@ export async function runStream(
       releaseIfCurrent();
       return;
     }
-    // A stream that died while the app was away was not a failure to report: the answer up to that point is already
-    // on disk, so it ends where a user-pressed Stop ends rather than behind a red chip that throws it away.
-    // A CloudAPIError is excluded by construction: the cloud answered, so the socket was alive and the user needs the
-    // reason — an exhausted plan reported as "interrupted" is a Retry loop that never explains itself.
+    // A stream that died while the app was away is not a failure to report: the answer so far is already on disk, so
+    // it ends where a user-pressed Stop ends rather than behind a red chip that throws it away.
+    // CloudAPIError is excluded: the cloud answered, and an exhausted plan shown as "interrupted" explains nothing.
     if (hasLeftForeground && !CloudAPIError.isCloudAPIError(err)) {
       console.warn("runStream: the app was backgrounded mid-stream", err);
       await writeStatus("interrupted", null);
