@@ -344,9 +344,9 @@ export async function runStream(
         signal: controller.signal,
       });
       for await (const event of events) {
-        // A suspended process receives nothing, so an event arriving is proof the socket outlived the trip and the
-        // next failure is a real one. Without this the flag would stay set for the whole stream.
-        hasLeftForeground = false;
+        // An event arriving once the user is back proves the socket outlived the trip, so the next failure is a real
+        // one. Only while active: iOS keeps delivering for a few seconds after backgrounding, before it suspends.
+        if (AppState.currentState === "active") hasLeftForeground = false;
         if (controller.signal.aborted) {
           // Drain quietly — the abort handler below owns the final write.
           continue;

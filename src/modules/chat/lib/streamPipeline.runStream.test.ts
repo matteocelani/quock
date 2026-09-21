@@ -348,7 +348,17 @@ describe("runStream when the app leaves the foreground", () => {
   afterEach(() => {
     warnSpy.mockRestore();
     appStateSpy.mockRestore();
+    setAppState("active");
   });
+
+  // `currentState` is a plain property on the AppState module, so the tests move it the way the OS would.
+  function setAppState(state: AppStateStatus): void {
+    Object.defineProperty(AppState, "currentState", {
+      value: state,
+      configurable: true,
+      writable: true,
+    });
+  }
 
   // A suspended process cannot drain its own socket, so the stream dies looking like a transport failure.
   function scriptBackgroundDeath(background: boolean): void {
@@ -388,10 +398,11 @@ describe("runStream when the app leaves the foreground", () => {
 
   // Android stops the activity on a screen lock without suspending anything, so the socket outlives the trip and
   // every later failure would otherwise be relabelled for the rest of the stream.
-  it("forgets the trip once an event proves the socket outlived it", async () => {
+  it("forgets the trip once the user is back and events still arrive", async () => {
     mockSendChat.mockImplementation(async function* () {
       yield chatEvent("Half an ans");
       for (const notify of listeners) notify("background");
+      setAppState("active");
       yield chatEvent("wer kept coming");
       throw new TypeError("Network request failed");
     });
@@ -401,6 +412,26 @@ describe("runStream when the app leaves the foreground", () => {
     expect(update).toHaveBeenLastCalledWith(
       ASSISTANT_ID,
       expect.objectContaining({ status: "error", errorCode: "network" }),
+    );
+  });
+
+  // iOS keeps delivering for a few seconds after the app backgrounds and only then suspends, so those tokens must
+  // not be read as the user having come back — that is the whole reported scenario.
+  it("holds the trip through tokens that arrive before the suspension", async () => {
+    mockSendChat.mockImplementation(async function* () {
+      yield chatEvent("Half an ans");
+      for (const notify of listeners) notify("background");
+      setAppState("background");
+      yield chatEvent("wer still landing");
+      throw new TypeError("Network request failed");
+    });
+    const { ctx, update } = makeCtx();
+
+    await run(ctx);
+
+    expect(update).toHaveBeenLastCalledWith(
+      ASSISTANT_ID,
+      expect.objectContaining({ status: "interrupted", errorCode: null }),
     );
   });
 
