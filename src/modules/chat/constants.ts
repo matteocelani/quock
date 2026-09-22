@@ -94,3 +94,7 @@ export const CHAT_AUTO_TITLE_MAX_CHARS = 60;
 // Excerpt spotlight rim: one lap of the edge light. Slow enough to read as drift, and long enough that a menu open for
 // two or three seconds never shows the light repeat.
 export const EXCERPT_GLOW_LAP_MS = 3200;
+
+// Longest gap between two chunks of one streamed answer before the connection is treated as dead. Deliberately under
+// the 60s URLSession applies on iOS: whichever fires first owns the error, and the platform's arrives unclassifiable.
+export const STREAM_READ_DEADLINE_MS = 45_000;

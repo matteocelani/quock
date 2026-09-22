@@ -1,5 +1,33 @@
 // JSONL streaming parser. Malformed JSON throws (caller maps it to StreamInterruptedError); the standalone `parseJsonlStream` overload lets tests skip building a fake Response.
 
+import { NetworkError } from "@/lib/api/errors";
+import { STREAM_READ_DEADLINE_MS } from "@/modules/chat/constants";
+
+// A half-open socket — the server stops sending without closing — leaves `read()` pending forever, and with it the
+// whole turn. Reported as a network failure because that is what it is from here.
+async function readBeforeIdle(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const idle = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      // Rejected before the cancel, not after: cancelling resolves the pending read, and whichever settles first
+      // wins the race — so the other order ends the stream as a clean close instead of the failure it is.
+      reject(
+        new NetworkError(new Error(`No data for ${STREAM_READ_DEADLINE_MS}ms`)),
+      );
+      reader.cancel().catch((err: unknown) => {
+        console.warn("parseJsonlStream: could not cancel an idle stream", err);
+      });
+    }, STREAM_READ_DEADLINE_MS);
+  });
+  try {
+    return await Promise.race([reader.read(), idle]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // Buffers across chunk boundaries so multi-byte UTF-8 and partial JSON lines survive.
 export async function* parseJsonlStream<T>(
   stream: ReadableStream<Uint8Array>,
@@ -10,7 +38,7 @@ export async function* parseJsonlStream<T>(
 
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await readBeforeIdle(reader);
 
       if (done) {
         // Flush any trailing split multi-byte sequence held in the decoder.

@@ -74,6 +74,8 @@ export function deriveMessageErrorCode(err: unknown): MessageErrorCode {
   if (err instanceof Error) {
     const name = err.name.toLowerCase();
     if (name.includes("network") || name.includes("typeerror")) return "network";
+    // A platform read timeout arrives as a bare Error; left unclassified it blames Quock for a dead connection.
+    if (err.message.toLowerCase().includes("timed out")) return "network";
   }
   if (typeof err === "string") {
     const lower = err.toLowerCase();
