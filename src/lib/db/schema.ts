@@ -88,6 +88,34 @@ const ADD_ATTACHMENT_DERIVED = `
   ALTER TABLE attachments ADD COLUMN derived_from INTEGER;
 `;
 
+// Agent-mode memory: durable facts the model saves about/for the account, scoped by user_id so accounts never leak.
+// last_accessed_at feeds the newest-first injection; source distinguishes model-written rows from future user edits.
+const ADD_MEMORY_TABLE = `
+  CREATE TABLE IF NOT EXISTS memories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    last_accessed_at INTEGER NOT NULL,
+    source TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_memories_user_accessed
+    ON memories(user_id, last_accessed_at DESC);
+`;
+
+// Per-chat agent-mode toggle (memory tools + local device tools + injected system context). Mirrors think/web_search:
+// sticky, defaults off, gated on the model's tool capability.
+const ADD_CHAT_AGENT_MODE = `
+  ALTER TABLE chats ADD COLUMN agent_enabled INTEGER NOT NULL DEFAULT 0;
+`;
+
+// Marks a USER turn that ran under agent mode, so its bubble shows the same kind of read-only "sent with agent" chip
+// as the other two sent_with_* indicators.
+const ADD_MESSAGE_SENT_WITH_AGENT = `
+  ALTER TABLE messages ADD COLUMN sent_with_agent INTEGER NOT NULL DEFAULT 0;
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { id: 1, up: INITIAL_SCHEMA },
   { id: 2, up: ADD_MESSAGE_STATUS },
@@ -99,6 +127,9 @@ export const MIGRATIONS: readonly Migration[] = [
   { id: 8, up: ADD_CHAT_USER },
   { id: 10, up: ADD_ATTACHMENT_TEXT },
   { id: 11, up: ADD_ATTACHMENT_DERIVED },
+  { id: 12, up: ADD_MEMORY_TABLE },
+  { id: 13, up: ADD_CHAT_AGENT_MODE },
+  { id: 14, up: ADD_MESSAGE_SENT_WITH_AGENT },
 ];
 export const CURRENT_VERSION: number =
   MIGRATIONS.length > 0

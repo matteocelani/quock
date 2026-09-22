@@ -1,6 +1,7 @@
 // User-authored row: optional attachment chips above a right-aligned bubble, with copy and edit actions below. Editing drops into an inline TextField (Cancel/Save) that re-runs the conversation from the edited turn.
 
 import Brain from "lucide-react-native/icons/brain";
+import Bot from "lucide-react-native/icons/bot";
 import Check from "lucide-react-native/icons/check";
 import Copy from "lucide-react-native/icons/copy";
 import Globe from "lucide-react-native/icons/globe";
@@ -194,7 +195,7 @@ function UserMessageImpl({
         </Text>
       </MessageBubble>
       <View className="px-4 -mt-3 mb-2 flex-row justify-end items-center">
-        {message.sentWithWebSearch || message.sentWithThink ? (
+        {message.sentWithWebSearch || message.sentWithThink || message.sentWithAgent ? (
           // Read-only indicators of the modes this prompt was sent with — same size/weight as the copy/edit
           // actions so they read clearly. Non-interactive, purely informational.
           <View
@@ -202,6 +203,7 @@ function UserMessageImpl({
             accessibilityLabel={`Sent with ${[
               message.sentWithWebSearch ? "web search" : null,
               message.sentWithThink ? "thinking" : null,
+              message.sentWithAgent ? "agent mode" : null,
             ]
               .filter(Boolean)
               .join(" and ")}`}
@@ -215,6 +217,13 @@ function UserMessageImpl({
             ) : null}
             {message.sentWithThink ? (
               <Brain
+                size={iconSize.sm}
+                color={colors.mutedForeground}
+                strokeWidth={strokeWidth.bold}
+              />
+            ) : null}
+            {message.sentWithAgent ? (
+              <Bot
                 size={iconSize.sm}
                 color={colors.mutedForeground}
                 strokeWidth={strokeWidth.bold}

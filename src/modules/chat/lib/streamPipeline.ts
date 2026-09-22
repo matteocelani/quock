@@ -9,11 +9,9 @@ import {
   deriveMessageErrorCode,
   StreamInterruptedError,
 } from "@/lib/api/errors";
+import type { MemoryRepository } from "@/lib/db/memoryRepository";
 import type { MessageRepository } from "@/lib/db/messageRepository";
-import type {
-  MessageErrorCode,
-  MessageStatus,
-} from "@/lib/db/types";
+import type { MessageErrorCode, MessageStatus } from "@/lib/db/types";
 import { queryKeys } from "@/lib/hooks/queryKeys";
 import type { UseHapticsResult } from "@/lib/hooks/useHaptics";
 import type { ChatId, MessageId } from "@/lib/types/ids";
@@ -71,6 +69,8 @@ export interface RunStreamContext {
   client: ApiClient;
   chatId: ChatId;
   messages: MessageRepository;
+  // Null while the DB opens; local agent tools then degrade (memory_save returns storage error, memory_read answers "No memories stored yet.").
+  memories: MemoryRepository | null;
   queryClient: QueryClient;
   startStream: (chatId: ChatId, controller: AbortController) => void;
   endStream: (chatId: ChatId) => void;
@@ -88,11 +88,19 @@ export function isAbortError(err: unknown): boolean {
   const e = err as { name?: unknown };
   return e.name === "AbortError";
 }
-// The term shown in "Searching for {term}…": the search query, or the fetched URL for web_fetch.
+// The term shown next to the tool name ("Searching for …" / "Saving to memory: …"). Cascade covers query (web),
+// url (fetch/open), content (memory_save), text (clipboard/share/file) and name (file ops).
+// Preview cap for the tool-activity indicator: long bodies (memory saves, file contents) would flood it otherwise.
+const TOOL_ACTIVITY_PREVIEW_CHARS = 40;
+
 function toolActivityTerm(call: WireToolCall): string {
   const args = call.function.arguments;
-  const term = args.query ?? args.url;
-  return typeof term === "string" ? term : "";
+  const term = args.query ?? args.url ?? args.content ?? args.text ?? args.name;
+  if (typeof term !== "string") return "";
+  const singleLine = term.replace(/\s+/g, " ").trim();
+  return singleLine.length > TOOL_ACTIVITY_PREVIEW_CHARS
+    ? `${singleLine.slice(0, TOOL_ACTIVITY_PREVIEW_CHARS)}…`
+    : singleLine;
 }
 
 const THINK_OPEN = "<think>";
@@ -157,11 +165,17 @@ export async function runStream(
   wireMessages: WireChatMessage[],
   think: boolean | undefined,
   tools: readonly ToolDefinition[] | undefined,
+  // Wire-only system context (agent instructions + injected memories). Never persisted, never patched to the cache —
+  // bubbles keep reading DB rows, so what the model saw and what the UI shows stay separate channels.
+  systemMessages?: readonly WireChatMessage[],
+  // Tool-loop ceiling: explicit per send so agent mode (Settings value) and web search (compile-time 4) can coexist.
+  maxToolRounds: number = WEB_SEARCH_MAX_TOOL_ROUNDS,
 ): Promise<void> {
   const {
     client,
     chatId,
     messages,
+    memories,
     queryClient,
     startStream,
     endStream,
@@ -334,7 +348,8 @@ export async function runStream(
   };
   // Multi-turn agentic loop: each pass streams one /api/chat response. When a turn ends with tool calls we run them, append the results, and re-stream — until the model answers with no tool calls (or the round cap trips). Without tools this runs exactly once, identical to the old single-shot path.
   let tokenCount = 0;
-  let turnMessages = wireMessages;
+  // System context lives ONLY in the local wire copy — it heads every round's payload but never enters SQLite or the cache.
+  let turnMessages = [...(systemMessages ?? []), ...wireMessages];
   let round = 0;
   // Claimed while still in the foreground — the grace clock starts at backgrounding, not here — and immediately
   // before the try, so nothing between the claim and the finally that releases it can throw.
@@ -431,7 +446,7 @@ export async function runStream(
       // Turn finished. No tool calls -> the model produced its final answer.
       if (pendingToolCalls.length === 0) break;
       // Safety cap so a model that keeps requesting tools can't loop forever.
-      if (round >= WEB_SEARCH_MAX_TOOL_ROUNDS) break;
+      if (round >= maxToolRounds) break;
       // Record the assistant turn that asked for the tools, then run each and append its result for the next turn.
       turnMessages = [
         ...turnMessages,
@@ -452,7 +467,7 @@ export async function runStream(
         });
         let result: string;
         try {
-          result = await executeToolCall(client, call);
+          result = await executeToolCall({ client, memories }, call);
         } catch (err) {
           console.warn("[chat] tool call failed:", err);
           // Surface a non-fatal note on the finished bubble; the model still answers from the failed tool result.
