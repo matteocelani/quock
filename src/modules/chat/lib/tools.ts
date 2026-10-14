@@ -191,19 +191,20 @@ export async function executeMemoryCall(
     if (rawIds.length === 0) {
       return { result: MEMORY_REPLIES.noIds, hasSaved: false };
     }
-    const replies: string[] = [];
+    let replies: readonly string[] = [];
     for (const rawId of rawIds) {
       const verdict = checkForget(rawId, existing, turn);
       if (!verdict.isAccepted) {
-        replies.push(verdict.reply);
+        replies = [...replies, verdict.reply];
         continue;
       }
       const isRemoved = await store.remove(verdict.id);
-      replies.push(
+      replies = [
+        ...replies,
         isRemoved
           ? MEMORY_REPLIES.removed(verdict.id)
           : MEMORY_REPLIES.unknownId(verdict.id),
-      );
+      ];
     }
     // A read-only turn would repeat the same refusal once per id.
     return { result: [...new Set(replies)].join(" "), hasSaved: false };

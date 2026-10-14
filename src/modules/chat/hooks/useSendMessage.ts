@@ -525,7 +525,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         wireMessages,
         // Thinking is optional: force it on only when the chat's preference is on AND the model supports it; otherwise omit the flag so the model decides for itself.
         forceThink || undefined,
-        // Web tools when web search is on and the model supports tools.
         input.webSearch === true && hasTools,
         hasUntrustedContext,
       );

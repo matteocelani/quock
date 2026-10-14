@@ -173,7 +173,12 @@ function rememberCall(fact: string): WireToolCall {
 }
 
 // An in-memory stand-in for MemoryRepository, since SQLite does not run under Jest.
-function fakeMemory(): { memory: MemoryRun; add: jest.Mock } {
+interface FakeMemory {
+  memory: MemoryRun;
+  add: jest.Mock;
+}
+
+function fakeMemory(): FakeMemory {
   let rows: DbMemoryFact[] = [];
   const add = jest.fn(async (content: string): Promise<DbMemoryFact> => {
     const row = {

@@ -115,6 +115,13 @@ describe("forgetIdsArg", () => {
   });
 });
 
+interface FakeStore {
+  store: MemoryStore;
+  add: jest.Mock;
+  remove: jest.Mock;
+  list: jest.Mock;
+}
+
 describe("executeMemoryCall", () => {
   const CLEAN: MemoryTurnState = {
     hasUntrustedContext: false,
@@ -123,12 +130,7 @@ describe("executeMemoryCall", () => {
   };
 
   // An in-memory stand-in for MemoryRepository, since SQLite does not run under Jest.
-  function fakeStore(initial: readonly string[]): {
-    store: MemoryStore;
-    add: jest.Mock;
-    remove: jest.Mock;
-    list: jest.Mock;
-  } {
+  function fakeStore(initial: readonly string[]): FakeStore {
     let rows: DbMemoryFact[] = initial.map((content, i) => ({
       id: asFactId(i + 1),
       content,

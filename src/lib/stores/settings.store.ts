@@ -23,7 +23,7 @@ interface SettingsState {
   setThemeMode: (mode: ThemeMode) => void;
   setSelectedModelName: (name: string | null) => void;
   setHapticsEnabled: (enabled: boolean) => void;
-  setMemoryEnabled: (enabled: boolean) => void;
+  setMemoryEnabled: (isMemoryEnabled: boolean) => void;
   acceptAiConsent: () => void;
   revokeAiConsent: () => void;
   /** Null (or blank) restores the shipped wording. */
@@ -38,10 +38,9 @@ const DEFAULT_MEMORY = true;
 export const AI_CONSENT_VERSION = 2;
 
 // Consent counts only for the current wording, so a bumped version re-shows the gate without touching anything else.
-export function hasCurrentAiConsent(state: {
-  aiConsentAcceptedAt: number | null;
-  aiConsentVersion: number | null;
-}): boolean {
+export function hasCurrentAiConsent(
+  state: Pick<SettingsState, "aiConsentAcceptedAt" | "aiConsentVersion">,
+): boolean {
   return (
     state.aiConsentAcceptedAt !== null &&
     state.aiConsentVersion !== null &&
