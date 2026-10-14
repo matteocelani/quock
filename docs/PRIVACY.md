@@ -1,7 +1,7 @@
 # Privacy Policy — Quock
 
-**Effective date**: 2026-06-03
-**Version**: 0.2 (alpha)
+**Effective date**: 2026-10-14
+**Version**: 0.3 (alpha)
 **Document language**: English (controlling).
 
 > [!IMPORTANT]
@@ -16,8 +16,9 @@
 
 - **There is no Quock server.** The Author does not operate any backend infrastructure that receives, stores, or processes Your personal data.
 - **All Your conversations stay on Your device** (an SQLite database in Your iOS or Android app sandbox).
-- **The only data that leaves Your device is the message You actively send.** It goes directly to Ollama Cloud over an HTTPS connection, signed with a per-device cryptographic key.
-- **We don't track You.** No analytics, no advertising, no crash reporters, no behavioral profiling. Today (v0.2) Quock makes zero outbound calls that aren't a direct request to Ollama on Your behalf.
+- **The only data that leaves Your device is what You actively send, with the context it needs.** Each message travels with the earlier turns of that chat and, while memory is on, the facts Quock remembers about You. It goes directly to Ollama Cloud over an HTTPS connection, signed with a per-device cryptographic key.
+- **Memory (on by default).** Quock can remember a short list of lasting facts You share (such as Your name, Your job or how You like answers) so later chats don't start from zero. The facts are stored only on Your device and travel to Ollama Cloud with every message You send while memory is on. Turning memory off in **Settings → Chat** stops using them but keeps them; **revoking consent deletes them**.
+- **We don't track You.** No analytics, no advertising, no crash reporters, no profiling for advertising or analytics. The only picture of You that Quock keeps is the remembered facts above, stored on Your device and used solely to shape the AI's replies to You. Today Quock makes zero outbound calls that aren't a direct request to Ollama on Your behalf.
 - Ollama, Inc. is a separate data controller for whatever they do server-side. **Read [Ollama's Privacy Policy](https://ollama.com/privacy)** for the cloud-side picture.
 
 ---
@@ -40,12 +41,15 @@ The honest answer is *almost none*. The categories below are the complete list. 
 | **Ed25519 device keypair** (public + secret) | `expo-secure-store` (iOS Keychain / Android Keystore), on-device | To authenticate Your requests to Ollama Cloud without passwords | Public key only, during request signing | Never |
 | **Chat history** (messages, attachments) | Local SQLite database, on-device | To let You scroll past conversations | Not as a database — but each send replays the earlier turns from it, so their text and attachments travel again | Never |
 | **Text read from a document** (its PDF text layer, or on-device OCR when it has none) | Local SQLite, beside the attachment | To let the model read a document You attached | Yes — and replayed with every later message in that chat. On a vision-capable model the rendered pages travel as images too, within a byte budget | Never |
-| **App preferences** (theme, default model, haptics) | MMKV, on-device | To remember Your settings | No | Never |
+| **Remembered facts** (memory: short facts about You that the AI chose to keep, such as Your name, preferences or ongoing projects, each one sentence with the date it was saved) | Local SQLite, on-device, kept separately for each Ollama account | So the AI can tailor its replies across chats without You repeating Yourself | Yes, while memory is on: every remembered fact travels with every message You send, in every chat, marked as notes about You and not as instructions. While memory is off, none are sent | Never |
+| **App preferences** (theme, default model, haptics, memory on/off) | MMKV, on-device | To remember Your settings | No | Never |
 | **The message You're currently sending** | RAM, then HTTPS body to Ollama | To get an AI response | **Yes — that's the point** | Never |
 | **The AI response** | RAM, then SQLite once committed | To show You the answer and let You scroll back | No (Ollama already has it; Quock receives, does not echo) | Never |
 | **Account email + name** (returned by `/api/me`) | RAM + SQLite (cached) | To show You who is signed in | Already known by Ollama (You created the account with them) | Never |
 
 Reading a document happens entirely on Your device: its text layer is parsed locally, and OCR runs locally when there is no text layer. What travels is the result, as message content, on the terms in the table above.
+
+Memory works the same way: the AI proposes a fact while it answers, and Quock decides on Your device whether to keep it. A fact can come only from what You write: Quock refuses to save one in any chat where the AI has read a web page or search result, and in any chat that contains an attached file or image, because every later message in that chat carries that text along again; so text You did not write cannot plant a fact about You. The list is small; when it is full, the oldest fact makes room for the newest. To see what is remembered, ask the AI what it remembers about You; to remove a fact, ask it to forget it. Turning memory off stops facts being saved or sent but does not delete them, and turning it back on brings them back.
 
 Quock collects **no** advertising identifier, **no** crash reporting telemetry (today; see Section 8 on potential future inclusions), **no** behavioral analytics, **no** location data, **no** contacts, **no** photos beyond what You explicitly attach to a single message.
 
@@ -55,13 +59,14 @@ For users in the European Economic Area, the United Kingdom, Switzerland, and ot
 
 - **Performance of a contract (Art. 6(1)(b) GDPR)** — sending Your message to Ollama is necessary to deliver the service You requested by tapping "send".
 - **Legitimate interest (Art. 6(1)(f) GDPR)** — storing Your chat history on Your device serves Your interest in having a usable chat app. The processing is local, has no recipient outside Your device, and a balancing test against Your fundamental rights and freedoms favours the processing.
+- **Legitimate interest (Art. 6(1)(f) GDPR), for memory** — keeping a few remembered facts about You serves Your interest in an assistant that does not make You repeat Yourself. The facts are stored only on Your device, their only recipient is Ollama (which already received the messages they came from), and You can object at any time by turning memory off. A balancing test favours the processing.
 - **Consent (Art. 6(1)(a) GDPR)** — to the extent any future telemetry or analytics is introduced, it will be opt-in only and require Your explicit, informed, freely-given, withdrawable consent. None is collected today.
 
 ## 4. Where does data go?
 
 | Recipient | What | How | Where in the world |
 |---|---|---|---|
-| **Ollama, Inc.** | The message You send (text + any attached image/file) | Direct HTTPS POST from Your device to `https://ollama.com/api/chat`, signed with Your device public key | United States — Ollama's infrastructure |
+| **Ollama, Inc.** | The message You send (text + any attached image/file), the earlier turns of that chat, and, while memory is on, the facts Quock remembers about You | Direct HTTPS POST from Your device to `https://ollama.com/api/chat`, signed with Your device public key | United States — Ollama's infrastructure |
 | **Apple / Google** | Platform-level telemetry that the OS collects for **all** apps (e.g. App Store usage stats, crash counts if You haven't disabled them in Settings) | Out of Quock's control | According to each platform's policy |
 | **Author** | Nothing | — | — |
 
@@ -69,7 +74,7 @@ For users in the European Economic Area, the United Kingdom, Switzerland, and ot
 
 ## 5. Retention
 
-- **On Your device**: as long as You keep Quock installed and have not used the "Clear all chats" action in Settings. Uninstalling Quock removes the SQLite database, the MMKV preferences, and the Ed25519 keypair from Your device permanently.
+- **On Your device**: chats, as long as You keep Quock installed and have not used the "Clear all chats" action in Settings. Remembered facts, until the oldest makes room for a newer one, until You ask the AI to forget one, or until You revoke consent (**About → AI data sharing**); clearing chats, signing out, or turning memory off keeps them. Uninstalling Quock removes the SQLite database (remembered facts included), the MMKV preferences, and the Ed25519 keypair from Your device permanently.
 - **Server-side**: not applicable. The Author retains nothing.
 - **At Ollama**: governed by Ollama's policy.
 
@@ -77,12 +82,12 @@ For users in the European Economic Area, the United Kingdom, Switzerland, and ot
 
 Under GDPR (EU/EEA), UK GDPR, the Italian *Codice Privacy* (D.Lgs. 196/2003 as amended), the French *Loi Informatique et Libertés*, the California Consumer Privacy Act / CPRA, and other comparable regimes, You have rights including:
 
-- **Access** — the right to know what data the Author processes about You. **Answer: nothing on the Author's side.**
-- **Rectification** — the right to correct inaccurate data. **Quock holds none.** Adjust profile data with Ollama; Your local chat history is editable on-device (delete + retry / regenerate).
-- **Erasure ("right to be forgotten")** — the right to deletion. **Uninstall the app** (immediate, complete, irreversible) or use **Settings → Clear all chats** for a softer erasure that keeps Your preferences. For data Ollama holds, contact Ollama.
+- **Access** — the right to know what data the Author processes about You. **Answer: nothing on the Author's side.** The facts Quock remembers stay on Your device; ask the AI what it remembers about You to see them.
+- **Rectification** — the right to correct inaccurate data. **The Author holds none.** Adjust profile data with Ollama; Your local chat history is editable on-device (delete + retry / regenerate). To correct a wrong remembered fact, tell the AI; it can forget the fact and save the correct one. This depends on the model doing so; revoking consent always deletes every fact.
+- **Erasure ("right to be forgotten")** — the right to deletion. **Uninstall the app** (immediate, complete, irreversible); use **Settings → Clear all chats** for a softer erasure that keeps Your preferences and remembered facts; or **revoke consent** (**About → AI data sharing**), which deletes every chat and remembered fact on the device and signs You out. To remove a single remembered fact, ask the AI to forget it. For data Ollama holds, contact Ollama.
 - **Restriction** — the right to limit processing. **The Author processes none, so there is nothing to restrict.** You may limit what Ollama does only through Ollama.
 - **Portability** — the right to receive Your data in a structured machine-readable format. **Quock's chat history lives in a standard SQLite file** on Your device; You can extract it via iOS / Android backup tooling. The Author does not currently provide an in-app export; if You need one, please open an issue.
-- **Objection** — the right to object to processing based on legitimate interest. **You can object by uninstalling.** No automated decision-making with legal or similarly significant effects is performed by Quock.
+- **Objection** — the right to object to processing based on legitimate interest. **You can object by uninstalling**, or to memory alone by turning it off in **Settings → Chat**. No automated decision-making with legal or similarly significant effects is performed by Quock.
 - **Withdraw consent** — for any future consent-based processing You may have opted into. **None today.**
 - **Lodge a complaint** with Your national supervisory authority. For Italy: [Garante per la protezione dei dati personali](https://www.garanteprivacy.it/). For France: [CNIL](https://www.cnil.fr/). For the UK: [ICO](https://ico.org.uk/). For other EU member states: the [EDPB list](https://edpb.europa.eu/about-edpb/about-edpb/members_en). For California residents: the [California Attorney General](https://oag.ca.gov/privacy).
 

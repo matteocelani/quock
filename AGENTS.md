@@ -6,7 +6,7 @@ Single source of truth for any AI coding agent operating on this repository (Cla
 
 ## Project
 
-Quock is a community-built mobile client for **Ollama Cloud**. React Native + Expo, iOS + Android. The user signs in with an `ollama.com` account, picks a cloud-hosted model, and chats with streaming responses. Conversations persist locally in SQLite — the cloud only sees the message currently in flight.
+Quock is a community-built mobile client for **Ollama Cloud**. React Native + Expo, iOS + Android. The user signs in with an `ollama.com` account, picks a cloud-hosted model, and chats with streaming responses. Conversations, and the few facts the model remembers about the user, persist locally in SQLite — the cloud only sees the request currently in flight (the message, its chat's replayed history, and the remembered facts while memory is on).
 
 Quock is **not affiliated with Ollama, Inc.** It is an unofficial third-party client, distributed under MIT with the original Ollama copyright preserved.
 
