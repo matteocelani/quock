@@ -1,7 +1,8 @@
-// Confirmation-gated AI-data revoke (wipe chats, sign out, clear consent), extracted from AiDataView so the
+// Confirmation-gated AI-data revoke (wipe chats and memory, sign out, clear consent), extracted from AiDataView so the
 // destructive action never fires on a stray tap and the published dialog node keeps a stable identity.
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useDb } from "@/lib/contexts/DbContext";
 import { useToast } from "@/lib/hooks/useToast";
 import { useSettingsStore } from "@/lib/stores/settings.store";
 import { useUIStore } from "@/lib/stores/ui.store";
@@ -12,12 +13,13 @@ export interface UseRevokeAiConsentResult {
   isConfirmOpen: boolean;
   openConfirm: () => void;
   closeConfirm: () => void;
-  // Dismiss the dialog, then wipe + sign out + clear consent + close the sheet.
+  // Dismiss the dialog, then wipe chats and memory + sign out + clear consent + close the sheet.
   confirmRevoke: () => void;
 }
 
 export function useRevokeAiConsent(): UseRevokeAiConsentResult {
   const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
+  const { memory } = useDb();
   const { clearDeviceData } = useDeleteDeviceData();
   const { signOut } = useSignOut();
   const revokeAiConsent = useSettingsStore((s) => s.revokeAiConsent);
@@ -47,8 +49,12 @@ export function useRevokeAiConsent(): UseRevokeAiConsentResult {
     setIsConfirmOpen(false);
     void (async (): Promise<void> => {
       try {
+        // Facts first, so the VACUUM at the end of the chat wipe also reclaims the pages they sat on.
+        await memory.clearAllDevice();
         await clearDeviceDataRef.current();
         await signOutRef.current();
+        // Again after sign-out: a reply still streaming may have saved a fact while the wipe ran.
+        await memory.clearAllDevice();
       } catch (err) {
         console.warn("useRevokeAiConsent: revoke reset failed", err);
         toastRef.current({ title: "Could not complete the reset", tone: "error" });
@@ -57,7 +63,7 @@ export function useRevokeAiConsent(): UseRevokeAiConsentResult {
       revokeAiConsentRef.current();
       closeAccountRef.current();
     })();
-  }, []);
+  }, [memory]);
   return useMemo<UseRevokeAiConsentResult>(
     () => ({ isConfirmOpen, openConfirm, closeConfirm, confirmRevoke }),
     [isConfirmOpen, openConfirm, closeConfirm, confirmRevoke],

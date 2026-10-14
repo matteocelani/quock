@@ -205,7 +205,7 @@ export function ClearChatsChooser({
           <ChoiceRow
             icon={Smartphone}
             label="All chats on this device"
-            hint="Everything saved on this phone"
+            hint="Every account's chats on this phone"
             bytes={deviceBytes}
             onPress={onChooseDevice}
             showDivider={false}
