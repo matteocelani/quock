@@ -8,9 +8,10 @@ import { useApi } from "@/lib/contexts/ApiContext";
 import { useDb } from "@/lib/contexts/DbContext";
 import { useStreamingStore } from "@/modules/chat/stores/streaming.store";
 import { useChatComposerModes } from "@/modules/chat/hooks/useChatComposerModes";
-import type { DbAttachment, DbMessage } from "@/lib/db/types";
+import type { DbAttachment, DbMemoryFact, DbMessage } from "@/lib/db/types";
 import type { AttachmentId, ChatId, MessageId } from "@/lib/types/ids";
 import {
+  useHasConfirmedToolsCapability,
   useHasThinkingCapability,
   useHasToolsCapability,
   useHasVisionCapability,
@@ -19,6 +20,7 @@ import { queryKeys } from "@/lib/hooks/queryKeys";
 import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import { useHaptics } from "@/lib/hooks/useHaptics";
 import { useToast } from "@/lib/hooks/useToast";
+import { useSettingsStore } from "@/lib/stores/settings.store";
 import { useChatModel } from "@/modules/models/hooks/useChatModel";
 import { runStream } from "@/modules/chat/lib/streamPipeline";
 import {
@@ -35,7 +37,9 @@ import {
   type PickFailure,
   type SendNotice,
 } from "@/modules/chat/lib/sendHelpers";
-import { WEB_TOOLS, type ToolDefinition } from "@/modules/chat/lib/tools";
+import { hasUntrustedHistory } from "@/modules/chat/lib/memoryGate";
+import { withMemoryMessage } from "@/modules/chat/lib/memoryPrompt";
+import { chooseTools } from "@/modules/chat/lib/tools";
 import {
   closePdfRender,
   extractPdfText,
@@ -77,10 +81,12 @@ export interface UseSendMessageResult {
 
 export function useSendMessage(chatId: ChatId): UseSendMessageResult {
   const { client } = useApi();
-  const { chats, messages, attachments } = useDb();
+  const { chats, messages, attachments, memory } = useDb();
   const { model } = useChatModel(chatId);
   const hasVision = useHasVisionCapability(model?.name);
   const hasTools = useHasToolsCapability(model?.name);
+  const hasConfirmedTools = useHasConfirmedToolsCapability(model?.name);
+  const isMemoryEnabled = useSettingsStore((s) => s.isMemoryEnabled);
   const hasThinking = useHasThinkingCapability(model?.name);
   // Sticky modes persisted per chat. Thinking is OPTIONAL: only an explicit on (and a thinking-capable model)
   // forces `think: true`; otherwise the flag is omitted so the model decides. Applied uniformly to every path.
@@ -114,15 +120,34 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
   const abort = React.useCallback((): void => {
     ctxAbort(chatId);
   }, [ctxAbort, chatId]);
-  // Thin wrapper: builds the RunStreamContext once per call and delegates to the pipeline module.
+  // Thin wrapper: adds the memory block and the tool set, builds the RunStreamContext once per call, delegates to the pipeline.
   const runStreamWithContext = React.useCallback(
     async (
       modelName: string,
       assistantId: MessageId,
-      wireMessages: WireChatMessage[],
+      history: WireChatMessage[],
       think: boolean | undefined,
-      tools: readonly ToolDefinition[] | undefined,
+      isWebOn: boolean,
+      hasUntrustedContext: boolean,
     ): Promise<void> => {
+      // Memory is best-effort: an unreadable store sends the turn exactly as memory-off would, never fails it.
+      let facts: DbMemoryFact[] = [];
+      let isMemoryOn = isMemoryEnabled;
+      if (isMemoryOn) {
+        try {
+          facts = await memory.list();
+        } catch (err) {
+          console.warn("useSendMessage: memory read failed", err);
+          isMemoryOn = false;
+        }
+      }
+      // Memory tools ride every send, so only a server-confirmed capability may carry them, and never into a chat whose
+      // replayed attachments or web-derived answers could be steering the model.
+      const canEditMemory =
+        isMemoryOn && hasConfirmedTools && !hasUntrustedContext;
+      const wireMessages = isMemoryOn
+        ? withMemoryMessage(history, facts, canEditMemory)
+        : history;
       await runStream(
         {
           client,
@@ -141,7 +166,8 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         assistantId,
         wireMessages,
         think,
-        tools,
+        chooseTools(isWebOn, canEditMemory),
+        canEditMemory ? { store: memory, hasUntrustedContext } : undefined,
       );
     },
     [
@@ -149,6 +175,9 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       client,
       endStream,
       haptics,
+      hasConfirmedTools,
+      memory,
+      isMemoryEnabled,
       messages,
       queryClient,
       setReasoning,
@@ -459,17 +488,22 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       // Replay the full history each send (`/api/chat` is stateless), read from SQLite because a cold cache (sending in a
       // just-opened chat) would replay EMPTY. Every user turn re-folds its own rows, so a PDF three questions back is there.
       let wireMessages: WireChatMessage[];
+      let hasUntrustedContext = false;
       try {
         const dbForWire = await messages.listByChat(chatId);
         const attachmentRows = await attachments.listByChatForWire(
           chatId,
           hasVision,
         );
-        const wire = toWireHistory(
-          dbForWire.filter((m) => m.id !== placeholderAssistant.id),
-          attachmentRows,
-          hasVision,
+        const history = dbForWire.filter(
+          (m) => m.id !== placeholderAssistant.id,
         );
+        // Any replayed document, image or web-derived answer is text the user did not type, so memory stays read-only.
+        hasUntrustedContext = hasUntrustedHistory(
+          history,
+          attachmentRows.length,
+        );
+        const wire = toWireHistory(history, attachmentRows, hasVision);
         wireMessages = wire.messages;
         if (wire.isTruncated) {
           notices.push({
@@ -491,8 +525,9 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         wireMessages,
         // Thinking is optional: force it on only when the chat's preference is on AND the model supports it; otherwise omit the flag so the model decides for itself.
         forceThink || undefined,
-        // Grant the web tools when web search is on and the model supports tools.
-        input.webSearch === true && hasTools ? WEB_TOOLS : undefined,
+        // Web tools when web search is on and the model supports tools.
+        input.webSearch === true && hasTools,
+        hasUntrustedContext,
       );
     },
     [
@@ -563,12 +598,17 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
 
       // Wire history for regenerate: every turn UP TO AND INCLUDING the user message we're re-asking. `headSlice` already excludes the assistant turn being replaced.
       let wireMessages: WireChatMessage[];
+      let hasUntrustedContext = false;
       try {
-        const wire = toWireHistory(
-          headSlice,
-          await attachments.listByChatForWire(chatId, hasVision),
+        const attachmentRows = await attachments.listByChatForWire(
+          chatId,
           hasVision,
         );
+        hasUntrustedContext = hasUntrustedHistory(
+          headSlice,
+          attachmentRows.length,
+        );
+        const wire = toWireHistory(headSlice, attachmentRows, hasVision);
         wireMessages = wire.messages;
         if (wire.isTruncated) {
           toast({
@@ -588,7 +628,8 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         // Thinking: force on only if the chat's preference is on and supported; otherwise omit so the model decides.
         forceThink || undefined,
         // Web search is sticky: regenerate with it when it's currently on (and supported), so retrying for a better answer keeps searching.
-        webSearchEnabled && hasTools ? WEB_TOOLS : undefined,
+        webSearchEnabled && hasTools,
+        hasUntrustedContext,
       );
     },
     [
@@ -662,12 +703,17 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       );
 
       let wireMessages: WireChatMessage[];
+      let hasUntrustedContext = false;
       try {
-        const wire = toWireHistory(
-          headSlice,
-          await attachments.listByChatForWire(chatId, hasVision),
+        const attachmentRows = await attachments.listByChatForWire(
+          chatId,
           hasVision,
         );
+        hasUntrustedContext = hasUntrustedHistory(
+          headSlice,
+          attachmentRows.length,
+        );
+        const wire = toWireHistory(headSlice, attachmentRows, hasVision);
         wireMessages = wire.messages;
         if (wire.isTruncated) {
           toast({
@@ -687,7 +733,8 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         // Thinking: force on only if the chat's preference is on and supported; otherwise omit so the model decides.
         forceThink || undefined,
         // Web search is sticky: retry with it when it's currently on (and supported).
-        webSearchEnabled && hasTools ? WEB_TOOLS : undefined,
+        webSearchEnabled && hasTools,
+        hasUntrustedContext,
       );
     },
     [
@@ -775,10 +822,19 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       // The edited turn goes THROUGH the builder rather than being appended by hand: hand-building it left its own
       // documents and images out, so editing a prompt that carried a PDF re-asked the question without the PDF.
       let wireMessages: WireChatMessage[];
+      let hasUntrustedContext = false;
       try {
+        const attachmentRows = await attachments.listByChatForWire(
+          chatId,
+          hasVision,
+        );
+        hasUntrustedContext = hasUntrustedHistory(
+          [...headSlice, editedUser],
+          attachmentRows.length,
+        );
         const editedWire = toWireHistory(
           [...headSlice, { ...userMessage, content: newContent }],
-          await attachments.listByChatForWire(chatId, hasVision),
+          attachmentRows,
           hasVision,
         );
         wireMessages = editedWire.messages;
@@ -799,7 +855,8 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         wireMessages,
         // Edit re-runs honoring the chat's sticky modes (matches a fresh send): force think only if on+supported, web search when on+supported.
         forceThink || undefined,
-        webSearchEnabled && hasTools ? WEB_TOOLS : undefined,
+        webSearchEnabled && hasTools,
+        hasUntrustedContext,
       );
     },
     [

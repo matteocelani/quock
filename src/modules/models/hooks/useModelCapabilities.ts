@@ -104,3 +104,12 @@ export function useHasToolsCapability(
   const capabilities = useModelCapabilities(modelName);
   return capabilities.includes(TOOLS_CAPABILITY);
 }
+
+// Memory tools ride on every send, so they trust only the server: a wrong name guess would fail every message, not one
+// opted-in search. False while /api/show loads, after it fails, or when only the heuristic knows.
+export function useHasConfirmedToolsCapability(
+  modelName: string | undefined,
+): boolean {
+  const apiCapabilities = useApiCapabilities(modelName);
+  return apiCapabilities !== null && apiCapabilities.includes(TOOLS_CAPABILITY);
+}
