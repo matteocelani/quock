@@ -68,9 +68,11 @@ export const COMPOSER_MAX_LINES = 8;
 export const ATTACH_SHEET_SNAP = "25%" as const;
 // Taller snap when the model exposes tool toggles (web search, thinking) so the Tools section clears the safe area — 37% covers the sheet card's internal home-indicator padding on 812-874pt devices (33% left the second tool row ~15pt inside the safe-area band).
 export const ATTACH_SHEET_SNAP_WITH_TOOLS = "37%" as const;
-// Web search: results per query (Ollama default 5, max 10) and a ceiling on agentic tool rounds so a misbehaving model can't loop forever.
+// Web search: results per query (Ollama default 5, max 10).
 export const WEB_SEARCH_MAX_RESULTS = 5;
-export const WEB_SEARCH_MAX_TOOL_ROUNDS = 4;
+// One ceiling for every agentic tool round (web and memory share the loop); one over the old web-only 4 so a memory call
+// never costs web search a round.
+export const TOOL_MAX_ROUNDS = 5;
 export const CHAT_HISTORY_SHEET_SNAP = "75%" as const;
 // Select-text sheet: tall so a long reply is comfortable to read and select.
 export const SELECT_TEXT_SHEET_SNAP = "85%" as const;
@@ -98,3 +100,14 @@ export const EXCERPT_GLOW_LAP_MS = 3200;
 // Longest gap between two chunks of one streamed answer before the connection is treated as dead. Deliberately under
 // the 60s URLSession applies on iOS: whichever fires first owns the error, and the platform's arrives unclassifiable.
 export const STREAM_READ_DEADLINE_MS = 45_000;
+
+// Memory: every fact rides on every message, so the cap is a prompt budget (~1.3k tokens typical, ~3.5k worst case
+// when full), not a storage one; the oldest fact makes room for a new one.
+export const MEMORY_MAX_FACTS = 50;
+// Code points; a longer fact is rejected back to the model, never truncated. One plain sentence even in Italian or German.
+export const MEMORY_FACT_MAX_CHARS = 200;
+// Successful remember_fact calls per reply; forget is not counted so "forget everything about me" works in one go.
+export const MEMORY_MAX_SAVES_PER_TURN = 2;
+// A digit run or an unbroken token this long reads as a card number or a key, so the fact is refused, not saved.
+export const MEMORY_SECRET_MIN_DIGITS = 12;
+export const MEMORY_SECRET_MIN_TOKEN_CHARS = 32;

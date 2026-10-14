@@ -27,14 +27,17 @@ import {
   releaseBackgroundAssertion,
 } from "@/modules/chat/lib/backgroundAssertion";
 import {
+  executeMemoryCall,
   executeToolCall,
+  isMemoryToolCall,
+  type MemoryRun,
   type ToolDefinition,
   type WireToolCall,
 } from "@/modules/chat/lib/tools";
 import {
   DB_FLUSH_MS,
   REACT_FLUSH_MS,
-  WEB_SEARCH_MAX_TOOL_ROUNDS,
+  TOOL_MAX_ROUNDS,
 } from "@/modules/chat/constants";
 import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import type {
@@ -64,6 +67,8 @@ interface StreamBuffers {
   hasStreamedToken: boolean;
   // Set when a web tool call throws (auth/network) so the completed bubble can show a non-fatal "Web search unavailable" note. The model still answers from what it has.
   webSearchFailed: boolean;
+  // A web tool ran in this reply: memory turns read-only for the rest of it, and the row keeps the chat read-only later.
+  hasReadWeb: boolean;
 }
 
 // Everything the pipeline needs from the React side. Threading these as a context object (instead of a 9-arg signature) keeps `useSendMessage` readable when wiring the call.
@@ -95,6 +100,8 @@ function toolActivityTerm(call: WireToolCall): string {
   return typeof term === "string" ? term : "";
 }
 
+// Markdown paragraph break between the text of two tool rounds in one bubble.
+const ROUND_SEPARATOR = "\n\n";
 const THINK_OPEN = "<think>";
 const THINK_CLOSE = "</think>";
 // Some models (e.g. kimi-k2.x) stream reasoning INLINE as <think>…</think> in the content field (sometimes a
@@ -157,6 +164,7 @@ export async function runStream(
   wireMessages: WireChatMessage[],
   think: boolean | undefined,
   tools: readonly ToolDefinition[] | undefined,
+  memory?: MemoryRun,
 ): Promise<void> {
   const {
     client,
@@ -202,6 +210,7 @@ export async function runStream(
     pendingReactTimer: null,
     hasStreamedToken: false,
     webSearchFailed: false,
+    hasReadWeb: false,
   };
   // Reasoning shown to the UI = dedicated `thinking` channel + any inline <think> parsed from content. Models use one or the other, so this is just whichever is non-empty.
   const effectiveThinking = (): string | null => {
@@ -221,6 +230,7 @@ export async function runStream(
         status,
         errorCode,
         webSearchFailed: buffers.webSearchFailed,
+        hasReadWeb: buffers.hasReadWeb,
       });
     } catch (err) {
       console.error("runStream: status write failed:", err);
@@ -237,6 +247,7 @@ export async function runStream(
         status,
         errorCode,
         webSearchFailed: buffers.webSearchFailed,
+        hasReadWeb: buffers.hasReadWeb,
         updatedAt: Date.now(),
       };
       return { ...prev, messages: list };
@@ -336,12 +347,16 @@ export async function runStream(
   let tokenCount = 0;
   let turnMessages = wireMessages;
   let round = 0;
+  let savedThisTurn = 0;
+  // Where the current round's text begins in `rawContent`, so its tool-call turn re-sends that round's words only.
+  let roundRawStart = 0;
   // Claimed while still in the foreground — the grace clock starts at backgrounding, not here — and immediately
   // before the try, so nothing between the claim and the finally that releases it can throw.
   holdBackgroundAssertion();
   try {
     while (true) {
       const pendingToolCalls: WireToolCall[] = [];
+      roundRawStart = buffers.rawContent.length;
       const events: AsyncGenerator<ChatEventUnion> = sendChatMessage(client, {
         chatId,
         messages: turnMessages,
@@ -361,6 +376,15 @@ export async function runStream(
         switch (event.eventName) {
           case "chat": {
             if (event.content) {
+              // A later round opens a new paragraph: glued on, "Nice to meet you!" ran straight into the next answer.
+              if (
+                round > 0 &&
+                buffers.rawContent.length === roundRawStart &&
+                buffers.content.length > 0
+              ) {
+                buffers.rawContent += ROUND_SEPARATOR;
+                roundRawStart = buffers.rawContent.length;
+              }
               buffers.rawContent += event.content;
               // Re-derive the visible answer + inline reasoning from the full raw buffer (tolerant of tags split across chunks).
               const split = splitInlineThink(buffers.rawContent);
@@ -431,37 +455,65 @@ export async function runStream(
       // Turn finished. No tool calls -> the model produced its final answer.
       if (pendingToolCalls.length === 0) break;
       // Safety cap so a model that keeps requesting tools can't loop forever.
-      if (round >= WEB_SEARCH_MAX_TOOL_ROUNDS) break;
+      if (round >= TOOL_MAX_ROUNDS) break;
       // Record the assistant turn that asked for the tools, then run each and append its result for the next turn.
+      // Only this round's words: earlier rounds already sit in their own turns, and the whole buffer would repeat them.
       turnMessages = [
         ...turnMessages,
         {
           role: "assistant",
-          content: buffers.content,
+          content: splitInlineThink(buffers.rawContent.slice(roundRawStart))
+            .content,
           tool_calls: pendingToolCalls,
         },
       ];
-      // Reset per round so the note reflects only the latest round: a recovered failure clears, while a failure
-      // the model gives up on (no later round) survives to show the note.
-      buffers.webSearchFailed = false;
+      // Reset only on a round that ran a web tool, so a recovered search clears the note while a memory-only round
+      // leaves an earlier failure standing.
+      if (pendingToolCalls.some((call) => !isMemoryToolCall(call))) {
+        buffers.webSearchFailed = false;
+      }
       for (const call of pendingToolCalls) {
         if (controller.signal.aborted) break;
-        setToolActivity(chatId, {
-          name: call.function.name,
-          query: toolActivityTerm(call),
-        });
+        const name = call.function.name;
         let result: string;
-        try {
-          result = await executeToolCall(client, call);
-        } catch (err) {
-          console.warn("[chat] tool call failed:", err);
-          // Surface a non-fatal note on the finished bubble; the model still answers from the failed tool result.
-          buffers.webSearchFailed = true;
-          result = `Tool ${call.function.name} failed.`;
+        if (!tools?.some((tool) => tool.function.name === name)) {
+          // Only what this request offered may run: memory alone must never let a guessed web_search reach the network.
+          result = `Tool ${name} is not available.`;
+        } else if (isMemoryToolCall(call)) {
+          // Silent by design: no activity line, and a rejection never raises the web-search note.
+          const outcome = memory
+            ? await executeMemoryCall(memory.store, call, {
+                hasUntrustedContext: memory.hasUntrustedContext,
+                hasRunWebTool: buffers.hasReadWeb,
+                savedThisTurn,
+              })
+            : { result: `Tool ${name} is not available.`, hasSaved: false };
+          if (outcome.hasSaved) savedThisTurn += 1;
+          result = outcome.result;
+        } else {
+          // Page text is in the context from here on, so memory turns read-only before the tool even answers. Stored at
+          // once, not only at the end, so a reply killed mid-stream still keeps the chat read-only when it replays.
+          if (!buffers.hasReadWeb) {
+            buffers.hasReadWeb = true;
+            await messages
+              .update(assistantId, { hasReadWeb: true })
+              .catch((err: unknown) => {
+                console.warn("[chat] read-web mark failed:", err);
+              });
+          }
+          setToolActivity(chatId, { name, query: toolActivityTerm(call) });
+          try {
+            result = await executeToolCall(client, call);
+          } catch (err) {
+            console.warn("[chat] tool call failed:", err);
+            // Surface a non-fatal note on the finished bubble; the model still answers from the failed tool result.
+            buffers.webSearchFailed = true;
+            result = `Tool ${name} failed.`;
+          }
         }
         turnMessages = [
           ...turnMessages,
-          { role: "tool", content: result, tool_name: call.function.name },
+          { role: "tool", content: result, tool_name: name },
         ];
       }
       setToolActivity(chatId, null);

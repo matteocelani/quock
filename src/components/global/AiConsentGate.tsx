@@ -1,5 +1,5 @@
 // First-launch AI data-sharing consent (Apple 5.1.2(i)): blocks the app until the user explicitly agrees their
-// messages leave for Ollama Cloud. Persisted in settings.store, so it appears once; re-readable in Settings.
+// messages leave for Ollama Cloud. Persisted in settings.store, so it appears once per consent wording (AI_CONSENT_VERSION); re-readable in Settings.
 
 import * as WebBrowser from "expo-web-browser";
 import React from "react";
@@ -11,21 +11,24 @@ import { Pressable } from "@/components/ui/Pressable";
 import QuockSvg from "@/assets/icons/Quock.svg";
 import { zLayer } from "@/lib/design/tokens";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
-import { useSettingsStore } from "@/lib/stores/settings.store";
+import {
+  hasCurrentAiConsent,
+  useSettingsStore,
+} from "@/lib/stores/settings.store";
 
 // Logo mark size on the consent screen; used only here.
 const CONSENT_LOGO_SIZE = 60;
 
 export function AiConsentGate(): React.ReactElement | null {
   const colors = useThemeColors();
-  const acceptedAt = useSettingsStore((s) => s.aiConsentAcceptedAt);
+  const hasConsent = useSettingsStore(hasCurrentAiConsent);
   const acceptAiConsent = useSettingsStore((s) => s.acceptAiConsent);
   const openExternal = React.useCallback((url: string): void => {
     WebBrowser.openBrowserAsync(url).catch((err: unknown) => {
       console.warn("AiConsentGate: openBrowserAsync failed", err);
     });
   }, []);
-  if (acceptedAt !== null) return null;
+  if (hasConsent) return null;
   return (
     <View
       className="absolute inset-0 bg-background"
@@ -65,6 +68,12 @@ export function AiConsentGate(): React.ReactElement | null {
               When you send a message, your text and any attachments are sent to
               Ollama Cloud — a third-party service — to generate the AI reply.
             </Text>
+            <Text className="font-sans text-body text-foreground mb-6">
+              Quock also remembers a few lasting facts you share, like your name
+              or your job, and sends them to Ollama Cloud with each message so
+              replies fit you. They&apos;re stored only on this device. You can
+              turn off Memory in Settings.
+            </Text>
             <Text className="font-sans text-body text-muted-foreground mb-7">
               Your chats are stored only on this device. Quock runs no servers of
               its own and collects no analytics or tracking.
@@ -90,8 +99,8 @@ export function AiConsentGate(): React.ReactElement | null {
             </View>
             <View className="flex-1" />
             <Text className="font-sans text-caption-1 text-muted-foreground text-center mb-4">
-              By continuing, you consent to your messages being sent to Ollama
-              Cloud for AI processing.
+              By continuing, you consent to your messages and remembered facts
+              being sent to Ollama Cloud for AI processing.
             </Text>
             <Button
               variant="primary"

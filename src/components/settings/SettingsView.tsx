@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
+import BookUser from "lucide-react-native/icons/book-user";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
 import Globe from "lucide-react-native/icons/globe";
 import Palette from "lucide-react-native/icons/palette";
@@ -62,6 +63,8 @@ export function SettingsView({
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
   const haptics = useSettingsStore((s) => s.hapticsEnabled);
   const setHapticsEnabled = useSettingsStore((s) => s.setHapticsEnabled);
+  const isMemoryEnabled = useSettingsStore((s) => s.isMemoryEnabled);
+  const setMemoryEnabled = useSettingsStore((s) => s.setMemoryEnabled);
   const {
     isChooserOpen,
     openChooser,
@@ -259,6 +262,16 @@ export function SettingsView({
             trailing={
               // §15 drill-in chevrons carry the tertiary label tint (external-link rows stay secondary).
               <ChevronRight size={iconSize.md} color={colors.labelTertiary} />
+            }
+          />
+          <ListRow
+            icon={BookUser}
+            label="Memory"
+            trailing={
+              <Switch
+                value={isMemoryEnabled}
+                onValueChange={setMemoryEnabled}
+              />
             }
           />
           <ListRow

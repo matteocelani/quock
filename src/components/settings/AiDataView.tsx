@@ -40,7 +40,7 @@ export function AiDataView({
       <ConfirmDialog
         visible={isConfirmOpen}
         title="Delete all data?"
-        message="This permanently erases every chat on this device and signs you out. It can't be undone."
+        message="This permanently erases every chat and remembered fact on this device and signs you out. It can't be undone."
         destructive
         confirmLabel="Delete everything"
         onConfirm={confirmRevoke}
@@ -89,6 +89,12 @@ export function AiDataView({
           — a third-party service — to generate the AI reply.
         </Text>
         <Text className="font-sans text-subhead text-muted-foreground mb-4">
+          Quock also remembers a few lasting facts you share, like your name or
+          your job, and sends them to Ollama Cloud with each message so replies
+          fit you. They&apos;re stored only on this device. You can turn off
+          Memory in Settings.
+        </Text>
+        <Text className="font-sans text-subhead text-muted-foreground mb-4">
           Your chats are stored only on this device. Quock runs no servers of its
           own and collects no analytics or tracking.
         </Text>
@@ -105,7 +111,7 @@ export function AiDataView({
           Revoking is a full reset of Quock on this device — it will:
         </Text>
         <Text className="font-sans text-subhead text-foreground">
-          1.  Delete every chat saved on this device
+          1.  Delete every chat and remembered fact on this device
         </Text>
         <Text className="font-sans text-subhead text-foreground">
           2.  Sign you out of your account

@@ -1,6 +1,6 @@
 // Repository-layer types, decoupled from `codegen/gotypes.gen.ts` so storage can evolve independently from the wire format.
 
-import type { AttachmentId, ChatId, MessageId } from "@/lib/types/ids";
+import type { AttachmentId, ChatId, FactId, MessageId } from "@/lib/types/ids";
 
 export type MessageRole = "user" | "assistant" | "tool";
 // Assistant lifecycle: pending -> streaming -> complete|error|interrupted. User and tool rows are always `complete`.
@@ -47,6 +47,8 @@ export interface DbMessage {
   // Modes active when a USER turn was sent — drives the small read-only indicators on the bubble. Always false on assistant/tool rows.
   sentWithThink: boolean;
   sentWithWebSearch: boolean;
+  // A web tool actually ran for this assistant turn (set on user turns only by the migration for older chats).
+  hasReadWeb: boolean;
 }
 
 export interface DbAttachment {
@@ -63,6 +65,13 @@ export interface DbAttachment {
   // Set when the app derived this row from another attachment (a rendered PDF page): shown to the model, hidden from
   // the bubble, since the user attached the document and not its pages.
   derivedFrom: AttachmentId | null;
+}
+
+// One durable note the model saved about the user. Account-scoped in storage; the account id never leaves the repository.
+export interface DbMemoryFact {
+  id: FactId;
+  content: string;
+  createdAt: number;
 }
 
 export interface ChatSummary {

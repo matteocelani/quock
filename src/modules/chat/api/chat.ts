@@ -35,7 +35,7 @@ export interface SendMessageOptions {
   model: string;
   // Forwarded verbatim to the request body. `think: false` is the explicit opt-out (Ollama defaults thinking ON when omitted); `think: true` must only be set on thinking-capable models or the server 400s.
   think?: boolean;
-  // Tool schemas the model may call this turn (web search). Sent only when the user enabled web search; the pipeline runs the calls and re-streams.
+  // Tool schemas the model may call this turn (web search, memory). The pipeline runs the calls and re-streams.
   tools?: readonly ToolDefinition[];
   signal?: AbortSignal;
 }

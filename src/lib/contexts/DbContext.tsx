@@ -6,11 +6,13 @@ import { AttachmentRepository } from "@/lib/db/attachmentRepository";
 import { ChatRepository } from "@/lib/db/chatRepository";
 import { openDb } from "@/lib/db/client";
 import { MessageRepository } from "@/lib/db/messageRepository";
+import { MemoryRepository } from "@/lib/db/memoryRepository";
 
 export interface DbContextValue {
   chats: ChatRepository;
   messages: MessageRepository;
   attachments: AttachmentRepository;
+  memory: MemoryRepository;
 }
 
 interface DbContextState {
@@ -38,6 +40,7 @@ function buildRepositories(
     chats: new ChatRepository(db, getUserId),
     messages: new MessageRepository(db),
     attachments: new AttachmentRepository(db),
+    memory: new MemoryRepository(db, getUserId),
   };
 }
 

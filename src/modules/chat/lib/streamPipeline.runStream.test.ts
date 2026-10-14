@@ -5,23 +5,40 @@ import { CloudAPIError } from "@/lib/api/errors";
 import type { MessageRepository } from "@/lib/db/messageRepository";
 import { queryKeys } from "@/lib/hooks/queryKeys";
 import type { UseHapticsResult } from "@/lib/hooks/useHaptics";
-import { asChatId, asMessageId } from "@/lib/types/ids";
+import type { DbMemoryFact } from "@/lib/db/types";
+import { asChatId, asFactId, asMessageId, type FactId } from "@/lib/types/ids";
 import {
   type ChatEventUnion,
   sendChatMessage,
   type WireChatMessage,
 } from "@/modules/chat/api/chat";
-import { WEB_SEARCH_MAX_TOOL_ROUNDS } from "@/modules/chat/constants";
+import { TOOL_MAX_ROUNDS } from "@/modules/chat/constants";
 import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import {
   type RunStreamContext,
   runStream,
 } from "@/modules/chat/lib/streamPipeline";
-import { executeToolCall, type WireToolCall } from "@/modules/chat/lib/tools";
+import { MEMORY_REPLIES } from "@/modules/chat/lib/memoryGate";
+import {
+  executeToolCall,
+  MEMORY_TOOLS,
+  type MemoryRun,
+  type ToolDefinition,
+  WEB_TOOLS,
+  type WireToolCall,
+} from "@/modules/chat/lib/tools";
 
-// The pipeline pulls turns off this generator and runs tool calls through this fn; both are stubbed.
+// The pipeline pulls turns off this generator and runs web calls through executeToolCall; both are stubbed, while the
+// memory routing in tools stays real so the pipeline's own gate wiring is what gets tested.
 jest.mock("@/modules/chat/api/chat", () => ({ sendChatMessage: jest.fn() }));
-jest.mock("@/modules/chat/lib/tools", () => ({ executeToolCall: jest.fn() }));
+jest.mock("@/modules/chat/api/webSearch", () => ({
+  webSearch: jest.fn(),
+  webFetch: jest.fn(),
+}));
+jest.mock("@/modules/chat/lib/tools", () => ({
+  ...jest.requireActual("@/modules/chat/lib/tools"),
+  executeToolCall: jest.fn(),
+}));
 
 const mockSendChat = sendChatMessage as jest.MockedFunction<typeof sendChatMessage>;
 const mockExecuteTool = executeToolCall as jest.MockedFunction<typeof executeToolCall>;
@@ -117,13 +134,77 @@ function tailMessage(queryClient: QueryClient) {
     content: string;
     status: string;
     webSearchFailed: boolean;
+    hasReadWeb: boolean;
   };
 }
 
 const USER_MESSAGES: WireChatMessage[] = [{ role: "user", content: "hi" }];
 
+// Web tools are offered by default: runStream only executes a tool the request actually offered.
 function run(ctx: RunStreamContext): Promise<void> {
-  return runStream(ctx, "kimi", ASSISTANT_ID, USER_MESSAGES, undefined, undefined);
+  return runStream(
+    ctx,
+    "kimi",
+    ASSISTANT_ID,
+    USER_MESSAGES,
+    undefined,
+    WEB_TOOLS,
+  );
+}
+
+function runWith(
+  ctx: RunStreamContext,
+  tools: readonly ToolDefinition[],
+  memory?: MemoryRun,
+): Promise<void> {
+  return runStream(
+    ctx,
+    "kimi",
+    ASSISTANT_ID,
+    USER_MESSAGES,
+    undefined,
+    tools,
+    memory,
+  );
+}
+
+function rememberCall(fact: string): WireToolCall {
+  return { function: { name: "remember_fact", arguments: { fact } } };
+}
+
+// An in-memory stand-in for MemoryRepository, since SQLite does not run under Jest.
+interface FakeMemory {
+  memory: MemoryRun;
+  add: jest.Mock;
+}
+
+function fakeMemory(): FakeMemory {
+  let rows: DbMemoryFact[] = [];
+  const add = jest.fn(async (content: string): Promise<DbMemoryFact> => {
+    const row = {
+      id: asFactId(rows.length + 1),
+      content,
+      createdAt: rows.length + 1,
+    };
+    rows = [...rows, row];
+    return row;
+  });
+  const memory: MemoryRun = {
+    store: {
+      list: async (): Promise<DbMemoryFact[]> => [...rows],
+      add,
+      remove: async (_id: FactId): Promise<boolean> => false,
+    },
+    hasUntrustedContext: false,
+  };
+  return { memory, add };
+}
+
+// Tool results fed back on the LAST stream, in order, so a test reads what the model was told.
+function toolResults(): string[] {
+  const calls = mockSendChat.mock.calls;
+  const last = calls[calls.length - 1][1].messages;
+  return last.filter((m) => m.role === "tool").map((m) => m.content);
 }
 
 describe("runStream tool-round loop", () => {
@@ -185,8 +266,10 @@ describe("runStream tool-round loop", () => {
       query: "ollama news",
     });
     expect(setToolActivity).toHaveBeenLastCalledWith(CHAT_ID, null);
-    // Content accumulates across rounds: the pre-tool narration stays in the bubble ahead of the answer.
-    expect(tailMessage(queryClient).content).toBe("Let me searchHere is the answer");
+    // Content accumulates across rounds: the pre-tool narration stays in the bubble, a paragraph ahead of the answer.
+    expect(tailMessage(queryClient).content).toBe(
+      "Let me search\n\nHere is the answer",
+    );
   });
 
   it("stops re-streaming once the round cap trips", async () => {
@@ -201,8 +284,8 @@ describe("runStream tool-round loop", () => {
     await run(ctx);
 
     // One final stream that still asked for tools but tripped the cap, hence cap + 1 streams / cap executions.
-    expect(mockSendChat).toHaveBeenCalledTimes(WEB_SEARCH_MAX_TOOL_ROUNDS + 1);
-    expect(mockExecuteTool).toHaveBeenCalledTimes(WEB_SEARCH_MAX_TOOL_ROUNDS);
+    expect(mockSendChat).toHaveBeenCalledTimes(TOOL_MAX_ROUNDS + 1);
+    expect(mockExecuteTool).toHaveBeenCalledTimes(TOOL_MAX_ROUNDS);
   });
 
   it("flags webSearchFailed when a tool throws but still completes the answer", async () => {
@@ -221,7 +304,7 @@ describe("runStream tool-round loop", () => {
       content: "Tool web_search failed.",
       tool_name: "web_search",
     });
-    expect(tailMessage(queryClient).content).toBe("searchingdone anyway");
+    expect(tailMessage(queryClient).content).toBe("searching\n\ndone anyway");
     expect(tailMessage(queryClient).webSearchFailed).toBe(true);
     expect(update).toHaveBeenLastCalledWith(
       ASSISTANT_ID,
@@ -245,6 +328,144 @@ describe("runStream tool-round loop", () => {
 
     expect(mockExecuteTool).toHaveBeenCalledTimes(2);
     expect(tailMessage(queryClient).webSearchFailed).toBe(false);
+  });
+
+  it("runs a memory call silently, without the web activity line or note", async () => {
+    scriptTurns([
+      [toolCallsEvent([rememberCall("Likes tea")])],
+      [chatEvent("Noted")],
+    ]);
+    const { ctx, queryClient, setToolActivity } = makeCtx();
+    const { memory, add } = fakeMemory();
+
+    await runWith(ctx, [...WEB_TOOLS, ...MEMORY_TOOLS], memory);
+
+    expect(add).toHaveBeenCalledWith("Likes tea", expect.any(Number));
+    expect(setToolActivity).not.toHaveBeenCalledWith(
+      CHAT_ID,
+      expect.objectContaining({ name: "remember_fact" }),
+    );
+    expect(toolResults()).toEqual(["Saved as id 1."]);
+    expect(mockExecuteTool).not.toHaveBeenCalled();
+    expect(tailMessage(queryClient).webSearchFailed).toBe(false);
+  });
+
+  it("keeps an earlier web failure standing through a memory-only round", async () => {
+    scriptTurns([
+      [toolCallsEvent([wsCall("q")])],
+      [toolCallsEvent([rememberCall("Likes tea")])],
+      [chatEvent("answer")],
+    ]);
+    mockExecuteTool.mockRejectedValue(new Error("network down"));
+    const { ctx, queryClient } = makeCtx();
+    const { memory } = fakeMemory();
+
+    await runWith(ctx, [...WEB_TOOLS, ...MEMORY_TOOLS], memory);
+
+    expect(tailMessage(queryClient).webSearchFailed).toBe(true);
+  });
+
+  it("makes memory read-only once a web tool has run in the reply", async () => {
+    scriptTurns([
+      [toolCallsEvent([wsCall("rome"), rememberCall("Lives in Rome")])],
+      [chatEvent("answer")],
+    ]);
+    mockExecuteTool.mockResolvedValue("[]");
+    const { ctx } = makeCtx();
+    const { memory, add } = fakeMemory();
+
+    await runWith(ctx, [...WEB_TOOLS, ...MEMORY_TOOLS], memory);
+
+    expect(add).not.toHaveBeenCalled();
+    expect(toolResults()).toEqual(["[]", MEMORY_REPLIES.readOnly]);
+  });
+
+  // Web search is on by default, so the switch alone must not lock memory: only a search that ran marks the reply.
+  it("marks the reply as having read the web only when a web tool ran", async () => {
+    scriptTurns([[toolCallsEvent([wsCall("q")])], [chatEvent("answer")]]);
+    mockExecuteTool.mockResolvedValue("[]");
+    const searched = makeCtx();
+    await runWith(
+      searched.ctx,
+      [...WEB_TOOLS, ...MEMORY_TOOLS],
+      fakeMemory().memory,
+    );
+    expect(searched.update).toHaveBeenCalledWith(ASSISTANT_ID, {
+      hasReadWeb: true,
+    });
+    expect(tailMessage(searched.queryClient).hasReadWeb).toBe(true);
+
+    scriptTurns([[chatEvent("no search needed")]]);
+    const unsearched = makeCtx();
+    await runWith(
+      unsearched.ctx,
+      [...WEB_TOOLS, ...MEMORY_TOOLS],
+      fakeMemory().memory,
+    );
+    expect(tailMessage(unsearched.queryClient).hasReadWeb).toBe(false);
+  });
+
+  it("never runs a web tool the request did not offer", async () => {
+    scriptTurns([[toolCallsEvent([wsCall("guess")])], [chatEvent("answer")]]);
+    const { ctx, setToolActivity } = makeCtx();
+    const { memory } = fakeMemory();
+
+    await runWith(ctx, MEMORY_TOOLS, memory);
+
+    expect(mockExecuteTool).not.toHaveBeenCalled();
+    expect(setToolActivity).not.toHaveBeenCalledWith(
+      CHAT_ID,
+      expect.objectContaining({ name: "web_search" }),
+    );
+    expect(toolResults()).toEqual(["Tool web_search is not available."]);
+  });
+
+  it("keeps each round's text apart in the bubble and in the replayed tool-call turns", async () => {
+    scriptTurns([
+      [chatEvent("Nice to meet you, Matteo!"), toolCallsEvent([rememberCall("Name is Matteo")])],
+      [chatEvent("Got it."), toolCallsEvent([rememberCall("Likes tea")])],
+      [chatEvent("Anything else?")],
+    ]);
+    const { ctx, queryClient } = makeCtx();
+    const { memory } = fakeMemory();
+
+    await runWith(ctx, MEMORY_TOOLS, memory);
+
+    expect(tailMessage(queryClient).content).toBe(
+      "Nice to meet you, Matteo!\n\nGot it.\n\nAnything else?",
+    );
+    const lastTurn = mockSendChat.mock.calls[2][1].messages;
+    expect(
+      lastTurn.filter((m) => m.role === "assistant").map((m) => m.content),
+    ).toEqual(["Nice to meet you, Matteo!", "Got it."]);
+  });
+
+  it("does not open a paragraph for a round when nothing visible came before it", async () => {
+    scriptTurns([
+      [toolCallsEvent([rememberCall("Likes tea")])],
+      [chatEvent("Noted")],
+    ]);
+    const { ctx, queryClient } = makeCtx();
+    const { memory } = fakeMemory();
+
+    await runWith(ctx, MEMORY_TOOLS, memory);
+
+    expect(tailMessage(queryClient).content).toBe("Noted");
+  });
+
+  it("caps successful saves per reply across rounds", async () => {
+    scriptTurns([
+      [toolCallsEvent([rememberCall("Likes tea"), rememberCall("Has a cat")])],
+      [toolCallsEvent([rememberCall("Plays chess")])],
+      [chatEvent("answer")],
+    ]);
+    const { ctx } = makeCtx();
+    const { memory, add } = fakeMemory();
+
+    await runWith(ctx, MEMORY_TOOLS, memory);
+
+    expect(add).toHaveBeenCalledTimes(2);
+    expect(toolResults()[2]).toBe(MEMORY_REPLIES.saveLimit);
   });
 
   it("does not tear down the stream that superseded it (edit-during-stream restart)", async () => {
