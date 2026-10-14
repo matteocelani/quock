@@ -88,6 +88,23 @@ const ADD_ATTACHMENT_DERIVED = `
   ALTER TABLE attachments ADD COLUMN derived_from INTEGER;
 `;
 
+// Facts the model keeps about each account, capped per account on insert, so a scan beats an index.
+// Numbered 19 because unmerged builds (a fork's release included) spent 12 to 18 on devices; never named `memories`.
+const ADD_MEMORY_FACTS = `
+  CREATE TABLE IF NOT EXISTS memory_facts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+`;
+// Marks a turn whose model read a web page or search result, so memory stays read-only while the chat replays it.
+// Older turns never recorded whether a search ran, so a user turn sent with web search on stands in for one.
+const ADD_MESSAGE_READ_WEB = `
+  ALTER TABLE messages ADD COLUMN read_web INTEGER NOT NULL DEFAULT 0;
+  UPDATE messages SET read_web = 1 WHERE role = 'user' AND sent_with_web_search = 1;
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { id: 1, up: INITIAL_SCHEMA },
   { id: 2, up: ADD_MESSAGE_STATUS },
@@ -99,6 +116,8 @@ export const MIGRATIONS: readonly Migration[] = [
   { id: 8, up: ADD_CHAT_USER },
   { id: 10, up: ADD_ATTACHMENT_TEXT },
   { id: 11, up: ADD_ATTACHMENT_DERIVED },
+  { id: 19, up: ADD_MEMORY_FACTS },
+  { id: 20, up: ADD_MESSAGE_READ_WEB },
 ];
 export const CURRENT_VERSION: number =
   MIGRATIONS.length > 0
