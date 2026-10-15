@@ -4,6 +4,7 @@
 import clsx from "clsx";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import Reanimated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 import PenLine from "lucide-react-native/icons/pen-line";
@@ -16,10 +17,12 @@ import { SheetHeader } from "@/components/ui/SheetHeader";
 import { useDb } from "@/lib/contexts/DbContext";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { withAlpha } from "@/lib/design/color";
+import { surfaceLayoutTransition } from "@/lib/design/motion";
 import { componentLayout, iconSize, opacity } from "@/lib/design/tokens";
 import { useChats } from "@/modules/chat/hooks/useChats";
 import { useDeleteChat } from "@/modules/chat/hooks/useDeleteChat";
 import { useRenameChat } from "@/modules/chat/hooks/useRenameChat";
+import { useUpdateChatPinned } from "@/modules/chat/hooks/useUpdateChatPinned";
 import { useToast } from "@/lib/hooks/useToast";
 import {
   formatRelativeTimestamp,
@@ -48,6 +51,7 @@ export function ChatHistoryPanel({
   const chatsQuery = useChats();
   const deleteChat = useDeleteChat();
   const renameChat = useRenameChat();
+  const updateChatPinned = useUpdateChatPinned();
   const toast = useToast();
   const db = useDb();
   const colors = useThemeColors();
@@ -137,6 +141,25 @@ export function ChatHistoryPanel({
       },
     });
   }, [deleteChat, pendingDelete, toast]);
+  // No toast on success: the row moving to or from Pinned is the confirmation.
+  const handlePin = useCallback(
+    (id: ChatId, isPinned: boolean): void => {
+      clearOpenSwipeable();
+      updateChatPinned.mutate(
+        { id, isPinned },
+        {
+          onError: (err: Error) => {
+            console.warn("ChatHistoryPanel: failed to update pin", err);
+            toast({
+              title: isPinned ? "Could not pin chat" : "Could not unpin chat",
+              tone: "error",
+            });
+          },
+        },
+      );
+    },
+    [clearOpenSwipeable, toast, updateChatPinned],
+  );
   const handleRename = useCallback((id: ChatId, currentTitle: string): void => {
     setRenamingId(id);
     setRenameValue(currentTitle);
@@ -220,42 +243,41 @@ export function ChatHistoryPanel({
           }}
         >
           <View>
-            {buckets.map((bucket, bucketIndex) => {
-              return (
-                <View key={bucket.label}>
-                  <Text
-                    // Below the kit's Body-17-semibold section header on purpose: chat titles are 17 themselves, so a
-                    // header at that size matches its content and the page flattens. 16pt inset shared with the rows.
-                    className={clsx(
-                      "font-sans font-semibold text-footnote text-label-tertiary mb-2",
-                      bucketIndex === 0 ? "mt-4.5" : "mt-6",
-                    )}
-                    style={{ paddingLeft: componentLayout.listSection.insetX }}
-                  >
-                    {bucket.label}
-                  </Text>
-                  {bucket.rows.map((chat) => {
-                    return (
-                      <ChatRow
-                        key={chat.id}
-                        chat={chat}
-                        // No hairlines here: the bucket headings already group the rows, and a full-bleed line is the
-                        // one element that stays pin-sharp while the page scales, so it fights the arrival.
-                        showDivider={false}
-                        trailingMeta={formatRelativeTimestamp(
-                          chat.updatedAt,
-                          now,
-                        )}
-                        onTap={handleSelect}
-                        onDelete={handleDelete}
-                        onRename={handleRename}
-                        onSwipeOpen={handleSwipeOpen}
-                      />
-                    );
-                  })}
-                </View>
-              );
-            })}
+            {/* Flat siblings, not one View per bucket, so a row keeps its key when pinning moves it and can glide there. */}
+            {buckets.flatMap((bucket, bucketIndex) => [
+              <Reanimated.View
+                key={`bucket-${bucket.label}`}
+                layout={surfaceLayoutTransition}
+              >
+                <Text
+                  // Below the kit's Body-17-semibold section header on purpose: chat titles are 17 themselves, so a
+                  // header at that size matches its content and the page flattens. 16pt inset shared with the rows.
+                  className={clsx(
+                    "font-sans font-semibold text-footnote text-label-tertiary mb-2",
+                    bucketIndex === 0 ? "mt-4.5" : "mt-6",
+                  )}
+                  style={{ paddingLeft: componentLayout.listSection.insetX }}
+                >
+                  {bucket.label}
+                </Text>
+              </Reanimated.View>,
+              ...bucket.rows.map((chat) => (
+                <Reanimated.View key={chat.id} layout={surfaceLayoutTransition}>
+                  <ChatRow
+                    chat={chat}
+                    // No hairlines here: the bucket headings already group the rows, and a full-bleed line is the
+                    // one element that stays pin-sharp while the page scales, so it fights the arrival.
+                    showDivider={false}
+                    trailingMeta={formatRelativeTimestamp(chat.updatedAt, now)}
+                    onTap={handleSelect}
+                    onDelete={handleDelete}
+                    onRename={handleRename}
+                    onPin={handlePin}
+                    onSwipeOpen={handleSwipeOpen}
+                  />
+                </Reanimated.View>
+              )),
+            ])}
           </View>
         </ScrollView>
       )}
