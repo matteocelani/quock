@@ -2,7 +2,9 @@
 
 import type { SQLiteDatabase } from "expo-sqlite";
 import {
+  asAttachmentId,
   asChatId,
+  type AttachmentId,
   type ChatId,
   type MessageId,
   newChatId,
@@ -27,6 +29,8 @@ interface ChatRow {
 interface IdRow {
   id: number;
 }
+
+type AttachmentCopy = readonly [source: AttachmentId, copy: AttachmentId];
 
 interface ChatSummaryRow {
   id: string;
@@ -194,43 +198,46 @@ export class ChatRepository {
     const id = newChatId();
     const now = Date.now();
     const userId = this.getUserId();
-    await this.db.withTransactionAsync(async () => {
-      const created = await this.db.runAsync(
+    await this.db.withExclusiveTransactionAsync(async (txn) => {
+      const created = await txn.runAsync(
         "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) SELECT ?, user_id, ?, ?, ?, NULL, model, think_enabled, web_search_enabled FROM chats WHERE id = ? AND user_id = ?",
         [id, title, now, now, sourceId, userId],
       );
       if (created.changes === 0) {
         throw new Error("ChatRepository.fork: source chat not found");
       }
-      const sourceMessages = await this.db.getAllAsync<IdRow>(
+      const sourceMessages = await txn.getAllAsync<IdRow>(
         "SELECT id FROM messages WHERE chat_id = ? AND id <= ? ORDER BY id ASC",
         [sourceId, upToMessageId],
       );
       // Every column is copied as stored, timestamps included, so the fork replays and sorts exactly like its source.
-      let copiedAttachments: readonly (readonly [number, number])[] = [];
+      let copiedAttachments: readonly AttachmentCopy[] = [];
       for (const message of sourceMessages) {
-        const copiedMessage = await this.db.runAsync(
+        const copiedMessage = await txn.runAsync(
           "INSERT INTO messages (chat_id, role, content, thinking, model, created_at, updated_at, thinking_time_start, thinking_time_end, status, error_code, web_search_failed, sent_with_think, sent_with_web_search, read_web) SELECT ?, role, content, thinking, model, created_at, updated_at, thinking_time_start, thinking_time_end, status, error_code, web_search_failed, sent_with_think, sent_with_web_search, read_web FROM messages WHERE id = ?",
           [id, message.id],
         );
-        const sourceAttachments = await this.db.getAllAsync<IdRow>(
+        const sourceAttachments = await txn.getAllAsync<IdRow>(
           "SELECT id FROM attachments WHERE message_id = ? ORDER BY id ASC",
           [message.id],
         );
         for (const attachment of sourceAttachments) {
-          const copiedAttachment = await this.db.runAsync(
+          const copiedAttachment = await txn.runAsync(
             "INSERT INTO attachments (message_id, filename, mime_type, data, uri, size_bytes, text_content, derived_from) SELECT ?, filename, mime_type, data, uri, size_bytes, text_content, derived_from FROM attachments WHERE id = ?",
             [copiedMessage.lastInsertRowId, attachment.id],
           );
           copiedAttachments = [
             ...copiedAttachments,
-            [attachment.id, copiedAttachment.lastInsertRowId],
+            [
+              asAttachmentId(attachment.id),
+              asAttachmentId(copiedAttachment.lastInsertRowId),
+            ],
           ];
         }
       }
       // A rendered PDF page still names its source's document; point it at the fork's copy, or the page would be orphaned.
       for (const [sourceAttachmentId, copyId] of copiedAttachments) {
-        await this.db.runAsync(
+        await txn.runAsync(
           "UPDATE attachments SET derived_from = ? WHERE derived_from = ? AND message_id IN (SELECT id FROM messages WHERE chat_id = ?)",
           [copyId, sourceAttachmentId, id],
         );

@@ -122,10 +122,12 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     },
     [isStreaming, retry, toast],
   );
-  const { mutateAsync: createFork } = useCreateFork();
+  const { mutateAsync: createFork, isPending: isForking } = useCreateFork();
   // The copy reads the source rows, so a reply still streaming would fork half-written; refused like regenerate.
   const handleFork = useCallback(
     (assistantMessageId: MessageId): void => {
+      // A double tap would start a second copy of the same reply.
+      if (isForking) return;
       if (isStreaming) {
         toast({
           title: "Already streaming",
@@ -142,7 +144,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
           toast({ title: "Fork failed", tone: "error" });
         });
     },
-    [chatId, createFork, isStreaming, router, toast],
+    [chatId, createFork, isForking, isStreaming, router, toast],
   );
   const handleEdit = useCallback(
     (userMessageId: MessageId, newContent: string): void => {
