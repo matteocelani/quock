@@ -144,7 +144,6 @@ export function ChatHistoryPanel({
   // No toast on success: the row moving to or from Pinned is the confirmation.
   const handlePin = useCallback(
     (id: ChatId, isPinned: boolean): void => {
-      clearOpenSwipeable();
       updateChatPinned.mutate(
         { id, isPinned },
         {
@@ -158,7 +157,7 @@ export function ChatHistoryPanel({
         },
       );
     },
-    [clearOpenSwipeable, toast, updateChatPinned],
+    [toast, updateChatPinned],
   );
   const handleRename = useCallback((id: ChatId, currentTitle: string): void => {
     setRenamingId(id);
