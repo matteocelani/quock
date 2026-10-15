@@ -549,6 +549,8 @@ export async function runStream(
       buffers.content.slice(seedContent.length).replace(INVISIBLE, "").trim()
         .length === 0
     ) {
+      // Byte-identical, so a stray newline cannot push the cut word off the end before the next Continue.
+      buffers.content = seedContent;
       await writeStatus("interrupted", null);
       releaseIfCurrent();
       return;

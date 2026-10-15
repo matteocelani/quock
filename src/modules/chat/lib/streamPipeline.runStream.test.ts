@@ -813,6 +813,16 @@ describe("runStream continuation", () => {
     );
   });
 
+  it("leaves the saved text byte-identical when only whitespace arrives", async () => {
+    scriptTurns([[chatEvent("\n")]]);
+    const { ctx, queryClient } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).content).toBe(SEED.content);
+    expect(tailMessage(queryClient).status).toBe("interrupted");
+  });
+
   it("stays interrupted when the only new content is invisible", async () => {
     scriptTurns([[chatEvent("\u200B")]]);
     const { ctx, queryClient } = makeCtx();

@@ -778,11 +778,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       ) {
         throw new Error("Continue: only the last interrupted answer with text");
       }
-      await messages.update(assistantMessageId, {
-        status: "pending",
-        errorCode: null,
-      });
-      await bumpSidebar(chats, queryClient, chatId);
       const pendingRow: DbMessage = {
         ...partial,
         status: "pending",
@@ -792,6 +787,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       const existing = queryClient.getQueryData<UseChatData>(
         queryKeys.chat(chatId),
       );
+      // Cache first: pending hides the Continue chip and Regenerate before any write gives a second tap a window.
       await patchChatCache(
         queryClient,
         chats,
@@ -800,6 +796,22 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         [...dbMessages.slice(0, assistantIndex), pendingRow],
         new Map(existing?.attachmentsByMessage ?? []),
       );
+      try {
+        await messages.update(assistantMessageId, {
+          status: "pending",
+          errorCode: null,
+        });
+        await bumpSidebar(chats, queryClient, chatId);
+      } catch (err) {
+        // Back to interrupted, or the guard above would refuse every later Continue on a row stuck pending.
+        await messages
+          .update(assistantMessageId, { status: "interrupted" })
+          .catch((revertErr: unknown) => {
+            console.warn("useSendMessage: continue revert failed", revertErr);
+          });
+        queryClient.setQueryData(queryKeys.chat(chatId), existing);
+        throw new Error("Continue: could not start", { cause: err });
+      }
       // The partial rides as the last assistant turn, followed by the never-persisted ask to carry on from it.
       const headSlice = dbMessages.slice(0, assistantIndex + 1);
       let wireMessages: WireChatMessage[];

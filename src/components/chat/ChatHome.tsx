@@ -89,8 +89,12 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const deepDiveInstruction = useSettingsStore((s) => s.deepDiveInstruction);
   const webSearchInstruction = useSettingsStore((s) => s.webSearchInstruction);
   const toast = useToast();
+  // A ref, not isStreaming: that turns true only after several awaits, so a double-fired Continue would start two
+  // streams. Regenerate and retry read it too, since they rewrite the very row a starting continuation is resuming.
+  const isContinuingRef = useRef<boolean>(false);
   const handleRegenerate = useCallback(
     (assistantMessageId: MessageId): void => {
+      if (isContinuingRef.current) return;
       if (isStreaming) {
         toast({
           title: "Already streaming",
@@ -107,6 +111,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   );
   const handleRetry = useCallback(
     (assistantMessageId: MessageId): void => {
+      if (isContinuingRef.current) return;
       if (isStreaming) {
         toast({
           title: "Already streaming",
@@ -121,8 +126,6 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     },
     [isStreaming, retry, toast],
   );
-  // A ref, not isStreaming: that turns true only after several awaits, so a double-fired tap would start two streams.
-  const isContinuingRef = useRef<boolean>(false);
   const handleContinue = useCallback(
     (assistantMessageId: MessageId): void => {
       if (isContinuingRef.current) return;
