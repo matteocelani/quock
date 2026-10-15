@@ -191,8 +191,8 @@ export class ChatRepository {
       webSearchEnabled: true,
     };
   }
-  // A new chat holding the source's turns up to and including `upToMessageId`, with its model and composer toggles;
-  // one transaction, because a half-copied fork holds messages and so would never be swept by deleteEmpty.
+  // The source's turns up to `upToMessageId`, with its model and toggles, as plain statements: a shared BEGIN lets other
+  // chats' writes join it and an exclusive one locks them out, so a failed copy deletes its own chat instead.
   async fork(
     sourceId: ChatId,
     upToMessageId: MessageId,
@@ -201,52 +201,65 @@ export class ChatRepository {
     const id = newChatId();
     const now = Date.now();
     const userId = this.getUserId();
-    await this.db.withExclusiveTransactionAsync(async (txn) => {
-      const created = await txn.runAsync(
-        "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) SELECT ?, user_id, ?, ?, ?, NULL, model, think_enabled, web_search_enabled FROM chats WHERE id = ? AND user_id = ?",
-        [id, title, now, now, sourceId, userId],
-      );
-      if (created.changes === 0) {
-        throw new Error("ChatRepository.fork: source chat not found");
-      }
-      const sourceMessages = await txn.getAllAsync<IdRow>(
-        "SELECT id FROM messages WHERE chat_id = ? AND id <= ? ORDER BY id ASC",
-        [sourceId, upToMessageId],
-      );
-      // Every column is copied as stored, timestamps included, so the fork replays and sorts exactly like its source.
-      let copiedAttachments: readonly AttachmentCopy[] = [];
-      for (const message of sourceMessages) {
-        const copiedMessage = await txn.runAsync(
-          "INSERT INTO messages (chat_id, role, content, thinking, model, created_at, updated_at, thinking_time_start, thinking_time_end, status, error_code, web_search_failed, sent_with_think, sent_with_web_search, read_web) SELECT ?, role, content, thinking, model, created_at, updated_at, thinking_time_start, thinking_time_end, status, error_code, web_search_failed, sent_with_think, sent_with_web_search, read_web FROM messages WHERE id = ?",
-          [id, message.id],
-        );
-        const sourceAttachments = await txn.getAllAsync<IdRow>(
-          "SELECT id FROM attachments WHERE message_id = ? ORDER BY id ASC",
-          [message.id],
-        );
-        for (const attachment of sourceAttachments) {
-          const copiedAttachment = await txn.runAsync(
-            "INSERT INTO attachments (message_id, filename, mime_type, data, uri, size_bytes, text_content, derived_from) SELECT ?, filename, mime_type, data, uri, size_bytes, text_content, derived_from FROM attachments WHERE id = ?",
-            [copiedMessage.lastInsertRowId, attachment.id],
-          );
-          copiedAttachments = [
-            ...copiedAttachments,
-            [
-              asAttachmentId(attachment.id),
-              asAttachmentId(copiedAttachment.lastInsertRowId),
-            ],
-          ];
-        }
-      }
-      // A rendered PDF page still names its source's document; point it at the fork's copy, or the page would be orphaned.
-      for (const [sourceAttachmentId, copyId] of copiedAttachments) {
-        await txn.runAsync(
-          "UPDATE attachments SET derived_from = ? WHERE derived_from = ? AND message_id IN (SELECT id FROM messages WHERE chat_id = ?)",
-          [copyId, sourceAttachmentId, id],
-        );
-      }
-    });
+    const created = await this.db.runAsync(
+      "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) SELECT ?, user_id, ?, ?, ?, NULL, model, think_enabled, web_search_enabled FROM chats WHERE id = ? AND user_id = ?",
+      [id, title, now, now, sourceId, userId],
+    );
+    if (created.changes === 0) {
+      throw new Error("ChatRepository.fork: source chat not found");
+    }
+    try {
+      await this.copyTurns(sourceId, upToMessageId, id);
+    } catch (err) {
+      // Messages and attachments cascade with the chat, so one delete leaves no half-copied fork behind.
+      await this.delete(id).catch((cleanupErr: unknown) => {
+        console.warn("ChatRepository.fork: cleanup failed", cleanupErr);
+      });
+      throw new Error("ChatRepository.fork: copy failed", { cause: err });
+    }
     return id;
+  }
+  // Every column is copied as stored, timestamps included, so the fork replays and sorts exactly like its source.
+  private async copyTurns(
+    sourceId: ChatId,
+    upToMessageId: MessageId,
+    forkId: ChatId,
+  ): Promise<void> {
+    const sourceMessages = await this.db.getAllAsync<IdRow>(
+      "SELECT id FROM messages WHERE chat_id = ? AND id <= ? ORDER BY id ASC",
+      [sourceId, upToMessageId],
+    );
+    let copiedAttachments: readonly AttachmentCopy[] = [];
+    for (const message of sourceMessages) {
+      const copiedMessage = await this.db.runAsync(
+        "INSERT INTO messages (chat_id, role, content, thinking, model, created_at, updated_at, thinking_time_start, thinking_time_end, status, error_code, web_search_failed, sent_with_think, sent_with_web_search, read_web) SELECT ?, role, content, thinking, model, created_at, updated_at, thinking_time_start, thinking_time_end, status, error_code, web_search_failed, sent_with_think, sent_with_web_search, read_web FROM messages WHERE id = ?",
+        [forkId, message.id],
+      );
+      const sourceAttachments = await this.db.getAllAsync<IdRow>(
+        "SELECT id FROM attachments WHERE message_id = ? ORDER BY id ASC",
+        [message.id],
+      );
+      for (const attachment of sourceAttachments) {
+        const copiedAttachment = await this.db.runAsync(
+          "INSERT INTO attachments (message_id, filename, mime_type, data, uri, size_bytes, text_content, derived_from) SELECT ?, filename, mime_type, data, uri, size_bytes, text_content, derived_from FROM attachments WHERE id = ?",
+          [copiedMessage.lastInsertRowId, attachment.id],
+        );
+        copiedAttachments = [
+          ...copiedAttachments,
+          [
+            asAttachmentId(attachment.id),
+            asAttachmentId(copiedAttachment.lastInsertRowId),
+          ],
+        ];
+      }
+    }
+    // A rendered PDF page still names its source's document; point it at the fork's copy, or the page would be orphaned.
+    for (const [sourceAttachmentId, copyId] of copiedAttachments) {
+      await this.db.runAsync(
+        "UPDATE attachments SET derived_from = ? WHERE derived_from = ? AND message_id IN (SELECT id FROM messages WHERE chat_id = ?)",
+        [copyId, sourceAttachmentId, forkId],
+      );
+    }
   }
   // Pins a model to this chat so it persists across restarts and stays scoped to this chat alone. We deliberately do NOT touch updated_at: changing the model isn't conversational activity and shouldn't reorder the history list.
   async setModel(id: ChatId, model: string): Promise<void> {

@@ -122,23 +122,21 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     },
     [isStreaming, retry, toast],
   );
-  const { mutateAsync: createFork, isPending: isForking } = useCreateFork();
-  // A pending tail means a turn is still being prepared (PDF render, OCR) before the stream starts, and those writes
-  // would fail against the fork's exclusive lock; refused like a running stream.
-  const tailStatus = data?.messages.at(-1)?.status;
-  const isTurnBusy =
-    isStreaming || tailStatus === "pending" || tailStatus === "streaming";
+  const { mutateAsync: createFork } = useCreateFork();
+  // A ref, not the mutation's isPending: that flips a render later, so a double-fired tap would still copy twice.
+  const isForkingRef = useRef<boolean>(false);
+  // Refused like regenerate, so a fork never starts from a reply that is still being written beside it.
   const handleFork = useCallback(
     (assistantMessageId: MessageId): void => {
-      // A double tap would start a second copy of the same reply.
-      if (isForking) return;
-      if (isTurnBusy) {
+      if (isForkingRef.current) return;
+      if (isStreaming) {
         toast({
           title: "Already streaming",
-          description: "Wait for the current response before forking.",
+          description: "Stop the current response before forking.",
         });
         return;
       }
+      isForkingRef.current = true;
       createFork({ sourceId: chatId, upToMessageId: assistantMessageId })
         .then((forkId) => {
           router.replace(`/c/${forkId}`);
@@ -146,9 +144,12 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         .catch((err: unknown) => {
           console.warn("ChatHome: fork failed", err);
           toast({ title: "Fork failed", tone: "error" });
+        })
+        .finally(() => {
+          isForkingRef.current = false;
         });
     },
-    [chatId, createFork, isForking, isTurnBusy, router, toast],
+    [chatId, createFork, isStreaming, router, toast],
   );
   const handleEdit = useCallback(
     (userMessageId: MessageId, newContent: string): void => {
