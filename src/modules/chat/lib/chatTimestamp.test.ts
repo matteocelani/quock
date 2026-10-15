@@ -65,4 +65,20 @@ describe("groupChats", () => {
     expect(buckets[0].rows).toEqual([today]);
     expect(buckets[1].rows).toEqual([older]);
   });
+
+  it("puts pinned chats first, ahead of today, whatever their age", () => {
+    const nowMs = Date.now();
+    const today = summary("new", nowMs);
+    const pinnedOld = {
+      ...summary("pinned-old", nowMs - 30 * MS_PER_DAY),
+      isPinned: true,
+    };
+    const pinnedNew = { ...summary("pinned-new", nowMs), isPinned: true };
+
+    const buckets = groupChats([pinnedNew, today, pinnedOld]);
+
+    expect(buckets.map((b) => b.label)).toEqual(["Pinned", "Today"]);
+    expect(buckets[0].rows).toEqual([pinnedNew, pinnedOld]);
+    expect(buckets[1].rows).toEqual([today]);
+  });
 });

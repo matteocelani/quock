@@ -2,7 +2,12 @@
 
 import type { ChatSummary } from "@/lib/db/types";
 
-export type BucketLabel = "Today" | "Yesterday" | "This week" | "Older";
+export type BucketLabel =
+  | "Pinned"
+  | "Today"
+  | "Yesterday"
+  | "This week"
+  | "Older";
 
 export interface Bucket {
   label: BucketLabel;
@@ -10,6 +15,7 @@ export interface Bucket {
 }
 
 const BUCKET_ORDER: readonly BucketLabel[] = [
+  "Pinned",
   "Today",
   "Yesterday",
   "This week",
@@ -80,7 +86,8 @@ export function groupChats(chats: ChatSummary[]): Bucket[] {
   const now = new Date();
   const map = new Map<BucketLabel, ChatSummary[]>();
   for (const chat of chats) {
-    const label = bucketFor(chat.updatedAt, now);
+    // Pinned rows skip the date buckets; inside Pinned they keep the list's recency order like every other bucket.
+    const label = chat.isPinned ? "Pinned" : bucketFor(chat.updatedAt, now);
     const existing = map.get(label);
     if (existing) existing.push(chat);
     else map.set(label, [chat]);
