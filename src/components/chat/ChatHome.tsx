@@ -90,8 +90,12 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const deepDiveInstruction = useSettingsStore((s) => s.deepDiveInstruction);
   const webSearchInstruction = useSettingsStore((s) => s.webSearchInstruction);
   const toast = useToast();
+  // A ref, not the mutation's isPending: that flips a render later, so a double-fired tap would still copy twice. Also
+  // read by regenerate, retry and edit, which rewrite rows the copy may not have reached yet.
+  const isForkingRef = useRef<boolean>(false);
   const handleRegenerate = useCallback(
     (assistantMessageId: MessageId): void => {
+      if (isForkingRef.current) return;
       if (isStreaming) {
         toast({
           title: "Already streaming",
@@ -108,6 +112,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   );
   const handleRetry = useCallback(
     (assistantMessageId: MessageId): void => {
+      if (isForkingRef.current) return;
       if (isStreaming) {
         toast({
           title: "Already streaming",
@@ -123,8 +128,6 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     [isStreaming, retry, toast],
   );
   const { mutateAsync: createFork } = useCreateFork();
-  // A ref, not the mutation's isPending: that flips a render later, so a double-fired tap would still copy twice.
-  const isForkingRef = useRef<boolean>(false);
   // Refused like regenerate, so a fork never starts from a reply that is still being written beside it.
   const handleFork = useCallback(
     (assistantMessageId: MessageId): void => {
@@ -153,6 +156,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   );
   const handleEdit = useCallback(
     (userMessageId: MessageId, newContent: string): void => {
+      if (isForkingRef.current) return;
       // Editing mid-stream means "abandon this answer and re-ask": abort the in-flight stream, then resend. The
       // pipeline's teardown is ownership-gated, so the aborted stream can't tear down the fresh one that replaces it.
       if (isStreaming) {

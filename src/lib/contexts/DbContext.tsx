@@ -65,9 +65,10 @@ export function DbProvider({
         const db = await openDb();
         if (isCancelled) return;
         const value = buildRepositories(db, () => userIdRef.current);
-        // Reconcile streams orphaned by a mid-stream process death before the UI reads them; best-effort so a boot failure can't block startup.
+        // Reconcile streams and forks orphaned by a process death before the UI reads them; best-effort so a boot failure can't block startup.
         try {
           await value.messages.interruptOrphanedStreams();
+          await value.chats.deleteUnfinishedForks();
         } catch (reconcileErr) {
           console.warn("DbProvider: stream reconciliation failed", reconcileErr);
         }

@@ -33,6 +33,9 @@ interface IdRow {
 
 type AttachmentCopy = readonly [source: AttachmentId, copy: AttachmentId];
 
+// Owner of a fork still being copied: no account lists it, and boot sweeps whatever a killed app left behind.
+const FORK_IN_PROGRESS_USER = "quock:fork-in-progress";
+
 interface ChatSummaryRow {
   id: string;
   title: string;
@@ -202,10 +205,9 @@ export class ChatRepository {
     const id = newChatId();
     const now = Date.now();
     const userId = this.getUserId();
-    // Created with no account, which every account's list hides, so a copy cut short by a killed app never shows up.
     const created = await this.db.runAsync(
-      "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) SELECT ?, NULL, ?, ?, ?, NULL, model, think_enabled, web_search_enabled FROM chats WHERE id = ? AND user_id = ?",
-      [id, title, now, now, sourceId, userId],
+      "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) SELECT ?, ?, ?, ?, ?, NULL, model, think_enabled, web_search_enabled FROM chats WHERE id = ? AND user_id = ?",
+      [id, FORK_IN_PROGRESS_USER, title, now, now, sourceId, userId],
     );
     if (created.changes === 0) {
       throw new Error("ChatRepository.fork: source chat not found");
@@ -235,6 +237,10 @@ export class ChatRepository {
       "SELECT id FROM messages WHERE chat_id = ? AND id <= ? ORDER BY id ASC",
       [sourceId, upToMessageId],
     );
+    // A reply regenerated away before the copy began would otherwise yield a fork ending on an unanswered question.
+    if (sourceMessages.at(-1)?.id !== upToMessageId) {
+      throw new Error("ChatRepository.fork: fork point not found");
+    }
     let copiedAttachments: readonly AttachmentCopy[] = [];
     for (const message of sourceMessages) {
       const sourceMessageId = asMessageId(message.id);
@@ -275,6 +281,12 @@ export class ChatRepository {
         [copyId, sourceAttachmentId, forkId],
       );
     }
+  }
+  // Drops forks whose copy never finished (the app died mid-copy); their rows cascade with them.
+  async deleteUnfinishedForks(): Promise<void> {
+    await this.db.runAsync("DELETE FROM chats WHERE user_id = ?", [
+      FORK_IN_PROGRESS_USER,
+    ]);
   }
   // Pins a model to this chat so it persists across restarts and stays scoped to this chat alone. We deliberately do NOT touch updated_at: changing the model isn't conversational activity and shouldn't reorder the history list.
   async setModel(id: ChatId, model: string): Promise<void> {
