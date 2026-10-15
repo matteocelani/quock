@@ -121,8 +121,11 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     },
     [isStreaming, retry, toast],
   );
+  // A ref, not isStreaming: that turns true only after several awaits, so a double-fired tap would start two streams.
+  const isContinuingRef = useRef<boolean>(false);
   const handleContinue = useCallback(
     (assistantMessageId: MessageId): void => {
+      if (isContinuingRef.current) return;
       if (isStreaming) {
         toast({
           title: "Already streaming",
@@ -130,10 +133,15 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         });
         return;
       }
-      void continueTurn(assistantMessageId).catch((err: unknown) => {
-        console.warn("ChatHome: continue failed", err);
-        toast({ title: "Continue failed", tone: "error" });
-      });
+      isContinuingRef.current = true;
+      continueTurn(assistantMessageId)
+        .catch((err: unknown) => {
+          console.warn("ChatHome: continue failed", err);
+          toast({ title: "Continue failed", tone: "error" });
+        })
+        .finally(() => {
+          isContinuingRef.current = false;
+        });
     },
     [continueTurn, isStreaming, toast],
   );
