@@ -50,7 +50,6 @@ interface RailActionProps {
   accessibilityLabel: string;
   testID: string;
 }
-// One swipe action: an opaque capsule with a one-word caption under it, Telegram-style.
 function RailAction({
   icon: Icon,
   label,

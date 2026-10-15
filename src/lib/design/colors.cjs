@@ -154,7 +154,7 @@ const light = {
   segmentedSelected: "#FFFFFF",
   // Switch ON track — iOS system toggle green (semantic control key; components never read palette accessors).
   toggleOn: appleLight.green,
-  // Swipe-action fills, opaque like iOS Mail's: Pin is system orange, Rename the neutral gray, glyphs white on both.
+  // Opaque like iOS Mail's swipe fills, so the rail reads solid over the panel; actionForeground is every rail glyph.
   actionPin: appleLight.orange,
   actionNeutral: grayLight.gray,
   actionForeground: "#FFFFFF",
