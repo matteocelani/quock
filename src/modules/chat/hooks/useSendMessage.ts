@@ -22,7 +22,7 @@ import { useHaptics } from "@/lib/hooks/useHaptics";
 import { useToast } from "@/lib/hooks/useToast";
 import { useSettingsStore } from "@/lib/stores/settings.store";
 import { useChatModel } from "@/modules/models/hooks/useChatModel";
-import { runStream } from "@/modules/chat/lib/streamPipeline";
+import { runStream, type StreamSeed } from "@/modules/chat/lib/streamPipeline";
 import {
   bumpSidebar,
   describePageCuts,
@@ -33,6 +33,7 @@ import {
   pruneAttachmentMap,
   toWireHistory,
   topNotice,
+  withContinueInstruction,
   type PageCutCause,
   type PickFailure,
   type SendNotice,
@@ -73,6 +74,8 @@ export interface UseSendMessageResult {
   send: (input: SendMessageInput) => Promise<void>;
   regenerate: (assistantMessageId: MessageId) => Promise<void>;
   retry: (assistantMessageId: MessageId) => Promise<void>;
+  // Resumes the last interrupted answer from its saved text instead of paying for it a second time.
+  continueTurn: (assistantMessageId: MessageId) => Promise<void>;
   // Updates a user message's content, drops every message after it (the now-stale assistant replies), then re-runs the stream from the edited turn. Mirrors ChatGPT / Claude "edit message" semantics.
   editAndResend: (userMessageId: MessageId, newContent: string) => Promise<void>;
   abort: () => void;
@@ -129,6 +132,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       think: boolean | undefined,
       isWebOn: boolean,
       hasUntrustedContext: boolean,
+      seed?: StreamSeed,
     ): Promise<void> => {
       // Memory is best-effort: an unreadable store sends the turn exactly as memory-off would, never fails it.
       let facts: DbMemoryFact[] = [];
@@ -168,6 +172,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         think,
         chooseTools(isWebOn, canEditMemory),
         canEditMemory ? { store: memory, hasUntrustedContext } : undefined,
+        seed,
       );
     },
     [
@@ -752,6 +757,107 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       webSearchEnabled,
     ],
   );
+  // Retry's shape minus the wipe: the row keeps its id, text, reasoning and provenance, and only its status goes pending.
+  const continueTurn = React.useCallback(
+    async (assistantMessageId: MessageId): Promise<void> => {
+      if (!model) {
+        throw new Error("No model selected");
+      }
+      const dbMessages = await messages.listByChat(chatId);
+      const { assistantIndex } = locateAssistantTurn(
+        dbMessages,
+        assistantMessageId,
+        "Continue",
+      );
+      const partial = dbMessages[assistantIndex];
+      // The UI offers it only here; refusing anything else keeps the button from ever quietly doing a Retry.
+      if (
+        assistantIndex !== dbMessages.length - 1 ||
+        partial.status !== "interrupted" ||
+        partial.content.length === 0
+      ) {
+        throw new Error("Continue: only the last interrupted answer with text");
+      }
+      await messages.update(assistantMessageId, {
+        status: "pending",
+        errorCode: null,
+      });
+      await bumpSidebar(chats, queryClient, chatId);
+      const pendingRow: DbMessage = {
+        ...partial,
+        status: "pending",
+        errorCode: null,
+        updatedAt: Date.now(),
+      };
+      const existing = queryClient.getQueryData<UseChatData>(
+        queryKeys.chat(chatId),
+      );
+      await patchChatCache(
+        queryClient,
+        chats,
+        chatId,
+        existing,
+        [...dbMessages.slice(0, assistantIndex), pendingRow],
+        new Map(existing?.attachmentsByMessage ?? []),
+      );
+      // The partial rides as the last assistant turn, followed by the never-persisted ask to carry on from it.
+      const headSlice = dbMessages.slice(0, assistantIndex + 1);
+      let wireMessages: WireChatMessage[];
+      let hasUntrustedContext = false;
+      try {
+        const attachmentRows = await attachments.listByChatForWire(
+          chatId,
+          hasVision,
+        );
+        hasUntrustedContext = hasUntrustedHistory(
+          headSlice,
+          attachmentRows.length,
+        );
+        const wire = toWireHistory(headSlice, attachmentRows, hasVision);
+        wireMessages = withContinueInstruction(wire.messages);
+        if (wire.isTruncated) {
+          toast({
+            title: "Document trimmed",
+            description:
+              "Too much text to send in full; the newest parts were kept.",
+          });
+        }
+      } catch (err) {
+        await failPending(assistantMessageId, err);
+        return;
+      }
+      await runStreamWithContext(
+        model.name,
+        assistantMessageId,
+        wireMessages,
+        // Same modes as retry: think forced only if on and supported, web search when on and supported.
+        forceThink || undefined,
+        webSearchEnabled && hasTools,
+        hasUntrustedContext,
+        {
+          content: partial.content,
+          thinking: partial.thinking,
+          hasReadWeb: partial.hasReadWeb,
+          webSearchFailed: partial.webSearchFailed,
+        },
+      );
+    },
+    [
+      attachments,
+      chatId,
+      chats,
+      failPending,
+      forceThink,
+      hasTools,
+      hasVision,
+      messages,
+      model,
+      queryClient,
+      runStreamWithContext,
+      toast,
+      webSearchEnabled,
+    ],
+  );
   // Edit a user turn in place, drop everything after it (now stale), then re-stream from the edited turn. Honors the chat's think preference like a fresh send.
   const editAndResend = React.useCallback(
     async (userMessageId: MessageId, newContent: string): Promise<void> => {
@@ -875,7 +981,15 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
     ],
   );
   return React.useMemo<UseSendMessageResult>(
-    () => ({ send, regenerate, retry, editAndResend, abort, isStreaming }),
-    [send, regenerate, retry, editAndResend, abort, isStreaming],
+    () => ({
+      send,
+      regenerate,
+      retry,
+      continueTurn,
+      editAndResend,
+      abort,
+      isStreaming,
+    }),
+    [send, regenerate, retry, continueTurn, editAndResend, abort, isStreaming],
   );
 }
