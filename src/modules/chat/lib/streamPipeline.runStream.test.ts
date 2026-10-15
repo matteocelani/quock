@@ -802,6 +802,26 @@ describe("runStream continuation", () => {
     expect(tailMessage(queryClient).status).toBe("interrupted");
   });
 
+  it("drops an invisible lead so the cut word joins cleanly", async () => {
+    scriptTurns([[chatEvent("\u200Ban\n3. Turin")]]);
+    const { ctx, queryClient } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).content).toBe(
+      "1. Rome\n2. Milan\n3. Turin",
+    );
+  });
+
+  it("stays interrupted when the only new content is invisible", async () => {
+    scriptTurns([[chatEvent("\u200B")]]);
+    const { ctx, queryClient } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).status).toBe("interrupted");
+  });
+
   it("glues onto the cut word even after a round that only searched", async () => {
     scriptTurns([
       [toolCallsEvent([wsCall("cities")])],
