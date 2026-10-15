@@ -123,15 +123,19 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     [isStreaming, retry, toast],
   );
   const { mutateAsync: createFork, isPending: isForking } = useCreateFork();
-  // The copy reads the source rows, so a reply still streaming would fork half-written; refused like regenerate.
+  // A pending tail means a turn is still being prepared (PDF render, OCR) before the stream starts, and those writes
+  // would fail against the fork's exclusive lock; refused like a running stream.
+  const tailStatus = data?.messages.at(-1)?.status;
+  const isTurnBusy =
+    isStreaming || tailStatus === "pending" || tailStatus === "streaming";
   const handleFork = useCallback(
     (assistantMessageId: MessageId): void => {
       // A double tap would start a second copy of the same reply.
       if (isForking) return;
-      if (isStreaming) {
+      if (isTurnBusy) {
         toast({
           title: "Already streaming",
-          description: "Stop the current response before forking.",
+          description: "Wait for the current response before forking.",
         });
         return;
       }
@@ -144,7 +148,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
           toast({ title: "Fork failed", tone: "error" });
         });
     },
-    [chatId, createFork, isForking, isStreaming, router, toast],
+    [chatId, createFork, isForking, isTurnBusy, router, toast],
   );
   const handleEdit = useCallback(
     (userMessageId: MessageId, newContent: string): void => {
