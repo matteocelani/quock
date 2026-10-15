@@ -102,10 +102,10 @@ function MessageListInner(
         message: item,
         isStreaming: isLastAssistantStreaming,
         anchorSpace,
+        ...(onRegenerate !== undefined ? { onRegenerate } : {}),
+        ...(onRetry !== undefined ? { onRetry } : {}),
+        ...(onFork !== undefined ? { onFork } : {}),
       };
-      if (onRegenerate !== undefined) aProps.onRegenerate = onRegenerate;
-      if (onRetry !== undefined) aProps.onRetry = onRetry;
-      if (onFork !== undefined) aProps.onFork = onFork;
       return <AssistantMessage {...aProps} />;
     },
     [messages.length, isStreaming, onRegenerate, onRetry, onFork, onEdit, attachmentsByMessage, anchorSpace],
