@@ -13,6 +13,7 @@ import {
   DEFAULT_BOTTOM_INSET,
 } from "@/modules/chat/constants";
 import { isChatNotFoundError, useChat } from "@/modules/chat/hooks/useChat";
+import { useCreateFork } from "@/modules/chat/hooks/useCreateFork";
 import { useIsStreaming } from "@/modules/chat/hooks/useIsStreaming";
 import { useSendMessage } from "@/modules/chat/hooks/useSendMessage";
 import { useToast } from "@/lib/hooks/useToast";
@@ -120,6 +121,28 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
       });
     },
     [isStreaming, retry, toast],
+  );
+  const { mutateAsync: createFork } = useCreateFork();
+  // The copy reads the source rows, so a reply still streaming would fork half-written; refused like regenerate.
+  const handleFork = useCallback(
+    (assistantMessageId: MessageId): void => {
+      if (isStreaming) {
+        toast({
+          title: "Already streaming",
+          description: "Stop the current response before forking.",
+        });
+        return;
+      }
+      createFork({ sourceId: chatId, upToMessageId: assistantMessageId })
+        .then((forkId) => {
+          router.replace(`/c/${forkId}`);
+        })
+        .catch((err: unknown) => {
+          console.warn("ChatHome: fork failed", err);
+          toast({ title: "Fork failed", tone: "error" });
+        });
+    },
+    [chatId, createFork, isStreaming, router, toast],
   );
   const handleEdit = useCallback(
     (userMessageId: MessageId, newContent: string): void => {
@@ -268,6 +291,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
             onScrolledUpChange={setIsScrolledUp}
             onRegenerate={handleRegenerate}
             onRetry={handleRetry}
+            onFork={handleFork}
             onEdit={handleEdit}
             attachmentsByMessage={data?.attachmentsByMessage}
           />
