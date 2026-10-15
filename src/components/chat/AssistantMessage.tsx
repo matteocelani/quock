@@ -8,6 +8,7 @@ import Copy from "lucide-react-native/icons/copy";
 import Globe from "lucide-react-native/icons/globe";
 import Highlighter from "lucide-react-native/icons/highlighter";
 import RotateCw from "lucide-react-native/icons/rotate-cw";
+import Split from "lucide-react-native/icons/split";
 import { type LucideIcon } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { Markdown } from "@/components/ui/Markdown";
@@ -37,6 +38,7 @@ export interface AssistantMessageProps {
   anchorSpace: React.RefObject<View | null>;
   onRegenerate?: (assistantMessageId: MessageId) => void;
   onRetry?: (assistantMessageId: MessageId) => void;
+  onFork?: (assistantMessageId: MessageId) => void;
 }
 
 // Copy keyed off the persisted error code, worded so the user can tell whose side the failure is on (Ollama / their connection / the Quock app) and route a report accordingly.
@@ -126,6 +128,7 @@ function AssistantMessageImpl({
   anchorSpace,
   onRegenerate,
   onRetry,
+  onFork,
 }: AssistantMessageProps): React.ReactElement {
   const colors = useThemeColors();
   const toast = useToast();
@@ -157,6 +160,9 @@ function AssistantMessageImpl({
   const handleRetry = useCallback((): void => {
     onRetry?.(message.id);
   }, [onRetry, message.id]);
+  const handleFork = useCallback((): void => {
+    onFork?.(message.id);
+  }, [onFork, message.id]);
   const handleSelectText = useCallback((): void => {
     openSelectText(message.id);
   }, [openSelectText, message.id]);
@@ -283,6 +289,14 @@ function AssistantMessageImpl({
               testID="assistant-action-regenerate"
             />
           ) : null}
+          {onFork !== undefined ? (
+            <ActionButton
+              icon={Split}
+              onPress={handleFork}
+              accessibilityLabel="Fork conversation from here"
+              testID="assistant-action-fork"
+            />
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -298,7 +312,8 @@ function areEqual(
     prev.message === next.message &&
     prev.isStreaming === next.isStreaming &&
     prev.onRegenerate === next.onRegenerate &&
-    prev.onRetry === next.onRetry
+    prev.onRetry === next.onRetry &&
+    prev.onFork === next.onFork
   );
 }
 
