@@ -162,7 +162,7 @@ export interface StreamSeed {
   content: string;
   thinking: string | null;
   hasReadWeb: boolean;
-  webSearchFailed: boolean;
+  hasWebSearchFailed: boolean;
 }
 
 export async function runStream(
@@ -220,14 +220,16 @@ export async function runStream(
     pendingRaf: null,
     pendingReactTimer: null,
     hasStreamedToken: false,
-    webSearchFailed: seed?.webSearchFailed ?? false,
+    webSearchFailed: seed?.hasWebSearchFailed ?? false,
     hasReadWeb: seed?.hasReadWeb ?? false,
   };
   // Reasoning shown to the UI = dedicated `thinking` channel + any inline <think> parsed from content. Models use one or the other, so this is just whichever is non-empty.
   const effectiveThinking = (): string | null => {
     const merged = buffers.thinking + buffers.inlineThinking;
-    // A continuation that does not reason again keeps the reasoning that produced the saved half.
-    return merged.length > 0 ? merged : (seed?.thinking ?? null);
+    // A continuation adds its reasoning under the saved half's, the same way its text adds to the saved answer.
+    const prior = seed?.thinking ?? "";
+    if (merged.length === 0) return prior.length > 0 ? prior : null;
+    return prior.length > 0 ? `${prior}${ROUND_SEPARATOR}${merged}` : merged;
   };
   // Patches DB + cache atomically so AssistantMessage always reads a coherent status/content/errorCode triplet.
   const writeStatus = async (
@@ -389,10 +391,11 @@ export async function runStream(
           case "chat": {
             if (event.content) {
               // A later round opens a new paragraph: glued on, "Nice to meet you!" ran straight into the next answer.
+              // Only this run's text counts: a continuation whose first round was a bare tool call still glues onto the seed.
               if (
                 round > 0 &&
                 buffers.rawContent.length === roundRawStart &&
-                buffers.content.length > 0
+                buffers.content.length > seedContent.length
               ) {
                 buffers.rawContent += ROUND_SEPARATOR;
                 roundRawStart = buffers.rawContent.length;
@@ -533,8 +536,12 @@ export async function runStream(
     }
     cancelPending();
     setToolActivity(chatId, null);
-    // A continuation that added nothing is still unfinished: "complete" would leave a cut answer with no way back.
-    if (seed !== undefined && !buffers.hasStreamedToken) {
+    // A continuation that added nothing visible is still unfinished: "complete" would leave a cut answer with no way on.
+    // Judged on the answer, not on events, since a reply of only <think> or whitespace streams tokens that show nothing.
+    if (
+      seed !== undefined &&
+      buffers.content.slice(seedContent.length).trim().length === 0
+    ) {
       await writeStatus("interrupted", null);
       releaseIfCurrent();
       return;

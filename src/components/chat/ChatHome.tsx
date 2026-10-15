@@ -131,7 +131,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         return;
       }
       void continueTurn(assistantMessageId).catch((err: unknown) => {
-        console.error("ChatHome: continue failed", err);
+        console.warn("ChatHome: continue failed", err);
         toast({ title: "Continue failed", tone: "error" });
       });
     },

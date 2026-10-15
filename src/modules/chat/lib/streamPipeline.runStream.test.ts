@@ -745,7 +745,7 @@ describe("runStream continuation", () => {
     content: "1. Rome\n2. Mil",
     thinking: "Listing cities.",
     hasReadWeb: false,
-    webSearchFailed: false,
+    hasWebSearchFailed: false,
   };
 
   function runSeeded(ctx: RunStreamContext): Promise<void> {
@@ -782,9 +782,47 @@ describe("runStream continuation", () => {
 
     expect(tailMessage(queryClient).content).toBe(SEED.content);
     expect(tailMessage(queryClient).status).toBe("interrupted");
+    expect(update).toHaveBeenLastCalledWith(
+      ASSISTANT_ID,
+      expect.objectContaining({ thinking: `${SEED.thinking}\n\nHmm.` }),
+    );
     expect(update).not.toHaveBeenCalledWith(
       ASSISTANT_ID,
       expect.objectContaining({ status: "complete" }),
+    );
+  });
+
+  it("stays interrupted when the only new content is inline reasoning", async () => {
+    scriptTurns([[chatEvent("<think>Already done.</think>")]]);
+    const { ctx, queryClient } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).content).toBe(SEED.content);
+    expect(tailMessage(queryClient).status).toBe("interrupted");
+  });
+
+  it("glues onto the cut word even after a round that only searched", async () => {
+    scriptTurns([
+      [toolCallsEvent([wsCall("cities")])],
+      [chatEvent("an\n3. Turin")],
+    ]);
+    mockExecuteTool.mockResolvedValue("[]");
+    const { ctx, queryClient } = makeCtx();
+
+    await runStream(
+      ctx,
+      "kimi",
+      ASSISTANT_ID,
+      USER_MESSAGES,
+      undefined,
+      WEB_TOOLS,
+      undefined,
+      SEED,
+    );
+
+    expect(tailMessage(queryClient).content).toBe(
+      "1. Rome\n2. Milan\n3. Turin",
     );
   });
 

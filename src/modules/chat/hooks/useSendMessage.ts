@@ -830,7 +830,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         model.name,
         assistantMessageId,
         wireMessages,
-        // Same modes as retry: think forced only if on and supported, web search when on and supported.
         forceThink || undefined,
         webSearchEnabled && hasTools,
         hasUntrustedContext,
@@ -838,7 +837,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           content: partial.content,
           thinking: partial.thinking,
           hasReadWeb: partial.hasReadWeb,
-          webSearchFailed: partial.webSearchFailed,
+          hasWebSearchFailed: partial.webSearchFailed,
         },
       );
     },
