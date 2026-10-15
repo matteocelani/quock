@@ -13,6 +13,7 @@ import {
   DEFAULT_BOTTOM_INSET,
 } from "@/modules/chat/constants";
 import { isChatNotFoundError, useChat } from "@/modules/chat/hooks/useChat";
+import { useCreateFork } from "@/modules/chat/hooks/useCreateFork";
 import { useIsStreaming } from "@/modules/chat/hooks/useIsStreaming";
 import { useSendMessage } from "@/modules/chat/hooks/useSendMessage";
 import { useToast } from "@/lib/hooks/useToast";
@@ -89,8 +90,12 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const deepDiveInstruction = useSettingsStore((s) => s.deepDiveInstruction);
   const webSearchInstruction = useSettingsStore((s) => s.webSearchInstruction);
   const toast = useToast();
+  // A ref, not the mutation's isPending: that flips a render later, so a double-fired tap would still copy twice. Also
+  // read by regenerate, retry and edit, which rewrite rows the copy may not have reached yet.
+  const isForkingRef = useRef<boolean>(false);
   const handleRegenerate = useCallback(
     (assistantMessageId: MessageId): void => {
+      if (isForkingRef.current) return;
       if (isStreaming) {
         toast({
           title: "Already streaming",
@@ -107,6 +112,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   );
   const handleRetry = useCallback(
     (assistantMessageId: MessageId): void => {
+      if (isForkingRef.current) return;
       if (isStreaming) {
         toast({
           title: "Already streaming",
@@ -121,8 +127,36 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     },
     [isStreaming, retry, toast],
   );
+  const { mutateAsync: createFork } = useCreateFork();
+  // Refused like regenerate, so a fork never starts from a reply that is still being written beside it.
+  const handleFork = useCallback(
+    (assistantMessageId: MessageId): void => {
+      if (isForkingRef.current) return;
+      if (isStreaming) {
+        toast({
+          title: "Already streaming",
+          description: "Stop the current response before forking.",
+        });
+        return;
+      }
+      isForkingRef.current = true;
+      createFork({ sourceId: chatId, upToMessageId: assistantMessageId })
+        .then((forkId) => {
+          router.replace(`/c/${forkId}`);
+        })
+        .catch((err: unknown) => {
+          console.warn("ChatHome: fork failed", err);
+          toast({ title: "Fork failed", tone: "error" });
+        })
+        .finally(() => {
+          isForkingRef.current = false;
+        });
+    },
+    [chatId, createFork, isStreaming, router, toast],
+  );
   const handleEdit = useCallback(
     (userMessageId: MessageId, newContent: string): void => {
+      if (isForkingRef.current) return;
       // Editing mid-stream means "abandon this answer and re-ask": abort the in-flight stream, then resend. The
       // pipeline's teardown is ownership-gated, so the aborted stream can't tear down the fresh one that replaces it.
       if (isStreaming) {
@@ -268,6 +302,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
             onScrolledUpChange={setIsScrolledUp}
             onRegenerate={handleRegenerate}
             onRetry={handleRetry}
+            onFork={handleFork}
             onEdit={handleEdit}
             attachmentsByMessage={data?.attachmentsByMessage}
           />
