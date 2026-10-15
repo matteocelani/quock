@@ -105,6 +105,8 @@ const ROUND_SEPARATOR = "\n\n";
 // Zero-width space, word joiner and BOM: gpt-oss opens a continuation with U+200B, which would sit inside the cut word.
 const LEADING_INVISIBLE = /^[\u200B\u2060\uFEFF]+/;
 const INVISIBLE = /[\u200B\u2060\uFEFF]/g;
+// The line break a model writes after closing inline reasoning; dropped only then, since a bare leading space is real.
+const LEADING_WHITESPACE = /^\s+/;
 const THINK_OPEN = "<think>";
 const THINK_CLOSE = "</think>";
 // Some models (e.g. kimi-k2.x) stream reasoning INLINE as <think>…</think> in the content field (sometimes a
@@ -415,10 +417,14 @@ export async function runStream(
               buffers.rawContent += event.content;
               // Re-derive the visible answer + inline reasoning from the full raw buffer (tolerant of tags split across chunks).
               const split = splitInlineThink(buffers.rawContent);
+              const fresh = split.content.replace(LEADING_INVISIBLE, "");
               buffers.content =
                 seed === undefined
                   ? split.content
-                  : seedContent + split.content.replace(LEADING_INVISIBLE, "");
+                  : seedContent +
+                    (split.thinking.length > 0
+                      ? fresh.replace(LEADING_WHITESPACE, "")
+                      : fresh);
               buffers.inlineThinking = split.thinking;
               // The parser knows whether the buffer ends mid-thought. Deducing it from the answer's length cannot: a
               // close tag reclassifies text already shown, so the answer shrinks while the model is writing again.

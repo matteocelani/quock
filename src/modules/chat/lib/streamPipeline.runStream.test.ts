@@ -823,6 +823,17 @@ describe("runStream continuation", () => {
     expect(tailMessage(queryClient).status).toBe("interrupted");
   });
 
+  it("joins the cut word after inline reasoning and its line break", async () => {
+    scriptTurns([[chatEvent("<think>Go on.</think>\n\nan\n3. Turin")]]);
+    const { ctx, queryClient } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).content).toBe(
+      "1. Rome\n2. Milan\n3. Turin",
+    );
+  });
+
   it("stays interrupted when the only new content is invisible", async () => {
     scriptTurns([[chatEvent("\u200B")]]);
     const { ctx, queryClient } = makeCtx();
