@@ -4,6 +4,7 @@ import type { SQLiteDatabase } from "expo-sqlite";
 import {
   asAttachmentId,
   asChatId,
+  asMessageId,
   type AttachmentId,
   type ChatId,
   type MessageId,
@@ -192,7 +193,7 @@ export class ChatRepository {
     };
   }
   // The source's turns up to `upToMessageId`, with its model and toggles, as plain statements: a shared BEGIN lets other
-  // chats' writes join it and an exclusive one locks them out, so a failed copy deletes its own chat instead.
+  // chats' writes join it and an exclusive one locks them out. A failed copy deletes its own chat instead.
   async fork(
     sourceId: ChatId,
     upToMessageId: MessageId,
@@ -201,8 +202,9 @@ export class ChatRepository {
     const id = newChatId();
     const now = Date.now();
     const userId = this.getUserId();
+    // Created with no account, which every account's list hides, so a copy cut short by a killed app never shows up.
     const created = await this.db.runAsync(
-      "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) SELECT ?, user_id, ?, ?, ?, NULL, model, think_enabled, web_search_enabled FROM chats WHERE id = ? AND user_id = ?",
+      "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) SELECT ?, NULL, ?, ?, ?, NULL, model, think_enabled, web_search_enabled FROM chats WHERE id = ? AND user_id = ?",
       [id, title, now, now, sourceId, userId],
     );
     if (created.changes === 0) {
@@ -210,6 +212,10 @@ export class ChatRepository {
     }
     try {
       await this.copyTurns(sourceId, upToMessageId, id);
+      await this.db.runAsync("UPDATE chats SET user_id = ? WHERE id = ?", [
+        userId,
+        id,
+      ]);
     } catch (err) {
       // Messages and attachments cascade with the chat, so one delete leaves no half-copied fork behind.
       await this.delete(id).catch((cleanupErr: unknown) => {
@@ -231,19 +237,28 @@ export class ChatRepository {
     );
     let copiedAttachments: readonly AttachmentCopy[] = [];
     for (const message of sourceMessages) {
+      const sourceMessageId = asMessageId(message.id);
       const copiedMessage = await this.db.runAsync(
         "INSERT INTO messages (chat_id, role, content, thinking, model, created_at, updated_at, thinking_time_start, thinking_time_end, status, error_code, web_search_failed, sent_with_think, sent_with_web_search, read_web) SELECT ?, role, content, thinking, model, created_at, updated_at, thinking_time_start, thinking_time_end, status, error_code, web_search_failed, sent_with_think, sent_with_web_search, read_web FROM messages WHERE id = ?",
-        [forkId, message.id],
+        [forkId, sourceMessageId],
       );
+      // A turn deleted mid-copy (a regenerate tapped meanwhile) copies nothing; failing beats a fork with a hole in it.
+      if (copiedMessage.changes !== 1) {
+        throw new Error("ChatRepository.fork: a source message vanished");
+      }
+      const copiedMessageId = asMessageId(copiedMessage.lastInsertRowId);
       const sourceAttachments = await this.db.getAllAsync<IdRow>(
         "SELECT id FROM attachments WHERE message_id = ? ORDER BY id ASC",
-        [message.id],
+        [sourceMessageId],
       );
       for (const attachment of sourceAttachments) {
         const copiedAttachment = await this.db.runAsync(
           "INSERT INTO attachments (message_id, filename, mime_type, data, uri, size_bytes, text_content, derived_from) SELECT ?, filename, mime_type, data, uri, size_bytes, text_content, derived_from FROM attachments WHERE id = ?",
-          [copiedMessage.lastInsertRowId, attachment.id],
+          [copiedMessageId, attachment.id],
         );
+        if (copiedAttachment.changes !== 1) {
+          throw new Error("ChatRepository.fork: a source attachment vanished");
+        }
         copiedAttachments = [
           ...copiedAttachments,
           [
