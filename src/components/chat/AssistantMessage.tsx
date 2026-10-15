@@ -4,6 +4,7 @@ import clsx from "clsx";
 import * as Clipboard from "expo-clipboard";
 import React, { useCallback } from "react";
 import { Text, View } from "react-native";
+import ArrowRight from "lucide-react-native/icons/arrow-right";
 import Copy from "lucide-react-native/icons/copy";
 import Globe from "lucide-react-native/icons/globe";
 import Highlighter from "lucide-react-native/icons/highlighter";
@@ -37,6 +38,8 @@ export interface AssistantMessageProps {
   anchorSpace: React.RefObject<View | null>;
   onRegenerate?: (assistantMessageId: MessageId) => void;
   onRetry?: (assistantMessageId: MessageId) => void;
+  // Passed only to the last row: a continuation appends, so it is meaningful only where the conversation ends.
+  onContinue?: (assistantMessageId: MessageId) => void;
 }
 
 // Copy keyed off the persisted error code, worded so the user can tell whose side the failure is on (Ollama / their connection / the Quock app) and route a report accordingly.
@@ -126,6 +129,7 @@ function AssistantMessageImpl({
   anchorSpace,
   onRegenerate,
   onRetry,
+  onContinue,
 }: AssistantMessageProps): React.ReactElement {
   const colors = useThemeColors();
   const toast = useToast();
@@ -157,6 +161,9 @@ function AssistantMessageImpl({
   const handleRetry = useCallback((): void => {
     onRetry?.(message.id);
   }, [onRetry, message.id]);
+  const handleContinue = useCallback((): void => {
+    onContinue?.(message.id);
+  }, [onContinue, message.id]);
   const handleSelectText = useCallback((): void => {
     openSelectText(message.id);
   }, [openSelectText, message.id]);
@@ -186,14 +193,19 @@ function AssistantMessageImpl({
   // A web tool is running right now — only on the live streaming row, never on older bubbles that share the chat's transient activity.
   const isSearching = isStreaming && toolActivity !== undefined;
   const showCursor = !isPending && isStreaming && !hasContent;
-  // Only before anything exists. Once there is reasoning text the block owns the signal and shimmers its own header.
+  // Only before anything exists, or under a continuation's saved text, which would otherwise sit still and look ignored.
+  // Once a fresh reply has reasoning text, the block owns the signal and shimmers its own header.
   const showThinkingIndicator =
-    isPending && !hasThinking && !hasContent && !isSearching;
+    isPending && !isSearching && (hasContent || !hasThinking);
+  // One word per button: a half answer offers Continue in its chip, and starting over moves to Regenerate below it.
+  const canContinue = isInterrupted && hasContent && onContinue !== undefined;
   // Non-fatal note: the search failed but the model still answered (hard failures take the error branch instead).
   const showWebSearchFailed =
     message.webSearchFailed && !isError && !isInterrupted;
   // Action row visible only once the response is fully landed — hide during pending / streaming / error / interrupted so the icons never offer regenerate over an in-flight answer.
-  const showActionRow = message.status === "complete" && hasContent;
+  // A continuable half answer is the exception: its text is final until Continue, and the row keeps restart one tap away.
+  const showActionRow =
+    (message.status === "complete" || canContinue) && hasContent;
   return (
     <View>
       <MessageBubble role="assistant" isStreaming={isStreaming}>
@@ -250,7 +262,14 @@ function AssistantMessageImpl({
             <Text className="font-sans italic text-footnote text-muted-foreground mr-2">
               Interrupted
             </Text>
-            {onRetry !== undefined ? (
+            {canContinue ? (
+              <Button variant="secondary" size="sm" onPress={handleContinue}>
+                <ArrowRight size={iconSize.xs} color={colors.label} />
+                <Text className="ml-1 font-sans font-medium text-footnote text-label">
+                  Continue
+                </Text>
+              </Button>
+            ) : onRetry !== undefined ? (
               <Button variant="secondary" size="sm" onPress={handleRetry}>
                 <RotateCw size={iconSize.xs} color={colors.label} />
                 <Text className="ml-1 font-sans font-medium text-footnote text-label">
@@ -298,7 +317,8 @@ function areEqual(
     prev.message === next.message &&
     prev.isStreaming === next.isStreaming &&
     prev.onRegenerate === next.onRegenerate &&
-    prev.onRetry === next.onRetry
+    prev.onRetry === next.onRetry &&
+    prev.onContinue === next.onContinue
   );
 }
 
