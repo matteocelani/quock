@@ -94,8 +94,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const isContinuingRef = useRef<boolean>(false);
   const handleRegenerate = useCallback(
     (assistantMessageId: MessageId): void => {
-      if (isContinuingRef.current) return;
-      if (isStreaming) {
+      if (isStreaming || isContinuingRef.current) {
         toast({
           title: "Already streaming",
           description: "Stop the current response before regenerating.",
@@ -111,8 +110,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   );
   const handleRetry = useCallback(
     (assistantMessageId: MessageId): void => {
-      if (isContinuingRef.current) return;
-      if (isStreaming) {
+      if (isStreaming || isContinuingRef.current) {
         toast({
           title: "Already streaming",
           description: "Stop the current response before retrying.",

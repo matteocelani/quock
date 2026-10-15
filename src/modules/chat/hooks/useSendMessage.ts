@@ -796,14 +796,8 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
         [...dbMessages.slice(0, assistantIndex), pendingRow],
         new Map(existing?.attachmentsByMessage ?? []),
       );
-      try {
-        await messages.update(assistantMessageId, {
-          status: "pending",
-          errorCode: null,
-        });
-        await bumpSidebar(chats, queryClient, chatId);
-      } catch (err) {
-        // Back to interrupted, or the guard above would refuse every later Continue on a row stuck pending.
+      // Nothing was sent yet, so a failed start keeps the half answer continuable instead of handing it to error + Retry.
+      const revertToInterrupted = async (err: unknown): Promise<never> => {
         await messages
           .update(assistantMessageId, { status: "interrupted" })
           .catch((revertErr: unknown) => {
@@ -811,8 +805,17 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           });
         queryClient.setQueryData(queryKeys.chat(chatId), existing);
         throw new Error("Continue: could not start", { cause: err });
+      };
+      try {
+        await messages.update(assistantMessageId, {
+          status: "pending",
+          errorCode: null,
+        });
+        await bumpSidebar(chats, queryClient, chatId);
+      } catch (err) {
+        await revertToInterrupted(err);
       }
-      // The partial rides as the last assistant turn, followed by the never-persisted ask to carry on from it.
+      // Unlike retry, the slice keeps the partial: the model must see its own half answer to resume it, not rewrite it.
       const headSlice = dbMessages.slice(0, assistantIndex + 1);
       let wireMessages: WireChatMessage[];
       let hasUntrustedContext = false;
@@ -835,8 +838,7 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
           });
         }
       } catch (err) {
-        await failPending(assistantMessageId, err);
-        return;
+        return revertToInterrupted(err);
       }
       await runStreamWithContext(
         model.name,
@@ -857,7 +859,6 @@ export function useSendMessage(chatId: ChatId): UseSendMessageResult {
       attachments,
       chatId,
       chats,
-      failPending,
       forceThink,
       hasTools,
       hasVision,

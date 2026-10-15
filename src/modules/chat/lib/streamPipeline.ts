@@ -360,6 +360,15 @@ export async function runStream(
       buffers.pendingDbTimer = null;
     }
   };
+  // Judged on the answer, not on events: a reply of only <think> or whitespace streams tokens that show nothing. The
+  // rewind keeps the saved text byte-identical, so a stray newline cannot push the cut word off before the next Continue.
+  const rewindEmptyContinuation = (): boolean => {
+    if (seed === undefined) return false;
+    const added = buffers.content.slice(seedContent.length);
+    if (added.replace(INVISIBLE, "").trim().length > 0) return false;
+    buffers.content = seedContent;
+    return true;
+  };
   // Multi-turn agentic loop: each pass streams one /api/chat response. When a turn ends with tool calls we run them, append the results, and re-stream — until the model answers with no tool calls (or the round cap trips). Without tools this runs exactly once, identical to the old single-shot path.
   let tokenCount = 0;
   let turnMessages = wireMessages;
@@ -543,14 +552,7 @@ export async function runStream(
     cancelPending();
     setToolActivity(chatId, null);
     // A continuation that added nothing visible is still unfinished: "complete" would leave a cut answer with no way on.
-    // Judged on the answer, not on events, since a reply of only <think> or whitespace streams tokens that show nothing.
-    if (
-      seed !== undefined &&
-      buffers.content.slice(seedContent.length).replace(INVISIBLE, "").trim()
-        .length === 0
-    ) {
-      // Byte-identical, so a stray newline cannot push the cut word off the end before the next Continue.
-      buffers.content = seedContent;
+    if (rewindEmptyContinuation()) {
       await writeStatus("interrupted", null);
       releaseIfCurrent();
       return;
@@ -563,6 +565,7 @@ export async function runStream(
     setToolActivity(chatId, null);
     if (isAbortError(err) || controller.signal.aborted) {
       // User stop: bubble shows the interrupted label with Continue, or Retry when nothing arrived.
+      rewindEmptyContinuation();
       await writeStatus("interrupted", null);
       releaseIfCurrent();
       return;
@@ -572,6 +575,7 @@ export async function runStream(
     // CloudAPIError is excluded: the cloud answered, and an exhausted plan shown as "interrupted" explains nothing.
     if (hasLeftForeground && !CloudAPIError.isCloudAPIError(err)) {
       console.warn("runStream: the app was backgrounded mid-stream", err);
+      rewindEmptyContinuation();
       await writeStatus("interrupted", null);
       releaseIfCurrent();
       return;
