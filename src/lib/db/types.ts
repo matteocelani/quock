@@ -81,4 +81,5 @@ export interface ChatSummary {
   updatedAt: number;
   /** Approximate on-device bytes used by this chat (message content + thinking + attachment blobs). */
   sizeBytes: number;
+  isPinned: boolean;
 }
