@@ -157,6 +157,14 @@ export function splitInlineThink(raw: string): {
   return { content, thinking, isThinking: inThink };
 }
 
+// The saved half of an interrupted answer that a continuation resumes: new text appends to it, never replaces it.
+export interface StreamSeed {
+  content: string;
+  thinking: string | null;
+  hasReadWeb: boolean;
+  webSearchFailed: boolean;
+}
+
 export async function runStream(
   ctx: RunStreamContext,
   modelName: string,
@@ -165,6 +173,7 @@ export async function runStream(
   think: boolean | undefined,
   tools: readonly ToolDefinition[] | undefined,
   memory?: MemoryRun,
+  seed?: StreamSeed,
 ): Promise<void> {
   const {
     client,
@@ -196,8 +205,10 @@ export async function runStream(
     controllerRef.current = null;
     endStream(chatId);
   };
+  // Kept out of rawContent: the think-tag parser and the tool-round slices must only ever see this run's words.
+  const seedContent = seed?.content ?? "";
   const buffers: StreamBuffers = {
-    content: "",
+    content: seedContent,
     rawContent: "",
     thinking: "",
     inlineThinking: "",
@@ -209,13 +220,14 @@ export async function runStream(
     pendingRaf: null,
     pendingReactTimer: null,
     hasStreamedToken: false,
-    webSearchFailed: false,
-    hasReadWeb: false,
+    webSearchFailed: seed?.webSearchFailed ?? false,
+    hasReadWeb: seed?.hasReadWeb ?? false,
   };
   // Reasoning shown to the UI = dedicated `thinking` channel + any inline <think> parsed from content. Models use one or the other, so this is just whichever is non-empty.
   const effectiveThinking = (): string | null => {
     const merged = buffers.thinking + buffers.inlineThinking;
-    return merged.length > 0 ? merged : null;
+    // A continuation that does not reason again keeps the reasoning that produced the saved half.
+    return merged.length > 0 ? merged : (seed?.thinking ?? null);
   };
   // Patches DB + cache atomically so AssistantMessage always reads a coherent status/content/errorCode triplet.
   const writeStatus = async (
@@ -388,7 +400,7 @@ export async function runStream(
               buffers.rawContent += event.content;
               // Re-derive the visible answer + inline reasoning from the full raw buffer (tolerant of tags split across chunks).
               const split = splitInlineThink(buffers.rawContent);
-              buffers.content = split.content;
+              buffers.content = seedContent + split.content;
               buffers.inlineThinking = split.thinking;
               // The parser knows whether the buffer ends mid-thought. Deducing it from the answer's length cannot: a
               // close tag reclassifies text already shown, so the answer shrinks while the model is writing again.
@@ -521,6 +533,12 @@ export async function runStream(
     }
     cancelPending();
     setToolActivity(chatId, null);
+    // A continuation that added nothing is still unfinished: "complete" would leave a cut answer with no way back.
+    if (seed !== undefined && !buffers.hasStreamedToken) {
+      await writeStatus("interrupted", null);
+      releaseIfCurrent();
+      return;
+    }
     await writeStatus("complete", null);
     releaseIfCurrent();
     haptics.light();
@@ -528,7 +546,7 @@ export async function runStream(
     cancelPending();
     setToolActivity(chatId, null);
     if (isAbortError(err) || controller.signal.aborted) {
-      // User stop: bubble shows the interrupted label + Retry.
+      // User stop: bubble shows the interrupted label with Continue, or Retry when nothing arrived.
       await writeStatus("interrupted", null);
       releaseIfCurrent();
       return;

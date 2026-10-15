@@ -17,6 +17,7 @@ import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import {
   type RunStreamContext,
   runStream,
+  type StreamSeed,
 } from "@/modules/chat/lib/streamPipeline";
 import { MEMORY_REPLIES } from "@/modules/chat/lib/memoryGate";
 import {
@@ -717,6 +718,85 @@ describe("runStream when the app leaves the foreground", () => {
     expect(update).toHaveBeenLastCalledWith(
       ASSISTANT_ID,
       expect.objectContaining({ status: "error" }),
+    );
+  });
+});
+
+describe("runStream continuation", () => {
+  let appStateSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    mockSendChat.mockReset();
+    appStateSpy = jest
+      .spyOn(AppState, "addEventListener")
+      .mockImplementation(
+        () =>
+          ({ remove: jest.fn() }) as unknown as ReturnType<
+            typeof AppState.addEventListener
+          >,
+      );
+  });
+
+  afterEach(() => {
+    appStateSpy.mockRestore();
+  });
+
+  const SEED: StreamSeed = {
+    content: "1. Rome\n2. Mil",
+    thinking: "Listing cities.",
+    hasReadWeb: false,
+    webSearchFailed: false,
+  };
+
+  function runSeeded(ctx: RunStreamContext): Promise<void> {
+    return runStream(
+      ctx,
+      "kimi",
+      ASSISTANT_ID,
+      USER_MESSAGES,
+      undefined,
+      undefined,
+      undefined,
+      SEED,
+    );
+  }
+
+  it("appends new text to the saved half and completes", async () => {
+    scriptTurns([[chatEvent("an\n3. Turin")]]);
+    const { ctx, queryClient } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).content).toBe(
+      "1. Rome\n2. Milan\n3. Turin",
+    );
+    expect(tailMessage(queryClient).status).toBe("complete");
+  });
+
+  // A continuation that adds nothing must not close the answer, or the cut text would lose its only way forward.
+  it("stays interrupted, text intact, when nothing new arrives", async () => {
+    scriptTurns([[thinkingEvent("Hmm.")]]);
+    const { ctx, queryClient, update } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).content).toBe(SEED.content);
+    expect(tailMessage(queryClient).status).toBe("interrupted");
+    expect(update).not.toHaveBeenCalledWith(
+      ASSISTANT_ID,
+      expect.objectContaining({ status: "complete" }),
+    );
+  });
+
+  it("keeps the saved reasoning when the continuation does not reason again", async () => {
+    scriptTurns([[chatEvent("an")]]);
+    const { ctx, update } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(update).toHaveBeenLastCalledWith(
+      ASSISTANT_ID,
+      expect.objectContaining({ thinking: SEED.thinking, status: "complete" }),
     );
   });
 });
