@@ -81,6 +81,10 @@ export interface DesignColors {
   segmentedSelected: string;
   // Switch ON track — iOS system toggle green as a semantic control key.
   toggleOn: string;
+  // Opaque swipe-action fills (Pin, Rename) and the glyph colour that sits on every action, Delete included.
+  actionPin: string;
+  actionNeutral: string;
+  actionForeground: string;
   // Code syntax, per-theme; read via `useThemeColors().syntax`, never a static import (the static light palette is invisible on the dark code surface).
   syntax: SyntaxColors;
 }

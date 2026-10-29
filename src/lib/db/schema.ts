@@ -105,6 +105,11 @@ const ADD_MESSAGE_READ_WEB = `
   UPDATE messages SET read_web = 1 WHERE role = 'user' AND sent_with_web_search = 1;
 `;
 
+// A pinned chat sits above the dated buckets in the history list. Pinning is not activity, so it never moves updated_at.
+const ADD_CHAT_PINNED = `
+  ALTER TABLE chats ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
+`;
+
 export const MIGRATIONS: readonly Migration[] = [
   { id: 1, up: INITIAL_SCHEMA },
   { id: 2, up: ADD_MESSAGE_STATUS },
@@ -118,6 +123,7 @@ export const MIGRATIONS: readonly Migration[] = [
   { id: 11, up: ADD_ATTACHMENT_DERIVED },
   { id: 19, up: ADD_MEMORY_FACTS },
   { id: 20, up: ADD_MESSAGE_READ_WEB },
+  { id: 21, up: ADD_CHAT_PINNED },
 ];
 export const CURRENT_VERSION: number =
   MIGRATIONS.length > 0

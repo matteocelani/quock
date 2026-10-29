@@ -53,6 +53,8 @@ export interface ListRowProps {
   subtitleNumberOfLines?: number;
   /** Fade the trailing meta caption to 0. Used by ChatRow during a swipe so the timestamp doesn't visually clash with the revealed action buttons. */
   hideTrailingMeta?: boolean;
+  /** Small read-only marker at the trailing end of the subtitle line, under `trailingMeta`, fading with it (ChatRow's pin). */
+  metaAccessory?: ReactNode;
   testID?: string;
 }
 
@@ -73,6 +75,7 @@ function ListRowImpl({
   chipsBelowSubtitle = false,
   subtitleNumberOfLines = 1,
   hideTrailingMeta = false,
+  metaAccessory,
   testID,
 }: ListRowProps): React.ReactElement {
   const colors = useThemeColors();
@@ -187,7 +190,24 @@ function ListRowImpl({
             })}
           </View>
         ) : null}
-        {!chipsBelowSubtitle && subtitle ? (
+        {!chipsBelowSubtitle && metaAccessory ? (
+          // The line stays even with no subtitle, so a marked row keeps the height of its neighbours.
+          <View className="flex-row items-center mt-1">
+            <Text
+              className={clsx(
+                "flex-1 font-sans text-muted-foreground",
+                subtitleTiny ? "text-caption-1" : "text-footnote",
+              )}
+              numberOfLines={subtitleNumberOfLines}
+            >
+              {subtitle ?? ""}
+            </Text>
+            <Animated.View style={trailingMetaAnimStyle}>
+              {metaAccessory}
+            </Animated.View>
+          </View>
+        ) : null}
+        {!chipsBelowSubtitle && !metaAccessory && subtitle ? (
           <Text
             className={clsx(
               "font-sans text-muted-foreground mt-1",

@@ -154,6 +154,10 @@ const light = {
   segmentedSelected: "#FFFFFF",
   // Switch ON track — iOS system toggle green (semantic control key; components never read palette accessors).
   toggleOn: appleLight.green,
+  // Opaque like iOS Mail's swipe fills, so the rail reads solid over the panel; actionForeground is every rail glyph.
+  actionPin: appleLight.orange,
+  actionNeutral: grayLight.gray,
+  actionForeground: "#FFFFFF",
 };
 
 const dark = {
@@ -199,6 +203,9 @@ const dark = {
   // iOS-real dark selected-segment fill is systemGray2 (§21) — the kit example renders a light pill; gray4 was too close to the dark track to read as selected.
   segmentedSelected: grayDark.gray2,
   toggleOn: appleDark.green,
+  actionPin: appleDark.orange,
+  actionNeutral: grayDark.gray,
+  actionForeground: "#FFFFFF",
 };
 
 // Light palette is the static default; theme swap happens via `vars()` (see ThemeProvider).

@@ -1,7 +1,15 @@
 // Chat repository: CRUD over the `chats` table plus the join needed to build the sidebar list.
 
 import type { SQLiteDatabase } from "expo-sqlite";
-import { asChatId, type ChatId, newChatId } from "@/lib/types/ids";
+import {
+  asAttachmentId,
+  asChatId,
+  asMessageId,
+  type AttachmentId,
+  type ChatId,
+  type MessageId,
+  newChatId,
+} from "@/lib/types/ids";
 import {
   EXCERPT_LENGTH,
   WEB_SEARCH_DEFAULT_ON,
@@ -19,12 +27,22 @@ interface ChatRow {
   web_search_enabled: number;
 }
 
+interface IdRow {
+  id: number;
+}
+
+type AttachmentCopy = readonly [source: AttachmentId, copy: AttachmentId];
+
+// Owner of a fork still being copied: no account lists it, and boot sweeps whatever a killed app left behind.
+const FORK_IN_PROGRESS_USER = "quock:fork-in-progress";
+
 interface ChatSummaryRow {
   id: string;
   title: string;
   updated_at: number;
   excerpt: string | null;
   size_bytes: number | null;
+  pinned: number;
 }
 
 function rowToChat(row: ChatRow): DbChat {
@@ -56,6 +74,7 @@ export class ChatRepository {
         c.id          AS id,
         c.title       AS title,
         c.updated_at  AS updated_at,
+        c.pinned      AS pinned,
         (
           SELECT m.content
           FROM messages m
@@ -88,6 +107,7 @@ export class ChatRepository {
       updatedAt: row.updated_at,
       excerpt: (row.excerpt ?? "").slice(0, EXCERPT_LENGTH),
       sizeBytes: row.size_bytes ?? 0,
+      isPinned: row.pinned === 1,
     }));
   }
   // Aggregates total bytes across all chats — used by the "Clear all chats" confirm dialog so the user sees how much storage they will free. A single scan, no per-chat round-trip.
@@ -175,6 +195,99 @@ export class ChatRepository {
       webSearchEnabled: true,
     };
   }
+  // The source's turns up to `upToMessageId`, with its model and toggles, as plain statements: a shared BEGIN lets other
+  // chats' writes join it and an exclusive one locks them out. A failed copy deletes its own chat instead.
+  async fork(
+    sourceId: ChatId,
+    upToMessageId: MessageId,
+    title: string,
+  ): Promise<ChatId> {
+    const id = newChatId();
+    const now = Date.now();
+    const userId = this.getUserId();
+    const created = await this.db.runAsync(
+      "INSERT INTO chats (id, user_id, title, created_at, updated_at, synced_at, model, think_enabled, web_search_enabled) SELECT ?, ?, ?, ?, ?, NULL, model, think_enabled, web_search_enabled FROM chats WHERE id = ? AND user_id = ?",
+      [id, FORK_IN_PROGRESS_USER, title, now, now, sourceId, userId],
+    );
+    if (created.changes === 0) {
+      throw new Error("ChatRepository.fork: source chat not found");
+    }
+    try {
+      await this.copyTurns(sourceId, upToMessageId, id);
+      await this.db.runAsync("UPDATE chats SET user_id = ? WHERE id = ?", [
+        userId,
+        id,
+      ]);
+    } catch (err) {
+      // Messages and attachments cascade with the chat, so one delete leaves no half-copied fork behind.
+      await this.delete(id).catch((cleanupErr: unknown) => {
+        console.warn("ChatRepository.fork: cleanup failed", cleanupErr);
+      });
+      throw new Error("ChatRepository.fork: copy failed", { cause: err });
+    }
+    return id;
+  }
+  // Every column is copied as stored, timestamps included, so the fork replays and sorts exactly like its source.
+  private async copyTurns(
+    sourceId: ChatId,
+    upToMessageId: MessageId,
+    forkId: ChatId,
+  ): Promise<void> {
+    const sourceMessages = await this.db.getAllAsync<IdRow>(
+      "SELECT id FROM messages WHERE chat_id = ? AND id <= ? ORDER BY id ASC",
+      [sourceId, upToMessageId],
+    );
+    // A reply regenerated away before the copy began would otherwise yield a fork ending on an unanswered question.
+    if (sourceMessages.at(-1)?.id !== upToMessageId) {
+      throw new Error("ChatRepository.fork: fork point not found");
+    }
+    let copiedAttachments: readonly AttachmentCopy[] = [];
+    for (const message of sourceMessages) {
+      const sourceMessageId = asMessageId(message.id);
+      const copiedMessage = await this.db.runAsync(
+        "INSERT INTO messages (chat_id, role, content, thinking, model, created_at, updated_at, thinking_time_start, thinking_time_end, status, error_code, web_search_failed, sent_with_think, sent_with_web_search, read_web) SELECT ?, role, content, thinking, model, created_at, updated_at, thinking_time_start, thinking_time_end, status, error_code, web_search_failed, sent_with_think, sent_with_web_search, read_web FROM messages WHERE id = ?",
+        [forkId, sourceMessageId],
+      );
+      // A turn deleted mid-copy (a regenerate tapped meanwhile) copies nothing; failing beats a fork with a hole in it.
+      if (copiedMessage.changes !== 1) {
+        throw new Error("ChatRepository.fork: a source message vanished");
+      }
+      const copiedMessageId = asMessageId(copiedMessage.lastInsertRowId);
+      const sourceAttachments = await this.db.getAllAsync<IdRow>(
+        "SELECT id FROM attachments WHERE message_id = ? ORDER BY id ASC",
+        [sourceMessageId],
+      );
+      for (const attachment of sourceAttachments) {
+        const copiedAttachment = await this.db.runAsync(
+          "INSERT INTO attachments (message_id, filename, mime_type, data, uri, size_bytes, text_content, derived_from) SELECT ?, filename, mime_type, data, uri, size_bytes, text_content, derived_from FROM attachments WHERE id = ?",
+          [copiedMessageId, attachment.id],
+        );
+        if (copiedAttachment.changes !== 1) {
+          throw new Error("ChatRepository.fork: a source attachment vanished");
+        }
+        copiedAttachments = [
+          ...copiedAttachments,
+          [
+            asAttachmentId(attachment.id),
+            asAttachmentId(copiedAttachment.lastInsertRowId),
+          ],
+        ];
+      }
+    }
+    // A rendered PDF page still names its source's document; point it at the fork's copy, or the page would be orphaned.
+    for (const [sourceAttachmentId, copyId] of copiedAttachments) {
+      await this.db.runAsync(
+        "UPDATE attachments SET derived_from = ? WHERE derived_from = ? AND message_id IN (SELECT id FROM messages WHERE chat_id = ?)",
+        [copyId, sourceAttachmentId, forkId],
+      );
+    }
+  }
+  // Drops forks whose copy never finished (the app died mid-copy); their rows cascade with them.
+  async deleteUnfinishedForks(): Promise<void> {
+    await this.db.runAsync("DELETE FROM chats WHERE user_id = ?", [
+      FORK_IN_PROGRESS_USER,
+    ]);
+  }
   // Pins a model to this chat so it persists across restarts and stays scoped to this chat alone. We deliberately do NOT touch updated_at: changing the model isn't conversational activity and shouldn't reorder the history list.
   async setModel(id: ChatId, model: string): Promise<void> {
     await this.db.runAsync("UPDATE chats SET model = ? WHERE id = ?", [
@@ -201,6 +314,13 @@ export class ChatRepository {
       "UPDATE chats SET web_search_enabled = ? WHERE id = ?",
       [enabled ? 1 : 0, id],
     );
+  }
+  // Like setModel, no updated_at bump: pinning is not activity, so an unpinned chat drops back exactly where it was.
+  async setPinned(id: ChatId, isPinned: boolean): Promise<void> {
+    await this.db.runAsync("UPDATE chats SET pinned = ? WHERE id = ?", [
+      isPinned ? 1 : 0,
+      id,
+    ]);
   }
   async rename(id: ChatId, title: string): Promise<void> {
     const now = Date.now();

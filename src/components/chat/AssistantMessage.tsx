@@ -9,6 +9,7 @@ import Copy from "lucide-react-native/icons/copy";
 import Globe from "lucide-react-native/icons/globe";
 import Highlighter from "lucide-react-native/icons/highlighter";
 import RotateCw from "lucide-react-native/icons/rotate-cw";
+import Split from "lucide-react-native/icons/split";
 import { type LucideIcon } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
 import { Markdown } from "@/components/ui/Markdown";
@@ -38,6 +39,7 @@ export interface AssistantMessageProps {
   anchorSpace: React.RefObject<View | null>;
   onRegenerate?: (assistantMessageId: MessageId) => void;
   onRetry?: (assistantMessageId: MessageId) => void;
+  onFork?: (assistantMessageId: MessageId) => void;
   // Passed only to the last row: a continuation appends, so it is meaningful only where the conversation ends.
   onContinue?: (assistantMessageId: MessageId) => void;
 }
@@ -129,6 +131,7 @@ function AssistantMessageImpl({
   anchorSpace,
   onRegenerate,
   onRetry,
+  onFork,
   onContinue,
 }: AssistantMessageProps): React.ReactElement {
   const colors = useThemeColors();
@@ -161,6 +164,9 @@ function AssistantMessageImpl({
   const handleRetry = useCallback((): void => {
     onRetry?.(message.id);
   }, [onRetry, message.id]);
+  const handleFork = useCallback((): void => {
+    onFork?.(message.id);
+  }, [onFork, message.id]);
   const handleContinue = useCallback((): void => {
     onContinue?.(message.id);
   }, [onContinue, message.id]);
@@ -302,6 +308,14 @@ function AssistantMessageImpl({
               testID="assistant-action-regenerate"
             />
           ) : null}
+          {onFork !== undefined ? (
+            <ActionButton
+              icon={Split}
+              onPress={handleFork}
+              accessibilityLabel="Fork conversation from here"
+              testID="assistant-action-fork"
+            />
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -318,6 +332,7 @@ function areEqual(
     prev.isStreaming === next.isStreaming &&
     prev.onRegenerate === next.onRegenerate &&
     prev.onRetry === next.onRetry &&
+    prev.onFork === next.onFork &&
     prev.onContinue === next.onContinue
   );
 }
