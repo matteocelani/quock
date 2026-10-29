@@ -127,7 +127,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   const handleContinue = useCallback(
     (assistantMessageId: MessageId): void => {
       if (isContinuingRef.current) return;
-      if (isStreaming) {
+      if (isStreaming || isContinuingRef.current) {
         toast({
           title: "Already streaming",
           description: "Stop the current response before continuing.",
@@ -148,6 +148,14 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   );
   const handleEdit = useCallback(
     (userMessageId: MessageId, newContent: string): void => {
+      // A starting Continue is not abortable yet (no stream registered), and the edit would delete the row it resumes.
+      if (isContinuingRef.current) {
+        toast({
+          title: "Already streaming",
+          description: "Wait for the response to start before editing.",
+        });
+        return;
+      }
       // Editing mid-stream means "abandon this answer and re-ask": abort the in-flight stream, then resend. The
       // pipeline's teardown is ownership-gated, so the aborted stream can't tear down the fresh one that replaces it.
       if (isStreaming) {
@@ -176,7 +184,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     (unitKey: string): void => {
       // Guard before closing, or a refusal costs the user the selection. Sending mid-stream would also overwrite the
       // chat's single AbortController and orphan the running stream — the same guard regenerate and retry use.
-      if (isStreaming) {
+      if (isStreaming || isContinuingRef.current) {
         toast({
           title: "Already streaming",
           description: "Stop the current response before asking for more.",
@@ -210,7 +218,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   );
   const handleWebSearch = useCallback(
     (unitKey: string): void => {
-      if (isStreaming) {
+      if (isStreaming || isContinuingRef.current) {
         toast({
           title: "Already streaming",
           description: "Stop the current response before asking for more.",

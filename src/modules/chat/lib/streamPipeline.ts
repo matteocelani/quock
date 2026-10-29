@@ -105,8 +105,8 @@ const ROUND_SEPARATOR = "\n\n";
 // Zero-width space, word joiner and BOM: gpt-oss opens a continuation with U+200B, which would sit inside the cut word.
 const LEADING_INVISIBLE = /^[\u200B\u2060\uFEFF]+/;
 const INVISIBLE = /[\u200B\u2060\uFEFF]/g;
-// The line break a model writes after closing inline reasoning; dropped only then, since a bare leading space is real.
-const LEADING_WHITESPACE = /^\s+/;
+// The line breaks a model writes after closing inline reasoning; spaces stay, since one can separate two words.
+const LEADING_LINE_BREAKS = /^[\r\n]+/;
 const THINK_OPEN = "<think>";
 const THINK_CLOSE = "</think>";
 // Some models (e.g. kimi-k2.x) stream reasoning INLINE as <think>…</think> in the content field (sometimes a
@@ -423,7 +423,7 @@ export async function runStream(
                   ? split.content
                   : seedContent +
                     (split.thinking.length > 0
-                      ? fresh.replace(LEADING_WHITESPACE, "")
+                      ? fresh.replace(LEADING_LINE_BREAKS, "")
                       : fresh);
               buffers.inlineThinking = split.thinking;
               // The parser knows whether the buffer ends mid-thought. Deducing it from the answer's length cannot: a
@@ -473,6 +473,10 @@ export async function runStream(
             setToolActivity(chatId, null);
             // The UI shows a friendly code-keyed message; keep the server's raw text in the log so a report can say what Ollama actually returned (e.g. a model that rejects images).
             console.warn("[chat] Ollama returned a stream error:", errMsg);
+            // An empty continuation goes through the catch below, which keeps it interrupted and lets the caller toast.
+            if (rewindEmptyContinuation()) {
+              throw new Error(`Continue failed: ${errMsg}`);
+            }
             await writeStatus("error", deriveMessageErrorCode(errMsg));
             releaseIfCurrent();
             // Status + cleanup already written with the server-derived code; return so the outer catch doesn't re-derive a generic code over it.
@@ -585,6 +589,12 @@ export async function runStream(
       await writeStatus("interrupted", null);
       releaseIfCurrent();
       return;
+    }
+    // A continuation that failed before adding text keeps its half answer continuable: error offers only the wiping Retry.
+    if (rewindEmptyContinuation()) {
+      await writeStatus("interrupted", null);
+      releaseIfCurrent();
+      throw err;
     }
     // Anything else: typed terminal state so the bubble renders the inline error chip + Retry.
     await writeStatus("error", deriveMessageErrorCode(err));

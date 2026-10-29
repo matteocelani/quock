@@ -834,6 +834,29 @@ describe("runStream continuation", () => {
     );
   });
 
+  it("keeps a real space after inline reasoning", async () => {
+    scriptTurns([[chatEvent("<think>ok</think> 3. Turin")]]);
+    const { ctx, queryClient } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).content).toBe("1. Rome\n2. Mil 3. Turin");
+  });
+
+  // Offline or out of quota before any new text: error would leave only the wiping Retry, so it stays continuable.
+  it("stays interrupted and rethrows when it fails before adding text", async () => {
+    mockSendChat.mockImplementation(async function* () {
+      yield* [];
+      throw new Error("Network request failed");
+    });
+    const { ctx, queryClient } = makeCtx();
+
+    await expect(runSeeded(ctx)).rejects.toThrow("Network request failed");
+
+    expect(tailMessage(queryClient).content).toBe(SEED.content);
+    expect(tailMessage(queryClient).status).toBe("interrupted");
+  });
+
   it("stays interrupted when the only new content is invisible", async () => {
     scriptTurns([[chatEvent("\u200B")]]);
     const { ctx, queryClient } = makeCtx();
