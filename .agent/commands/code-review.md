@@ -2,11 +2,11 @@
 
 **Triggers**: `/review`, `@review`, "review the code", "check before PR".
 
-**Rules apply categorically.** No "minor", no "matches legacy". Every violation = FAIL.
+**Rules apply categorically.** No "minor", no "matches legacy". Every violation = FAIL and gets fixed. Severity only decides, from the third panel on, whether a fix needs another panel (Stage C).
 
 ## The loop (iterative)
 
-`/review` is a loop, not a one-shot. The cycle closes only when a clean self-pass AND a clean adversarial panel produce zero violations on a fresh read of the rules and the diff. Fixing a violation means starting again from Step 0 — never skip ahead from "I just fixed it" to "done". A fix proves the previous pass was non-compliant, so the new state must be re-verified from scratch.
+`/review` is a loop, not a one-shot. The cycle closes only when a clean self-pass AND a clean adversarial panel produce zero violations on a fresh read of the rules and the diff. Fixing a violation means starting again from Step 0 — never skip ahead from "I just fixed it" to "done". A fix proves the previous pass was non-compliant, so the new state must be re-verified from scratch. The one declared exception is Stage C's severity-aware exit.
 
 ### Step 0 — Read the rules (BLOCKING, every iteration)
 
@@ -73,7 +73,7 @@ Skeptics **default to `real=true` if uncertain** — the panel favours recall ov
 **Stage C — Branch on the panel result**
 
 - **Any survivor** → fix it, then **GOTO Step 0**. Same restart contract as the self-pass: a correction means the previous pass was non-compliant, so the loop restarts fully.
-- **Zero survivors** → continue to Step 6. Prove it first: a clean panel is one where **every critic returned an explicit empty list**. A critic that returned nothing, null or an error has not reviewed. Re-run that one lens; never count silence as a pass.
+- **Zero survivors** → continue to Step 6. Prove it first: a clean panel is one where **every critic returned an explicit list** (empty, or with findings the skeptics refuted). A critic that returned nothing, null or an error has not reviewed. Re-run that one lens; never count silence as a pass.
 - **Severity-aware exit (from the 3rd panel iteration on).** Panels favour recall, so each round finds narrower edge cases than the last. From the third panel onward, if **every** survivor is `minor` or `nit`: fix them, re-run the build gate, and continue to Step 6 without convening another panel. List those last fixes in the PASS announcement so the human sees what no panel re-checked. A `critical` or `major` survivor always restarts at Step 0. If the loop cannot fix a survivor itself, that is the AGENTS.md STOP signal, so ask the human.
 
 Cost is real — multi-agent panels are token-heavy. That's why this runs AFTER the cheap self-loop and build gate have already cleared. The panel is the gate before PASS, not in place of self-review.
@@ -104,5 +104,5 @@ Cost is real — multi-agent panels are token-heavy. That's why this runs AFTER 
 - Announce PASS after a fix — every fix means the previous pass was non-compliant, so the cycle restarts at Step 0. The single exception is Stage C's severity-aware exit (third panel onward, minor/nit only), and it is declared in the PASS line.
 - Skip Step 5 because the self-pass looked clean — clean self-pass is exactly when the adversarial panel is most useful. Self-confirmation bias is the failure mode this step is designed to catch.
 - Let the panel critics share context with the self-pass — they must read AGENTS.md and the diff fresh, with no priming.
-- "Minor" exceptions.
+- "Minor" exceptions to fixing. Every violation is fixed; severity never excuses one, it only decides whether a fix needs another panel (Stage C).
 - Auto-fix away a non-negotiable rule (LICENSE, new dep, Ed25519 only, brand neutrality) — STOP and ask the human.

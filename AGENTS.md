@@ -326,6 +326,8 @@ The parser at `src/components/ui/markdown/parseMarkdown.ts` is intentionally per
 
 The design source lives in four files. Components consume from them — never invent at the use-site. The target look is **iOS 27** (values extracted from the Apple iOS/iPadOS 27 Figma kit).
 
+**Who decides a visual question.** The maintainer, always, whenever they give a direction (often a reference screenshot). For the style details they leave open, the maintainer's standing rule is that a design agent briefed with **Jony Ive's design philosophy** (restraint, reduction, iOS-native clarity) picks among options grounded in this design system and the app's existing surfaces, and presents its choice so the maintainer can overrule it. That brief is a lens, not an impersonation. `/issue-work` CP-2 still applies to any visual choice the maintainer wants to own.
+
 - `src/lib/design/colors.cjs` — Apple HIG palette + shadcn semantic layer (background, foreground, card, primary, secondary, muted, destructive, destructive-soft, border, ring) + iOS 27 semantics: translucent label ramp (`label`, `label-secondary`, `label-tertiary`), translucent separators (`separator`, `separator-opaque`), system fills (`fill-secondary`, `fill-tertiary`, `fill-quaternary`), `segmented-selected`, `toggle-on`, `scrim-sheet`.
 - `tailwind.config.js` — named spacing, tracking presets, and the iOS 27 type ramp (`text-large-title` … `text-caption-2`) — px-defined so each style renders at its exact pt (NativeWind rem is 14px; stock `text-*` tiers cannot express the ramp). Emphasized pairings at use-sites: `text-headline`/`text-body` and below take `font-semibold`; `text-title-2`, `text-title-1` and `text-large-title` take `font-bold` (Apple's Emphasized tiers).
 - `src/lib/design/motion.ts` — springs and easing curves. Never call `Easing.bezier()` at a use-site.
@@ -418,7 +420,7 @@ The docs are the contract. If a rule in AGENTS.md no longer matches reality:
 ### Workflow principles
 
 1. **Sequential, never parallel.** One feature at a time, one branch at a time, one PR at a time. Parallel work guarantees spaghetti and rule loss.
-2. **Mandatory self-review.** `/review` runs before every PR and loops until clean.
+2. **Mandatory self-review.** `/review` runs before every PR and loops until clean (or until its severity-aware exit, defined in `code-review.md`).
 3. **Stop at PR ready.** Once the PR is open, stop and wait for the human to merge. Only after merge do you move to the next task.
 4. **Trust the docs.** When in doubt, re-read AGENTS.md before inventing — existing rule beats improvisation.
 
@@ -461,7 +463,7 @@ The full flow — branch model, when the version bump happens (first step of a r
 
 ## Slash commands
 
-Procedures live in `.agent/commands/`. `/commit`, `/pr` and `/review` are iterative loops: read AGENTS.md, check the diff, fix violations, restart — the cycle closes only when a clean pass produces zero violations. `/issue` and `/release-start` are linear, because neither produces a diff to re-verify. `/issue-work` is neither: it is a gated run that hands control back to the human at three points and cannot pass one of them on its own. `/council` is a bounded deliberation, three rounds and a verdict, that advises a decision the human still makes.
+Procedures live in `.agent/commands/`. `/commit`, `/pr` and `/review` are iterative loops: read AGENTS.md, check the diff, fix violations, restart — the cycle closes only when a clean pass produces zero violations; `/review` alone has one declared exception, its severity-aware exit for minor/nit findings from the third panel on. `/issue` and `/release-start` are linear, because neither produces a diff to re-verify. `/issue-work` is neither: it is a gated run that hands control back to the human at three points and cannot pass one of them on its own. `/council` is a bounded deliberation, at most three rounds and a verdict, that advises a decision the human still makes.
 
 | Command | Purpose | Rule file |
 | --- | --- | --- |

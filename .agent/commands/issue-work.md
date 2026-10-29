@@ -69,7 +69,7 @@ Present: the verdict · STOP signals hit, quoted · L3's `human-only` decisions 
 
 Front-load every visual decision you can foresee here, so CP-1 and CP-2 resolve in one round trip. A command that pings four times is worse than one that asks once.
 
-A `human-only` decision with real stakes (a new dependency, a privacy trade-off, a one-way-door migration) can be put to [`/council`](./council.md) when the human asks for it. Present its verdict as a recommendation next to the options. The decision stays the human's.
+A `human-only` decision with real stakes (a new dependency, a privacy trade-off, a one-way-door migration) can be put to [`/council`](./council.md) when the human asks for it. Present its Recommendation, Kill criteria and Minority report next to the options, and leave the numeric tally out, since CP-1 never states confidence as a number. The decision stays the human's.
 
 **The turn ends.**
 
