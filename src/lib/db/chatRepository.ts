@@ -25,6 +25,7 @@ interface ChatSummaryRow {
   updated_at: number;
   excerpt: string | null;
   size_bytes: number | null;
+  pinned: number;
 }
 
 function rowToChat(row: ChatRow): DbChat {
@@ -56,6 +57,7 @@ export class ChatRepository {
         c.id          AS id,
         c.title       AS title,
         c.updated_at  AS updated_at,
+        c.pinned      AS pinned,
         (
           SELECT m.content
           FROM messages m
@@ -88,6 +90,7 @@ export class ChatRepository {
       updatedAt: row.updated_at,
       excerpt: (row.excerpt ?? "").slice(0, EXCERPT_LENGTH),
       sizeBytes: row.size_bytes ?? 0,
+      isPinned: row.pinned === 1,
     }));
   }
   // Aggregates total bytes across all chats — used by the "Clear all chats" confirm dialog so the user sees how much storage they will free. A single scan, no per-chat round-trip.
@@ -201,6 +204,13 @@ export class ChatRepository {
       "UPDATE chats SET web_search_enabled = ? WHERE id = ?",
       [enabled ? 1 : 0, id],
     );
+  }
+  // Like setModel, no updated_at bump: pinning is not activity, so an unpinned chat drops back exactly where it was.
+  async setPinned(id: ChatId, isPinned: boolean): Promise<void> {
+    await this.db.runAsync("UPDATE chats SET pinned = ? WHERE id = ?", [
+      isPinned ? 1 : 0,
+      id,
+    ]);
   }
   async rename(id: ChatId, title: string): Promise<void> {
     const now = Date.now();

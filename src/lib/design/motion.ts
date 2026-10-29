@@ -1,6 +1,10 @@
 // Motion helpers wired to the design spring + base timing. Use these — never call Easing.bezier(spring[0]…) directly.
 
-import { Easing, type WithSpringConfig } from "react-native-reanimated";
+import {
+  Easing,
+  LinearTransition,
+  type WithSpringConfig,
+} from "react-native-reanimated";
 import { spring, timings } from "@/lib/design/tokens";
 
 // Pre-built Easing function based on the Apple-style cubic-bezier.
@@ -33,12 +37,14 @@ export const toggleSpring: WithSpringConfig = {
   mass: 0.45,
 };
 
+const SURFACE_SPRING = { damping: 22, stiffness: 220, mass: 0.6 } as const;
 // Sheet/Toast entrance spring — moderate settle so content doesn't bounce visibly.
-export const surfaceSpring: WithSpringConfig = {
-  damping: 22,
-  stiffness: 220,
-  mass: 0.6,
-};
+export const surfaceSpring: WithSpringConfig = SURFACE_SPRING;
+// A list row changing place (pinned to the top, or back) settles on the same spring a surface enters with.
+export const surfaceLayoutTransition = LinearTransition.springify()
+  .damping(SURFACE_SPRING.damping)
+  .stiffness(SURFACE_SPRING.stiffness)
+  .mass(SURFACE_SPRING.mass);
 
 // Sheet drag-back spring — softer than surfaceSpring so the finger-release snap-back feels weighty.
 export const sheetSpring: WithSpringConfig = {
