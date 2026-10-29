@@ -68,9 +68,14 @@ export function DbProvider({
         // Reconcile streams and forks orphaned by a process death before the UI reads them; best-effort so a boot failure can't block startup.
         try {
           await value.messages.interruptOrphanedStreams();
-          await value.chats.deleteUnfinishedForks();
         } catch (reconcileErr) {
           console.warn("DbProvider: stream reconciliation failed", reconcileErr);
+        }
+        // Its own try, so a failed stream reconcile cannot skip the sweep and strand a fork's bytes unseen.
+        try {
+          await value.chats.deleteUnfinishedForks();
+        } catch (sweepErr) {
+          console.warn("DbProvider: unfinished-fork sweep failed", sweepErr);
         }
         if (isCancelled) return;
         setState({
