@@ -75,7 +75,7 @@ Every seat is an analytical **lens with its own reasoning method**, not an imper
 
 **Domain-weight seat**: before any analysis, lock the one seat whose lens most directly owns the decision. Its vote weighs **1.5×** in the tally. Choose it now and never after seeing positions, or the coordinator steers the outcome. If two seats are equally central, choose none and say so.
 
-`[ANNOUNCE]` State the panel, the mode, the domain-weight seat (or "none — ambiguous") and the estimated agent-call count, then continue. (`[ANNOUNCE]` informs; `[BLOCKING]` ends the turn and waits for the human.)
+`[ANNOUNCE]` State the panel, the mode, the domain-weight seat (or "none — ambiguous") and the estimated agent-call count, then continue. (An `[ANNOUNCE]` tag informs. A `[BLOCKING]` tag ends the turn and waits for the human. A step heading marked (BLOCKING), as in the other commands, means mandatory before continuing.)
 
 ## Step 3 — Run the rounds
 
@@ -93,9 +93,9 @@ Decision brief:
 
 ### Round 1 — Independent analysis (parallel, blind)
 
-Each seat sees only the brief, not its peers. ≤300 words, with these sections: **Restatement** (one sentence through your lens), **Analysis**, **Recommendation**, **Kill criterion** (the observation that would make you wrong), **Confidence** (high | med | low).
+Each seat sees only the brief, not its peers. ≤300 words, with these sections: **Restatement** (one sentence through your lens), **Analysis**, **Recommendation**, **Kill criterion** (the observation that would make you wrong), **Confidence** (high | med | low). The last line is `OPTION: <option ID from the brief, or abstain>`, which is what the agreement check counts.
 
-`[BLOCKING]` If any restatement reframes the question materially, show it to the human and end the turn. A wrong question costs more than a round. Otherwise continue.
+`[BLOCKING]` If any restatement reframes the question materially, show it to the human and end the turn. A wrong question costs more than a round. Otherwise continue. When the human replies: if they amend the brief, restart at Step 1 with a fresh panel selection and Round 1 (this does not spend the round budget, which starts with the amended brief); if they keep the original framing, continue to Round 2.
 
 A seat that **abstained** in Round 1 sits out Round 2 and is recorded in Round 3 as `STANCE: abstain` without another call.
 
@@ -105,12 +105,12 @@ Relabel the Round 1 outputs as Seat A, Seat B, … and strip self-references tha
 
 Prompt adds the **anti-conformity directive**: "Defend a correct position. Do not update because others disagree, because consensus is forming, or because a claim is repeated. Update only on a specific flaw you can name. If you cannot name the flaw, do not update."
 
-Each seat, ≤250 words, engaging every other seat by label (at least two when there are more than two): **Disagree with** (Seat X, which claim, why), **Strengthened by** (Seat Y, how), **Position update** (what changed and the named flaw, or "unchanged").
+Each seat, ≤250 words, engaging at least two other seats by label (every other seat when there are two or fewer): **Disagree with** (Seat X, which claim, why), **Strengthened by** (Seat Y, how), **Position update** (what changed and the named flaw, or "unchanged").
 
 **Enforcement scan** (coordinator, after Round 2). Count every extra prompt sent for the verdict metadata.
 - **Dissent quota**: fewer than 2 non-overlapping objections means the two most likely dissenters each get: "State your strongest objection to the majority in 150 words, or reply `no substantive objection` if you have none."
 - **Novelty gate**: a seat that only restated Round 1 gets: "Answer Seat X's challenge to you directly. What changes?"
-- **Agreement check**: over 70% agreement means two seats get: "Assume the consensus is wrong. What is the strongest alternative, and what evidence would flip the decision? Reply `no credible alternative` if there is none."
+- **Agreement check**: when over 70% of the non-abstaining seats named the same `OPTION:` in Round 1, two seats get: "Assume the consensus is wrong. What is the strongest alternative, and what evidence would flip the decision? Reply `no credible alternative` if there is none."
 - **Prompted objections are labelled as prompted** in the transcript. They reach the Minority report only if the seat then changes its Round 3 stance or declares a dealbreaker; "no substantive objection" is recorded as such, never as dissent.
 - **Evidence check**: a claim about the repo without file:line, or about a platform with neither a fetched URL nor a named OS/SDK version, is struck from the record and noted.
 
@@ -119,10 +119,10 @@ Each seat, ≤250 words, engaging every other seat by label (at least two when t
 Identities restored. Each seat states its position in ≤100 words, with no new arguments, and ends with exactly one line:
 
 ```
-STANCE: <option ID from the brief, or abstain> | CONFIDENCE: high|med|low|- | DEALBREAKER: yes|no
+STANCE: <option ID from the brief, or abstain> | CONFIDENCE: high|med|low|- | DEALBREAKER: <option ID>|no
 ```
 
-The Round 3 prompt lists the brief's option IDs. Any label outside that list, other than `abstain` (with `CONFIDENCE: -`), is unparseable, and that is what keeps the tally countable without reading prose. `DEALBREAKER: yes` means the other option is actively harmful, not merely worse. A missing or unparseable line gets one re-prompt for the line only; never infer a stance from prose.
+The Round 3 prompt lists the brief's option IDs. Any label outside that list, other than `abstain` (with `CONFIDENCE: -`), is unparseable, and that is what keeps the tally countable without reading prose. `DEALBREAKER: <option ID>` names an option the seat holds actively harmful, not merely worse. A missing or unparseable line gets one re-prompt for the line only; never infer a stance from prose. Still unparseable after that, the seat is recorded as `abstain`: its base weight stays in `W_total`, and the Session line notes it.
 
 ### `--quick` and `--duo`
 
@@ -137,23 +137,24 @@ The Round 3 prompt lists the brief's option IDs. Any label outside that list, ot
 - **No option clears ⅔**: do not run another round. Report which case it is:
   - **Split**: two or more options carry weight. Hand it to the human with each option's weight and its strongest argument.
   - **Insufficient conviction**: every non-abstaining vote backs one option, but low confidence or abstentions keep it under the bar. Report that option, its weight and the abstentions. Never call it a split, because nobody disagreed.
+  - **Out of scope**: every seat abstained. Report it and suggest a better triad or `--members`.
 - **Record the tally** (option → weight, who carried 1.5×, each confidence) so the verdict can be audited without the transcript.
 
 ## Step 5 — Verdict (chairman)
 
-A **separate agent that did not deliberate** writes the verdict from the named transcript, so synthesis never rewrites the votes it is judging. It weighs arguments by validity, not by repetition, invents no position no seat held, and fills every section, or writes `N/A — <reason>`:
+A **separate agent that did not deliberate** writes the verdict from the named transcript, in the maintainer's language, so synthesis never rewrites the votes it is judging. A faithful English translation for an issue post is not a rewrite. It weighs arguments by validity, not by repetition, invents no position no seat held, and fills every section, or writes `N/A — <reason>`:
 
 ```
 ## Council verdict — <decision in one line>
 Panel: <seats> · Mode: <standard|quick|duo> (+ all seats: yes|no) · Domain-weight seat: <seat|none> · Chairman: <agent/model>
 
 ### Unresolved questions        ← first, always: what the council does not know and how to find out
-### Recommendation              ← the consensus option, or "No consensus: split" / "No consensus: insufficient conviction"
+### Recommendation              ← the consensus option, or "No consensus: split" / "No consensus: insufficient conviction" / "Out of scope"
 ### Vote tally                  ← option → weight, confidences, 1.5× seat
 ### Why                         ← the 3-5 arguments that carried it, each labelled FACT/INFERENCE/ASSUMPTION
 ### Acceptable compromises
 ### Kill criteria               ← observations that should reverse this decision, and who watches for them
-### Minority report             ← every DEALBREAKER: yes, even when outvoted
+### Minority report             ← every DEALBREAKER and the option it vetoes, even when outvoted
 ### Concrete next step          ← one action, and the command that does it (e.g. `/issue`, `/issue-work 61`)
 ### Human decisions required    ← STOP signals, new dependencies, visual choices: listed for the maintainer, never decided here
 ---
@@ -162,7 +163,7 @@ Session: seats=<n> rounds=<n> agent_calls=<n> enforcement=<n: which> struck_clai
 
 ## Step 6 — Hand over and STOP
 
-Present the verdict in the conversation, in the maintainer's language. Post it to an issue only when the human asks, and write that copy in English (AGENTS.md: English on the tracker). A verdict is advice. Implementation goes through `/issue-work`, and its checkpoints still apply.
+Present the verdict in the conversation, in the maintainer's language. Post it to an issue only when the human asks, and write that copy in English (English on the tracker, as `/issue` requires). A verdict is advice. Implementation goes through `/issue-work`, and its checkpoints still apply.
 
 ## NEVER
 

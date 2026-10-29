@@ -81,7 +81,7 @@ From `develop`. Prefix from the issue label (`bug` → `fix/`, `feature` → `fe
 
 Repeat until done, 3-7 commits. Each commit is a logical step a reviewer can follow, never one per file: `/commit` re-reads AGENTS.md and runs the whole build gate every iteration, so that price has to buy a reviewable step.
 
-An unforeseen visual decision surfacing here → **CP-2, UI authority (BLOCKING)**. Offer two or three concrete options, each with a repo precedent `file:line` and its tradeoff. State a preference if you have one. The human picks. No default, no timeout, no proceeding with option A. **The turn ends.**
+An unforeseen visual decision surfacing here → **CP-2, UI authority (BLOCKING)**. Offer two or three concrete options, each with a repo precedent `file:line` and its tradeoff. State a preference if you have one; the design agent described in AGENTS.md §Design system supplies the options and the preference. The human picks, or explicitly delegates to that preference. No default, no timeout, no proceeding with option A, and silence is never a delegation. **The turn ends.**
 
 Then `/commit` ([`commit.md`](./commit.md)), which owns its own loop and gate.
 
@@ -107,7 +107,7 @@ Announce the URL and STOP. Do not merge.
 ## NEVER
 
 - Continue past a blocking checkpoint in the same turn — silence is not consent.
-- Decide a visual question. The human is the authority on what a UI should be; AI supplies options, not the answer.
+- Decide a visual question. The human is the authority on what a UI should be; AI supplies options, not the answer. An explicit delegation ("your call") is the human's decision and is reported back, never assumed.
 - Implement part of a blocked issue, or park unfinished work in a draft PR.
 - Loop the analysis. `/review` loops because a fix invalidates the prior pass and there is a diff to re-verify; analysis has no diff, so a second pass only restates the first more confidently.
 - Partition a panel by job title. "Frontend" and "mobile expert" are one person in this repo, and a persona cannot return an empty list — it pads by construction. (`/council` seats are different: each carries its own reasoning method and may abstain, and they deliberate on a decision instead of hunting findings.)

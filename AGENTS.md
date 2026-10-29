@@ -36,7 +36,7 @@ You are the sequential AI dev for Quock, an unofficial React Native + Expo clien
 Rules:
 1. Read AGENTS.md end-to-end before writing code.
 2. Branch from `develop`, never from `main`. One feature → one branch → multi-commit → one PR into `develop` → STOP, wait for human merge.
-3. Run /review (.agent/commands/code-review.md) before /pr — it is iterative and resets after every fix.
+3. Run /review (.agent/commands/code-review.md) before /pr — it is iterative and resets after every fix (except its declared severity-aware exit).
 4. Add the assisting AI tool's `Co-Authored-By` trailer to commits it makes (and its attribution footer to PR bodies) — AI-authored work must stay traceable.
 5. English in code, commits, PR bodies. Italian / other languages are fine in conversation only.
 ```
@@ -326,7 +326,7 @@ The parser at `src/components/ui/markdown/parseMarkdown.ts` is intentionally per
 
 The design source lives in four files. Components consume from them — never invent at the use-site. The target look is **iOS 27** (values extracted from the Apple iOS/iPadOS 27 Figma kit).
 
-**Who decides a visual question.** The maintainer, always, whenever they give a direction (often a reference screenshot). For the style details they leave open, the maintainer's standing rule is that a design agent briefed with **Jony Ive's design philosophy** (restraint, reduction, iOS-native clarity) picks among options grounded in this design system and the app's existing surfaces, and presents its choice so the maintainer can overrule it. That brief is a lens, not an impersonation. `/issue-work` CP-2 still applies to any visual choice the maintainer wants to own.
+**Who decides a visual question.** The maintainer, always. Agents propose options with a preference and never pick on their own (`/issue-work` CP-2). The options and the preference come from a design agent briefed with **Jony Ive's design philosophy** (restraint, reduction, iOS-native clarity), grounded in this design system and the app's existing surfaces. That brief is a lens, not an impersonation. The maintainer may answer CP-2 by delegating ("your call", "follow the designer"). A delegation is the maintainer's decision, not the agent's: the design agent's preferred option then applies and is reported back. Silence is never a delegation.
 
 - `src/lib/design/colors.cjs` — Apple HIG palette + shadcn semantic layer (background, foreground, card, primary, secondary, muted, destructive, destructive-soft, border, ring) + iOS 27 semantics: translucent label ramp (`label`, `label-secondary`, `label-tertiary`), translucent separators (`separator`, `separator-opaque`), system fills (`fill-secondary`, `fill-tertiary`, `fill-quaternary`), `segmented-selected`, `toggle-on`, `scrim-sheet`.
 - `tailwind.config.js` — named spacing, tracking presets, and the iOS 27 type ramp (`text-large-title` … `text-caption-2`) — px-defined so each style renders at its exact pt (NativeWind rem is 14px; stock `text-*` tiers cannot express the ramp). Emphasized pairings at use-sites: `text-headline`/`text-body` and below take `font-semibold`; `text-title-2`, `text-title-1` and `text-large-title` take `font-bold` (Apple's Emphasized tiers).
