@@ -463,7 +463,7 @@ The full flow — branch model, when the version bump happens (first step of a r
 
 ## Slash commands
 
-Procedures live in `.agent/commands/`. `/commit`, `/pr` and `/review` are iterative loops: read AGENTS.md, check the diff, fix violations, restart — the cycle closes only when a clean pass produces zero violations; `/review` has one declared exception, its severity-aware exit for minor/nit findings from the third panel on, and `/pr` inherits it through its `/review` step. `/issue` and `/release-start` are linear, because neither produces a diff to re-verify. `/issue-work` is neither: it is a gated run that hands control back to the human at three points and cannot pass one of them on its own. `/council` is a bounded deliberation, at most three rounds and a verdict, that advises a decision the human still makes.
+Procedures live in `.agent/commands/`. `/commit`, `/pr` and `/review` are iterative loops: read AGENTS.md, check the diff, fix violations, restart — the cycle closes only when a clean pass produces zero violations; `/review` has one declared exception, its severity-aware exit for minor/nit findings from the third panel on, and `/pr` inherits it through its `/review` step. `/issue` and `/release-start` are linear, because neither produces a diff to re-verify. `/issue-work` is neither: it is a gated run that hands control back to the human at three points and cannot pass one of them on its own. `/council` is a bounded deliberation, at most three rounds (plus one Round 1 rerun if the human amends the brief) and a verdict, that advises a decision the human still makes.
 
 | Command | Purpose | Rule file |
 | --- | --- | --- |

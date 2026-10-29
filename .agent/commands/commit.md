@@ -33,10 +33,10 @@ Two mechanical checks run on every pass. Each one has already cost this repo a b
   git diff --staged -U0 | grep -nE '^\+.*(sk_(live|test)_[A-Za-z0-9]{8,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|xox[abprs]-|-----BEGIN [A-Z ]*PRIVATE KEY)'
   ```
 
-- **Formatting drift.** The tree carries pre-existing Prettier drift, so never run `prettier --write` on an existing file: it reformats lines you did not touch (§Surgical edits). The check covers only Prettier's scope in this repo, the `format` script glob (`**/*.{ts,tsx,js,jsx,json}` in package.json). Markdown, Swift and other files are out of scope. A new in-scope file may be written by Prettier. For an edited in-scope file, compare drift before and after; the count must not grow from lines you added:
+- **Formatting drift.** The tree carries pre-existing Prettier drift, so never run `prettier --write` on an existing file: it reformats lines you did not touch (§Surgical edits). The check covers only Prettier's scope in this repo, the `format` script glob (`**/*.{ts,tsx,js,jsx,json}` in package.json). Markdown, Swift and other files are out of scope. A new in-scope file may be written by Prettier. For an edited in-scope file, compare drift before (the last commit, `HEAD`) and after; the count must not grow from lines you added:
 
   ```bash
-  f=<file>; diff <(git show origin/develop:$f) <(git show origin/develop:$f | npx prettier --stdin-filepath $f) | grep -c '^[<>]'
+  f=<file>; diff <(git show HEAD:$f) <(git show HEAD:$f | npx prettier --stdin-filepath $f) | grep -c '^[<>]'
   npx prettier $f | diff $f - | grep -c '^[<>]'
   ```
 

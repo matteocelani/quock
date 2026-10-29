@@ -6,7 +6,7 @@
 
 **Not for**: factual lookups (read the code or the docs), cheap reversible choices (try it), or code review (`/review` owns that). Never convene it to manufacture support for an answer already chosen.
 
-**Authority**: the council advises and the human decides. A verdict never approves a STOP signal (AGENTS.md §STOP signals), a new dependency, or a purely visual choice. It is the recommendation the human reads before deciding, never the decision itself.
+**Authority**: the council advises and the human decides. A verdict never approves a STOP signal (AGENTS.md §STOP signals), a new dependency, or a visual choice. It is the recommendation the human reads before deciding, never the decision itself.
 
 Adapted from the protocol in [0xNyk/council-of-high-intelligence](https://github.com/0xNyk/council-of-high-intelligence) (MIT): blind first round, anonymized cross-examination, confidence-weighted tally, separate chairman. The seats are rebuilt for a mobile product team.
 
@@ -68,14 +68,14 @@ Every seat is an analytical **lens with its own reasoning method**, not an imper
 | `product` | product · design · privacy | Whether and how a user-facing feature should exist |
 | `release` | qa · ios · android | Ship or hold, store review risk, rollout |
 | `privacy` | privacy · product · ios | Permissions, what leaves the device, lock-screen content |
-| `design` | design · ios · android | Interaction patterns, platform-native feel, a new surface |
+| `design` | design · ios · android | Interaction patterns and platform-native feel, with options drawn from existing surfaces (`/issue-work` L5, file:line) |
 | `ship` | cto · product · qa | Scope cuts, sequencing, "is this worth doing now" |
 
 **Auto-selection** (no flag): match the brief against the "Use it for" column, pick one triad, and state the choice and its reason in one line.
 
 **Domain-weight seat**: before any analysis, lock the one seat whose lens most directly owns the decision. Its vote weighs **1.5×** in the tally. Choose it now and never after seeing positions, or the coordinator steers the outcome. If two seats are equally central, choose none and say so.
 
-`[ANNOUNCE]` State the panel, the mode, the domain-weight seat (or "none — ambiguous") and the estimated agent-call count, then continue. (An `[ANNOUNCE]` tag informs. A `[BLOCKING]` tag ends the turn and waits for the human. A step heading marked (BLOCKING), as in the other commands, means mandatory before continuing.)
+`[ANNOUNCE]` State the panel, the mode, the domain-weight seat (or "none — ambiguous") and the estimated agent-call count, then continue. (An `[ANNOUNCE]` tag informs. A `[BLOCKING]` tag ends the turn and waits for the human. A step heading marked (BLOCKING) here, as in Step 0 of `/commit`, `/pr` and `/review`, means mandatory before continuing; `/issue-work` uses (BLOCKING) on its checkpoints to end the turn.)
 
 ## Step 3 — Run the rounds
 
@@ -95,7 +95,7 @@ Decision brief:
 
 Each seat sees only the brief, not its peers. ≤300 words, with these sections: **Restatement** (one sentence through your lens), **Analysis**, **Recommendation**, **Kill criterion** (the observation that would make you wrong), **Confidence** (high | med | low). The last line is `OPTION: <option ID from the brief, or abstain>`, which is what the agreement check counts.
 
-`[BLOCKING]` If any restatement reframes the question materially, show it to the human and end the turn. A wrong question costs more than a round. Otherwise continue. When the human replies: if they amend the brief, rerun Round 1 on it with the **same panel and domain-weight seat** (a new panel only if the human picks it), once per session, and record the restart in the Session line; if they keep the original framing, continue to Round 2.
+`[BLOCKING]` If any restatement reframes the question materially, show it to the human and end the turn. A wrong question costs more than a round. Otherwise continue. When the human replies: if they amend the brief, rerun Round 1 on it with the **same panel and domain-weight seat** (a new panel only if the human picks it), once per session, and record the restart in the Session line; if they keep the original framing, continue to Round 2. After that one rerun, a further material reframe is not re-blocked: record it under Unresolved questions and continue.
 
 A seat that **abstained** in Round 1 sits out Round 2 and is recorded in Round 3 as `STANCE: abstain` without another call. If fewer than two seats remain active, skip Round 2 and the peer-based enforcement prompts and go to Round 3; the tally will usually read insufficient conviction or out of scope, so suggest a better panel.
 
@@ -108,9 +108,9 @@ Prompt adds the **anti-conformity directive**: "Defend a correct position. Do no
 Each seat, ≤250 words, engaging at least two other seats by label (every other seat when there are two or fewer): **Disagree with** (Seat X, which claim, why), **Strengthened by** (Seat Y, how), **Position update** (what changed and the named flaw, or "unchanged").
 
 **Enforcement scan** (coordinator, after Round 2). Count every extra prompt sent for the verdict metadata.
-- **Dissent quota**: fewer than 2 non-overlapping objections means the two most likely dissenters each get: "State your strongest objection to the majority in 150 words, or reply `no substantive objection` if you have none."
+- **Dissent quota**: fewer than 2 non-overlapping objections means two seats each get the prompt below, chosen mechanically before reading Round 2 content: seats whose Round 1 `OPTION:` differs from the majority first, then lowest Round 1 confidence, then Seats-table order: "State your strongest objection to the majority in 150 words, or reply `no substantive objection` if you have none."
 - **Novelty gate**: a seat that only restated Round 1 gets: "Answer Seat X's challenge to you directly. What changes?"
-- **Agreement check**: when over 70% of the non-abstaining seats named the same `OPTION:` in Round 1, the two of them with the lowest Round 1 confidence get: "Assume the consensus is wrong. What is the strongest alternative, and what evidence would flip the decision? Reply `no credible alternative` if there is none."
+- **Agreement check**: when over 70% of the non-abstaining seats named the same `OPTION:` in Round 1, the two of them with the lowest Round 1 confidence (ties broken by Seats-table order) get: "Assume the consensus is wrong. What is the strongest alternative, and what evidence would flip the decision? Reply `no credible alternative` if there is none."
 - **Prompted objections are labelled as prompted** in the transcript. They reach the Minority report only if the seat then changes its Round 3 stance or declares a dealbreaker; "no substantive objection" is recorded as such, never as dissent.
 - **Evidence check**: a claim about the repo without file:line, or about a platform with neither a fetched URL nor a named OS/SDK version, is struck from the record and noted.
 
@@ -142,7 +142,7 @@ The Round 3 prompt lists the brief's option IDs. Any label outside that list, ot
 
 ## Step 5 — Verdict (chairman)
 
-A **separate agent that did not deliberate** writes the verdict from the named transcript, in the maintainer's language, so synthesis never rewrites the votes it is judging. A faithful English translation for an issue post is not a rewrite. It weighs arguments by validity, not by repetition, invents no position no seat held, and fills every section, or writes `N/A — <reason>`:
+A **separate agent that did not deliberate** writes the verdict, in the maintainer's language, from the named transcript, the decision brief, the Step 4 tally record and the coordinator's session counters (agent calls, enforcement prompts, struck claims). It copies the tally and the counters as given, never recomputes them, so synthesis never rewrites the votes it is judging. A faithful English translation for an issue post is not a rewrite. It weighs arguments by validity, not by repetition, invents no position no seat held, and fills every section, or writes `N/A — <reason>`:
 
 ```
 ## Council verdict — <decision in one line>
