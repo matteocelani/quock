@@ -1,6 +1,6 @@
 # AGENTS.md — Quock
 
-Single source of truth for any AI coding agent operating on this repository (Claude Code, Cursor, Codex, Gemini, Aider, Continue, …). `CLAUDE.md` is a 1-line shim that points here. Slash command procedures live in `.agent/commands/{issue,issue-work,commit,pr,code-review,release}.md` and read this file at the start of every iteration.
+Single source of truth for any AI coding agent operating on this repository (Claude Code, Cursor, Codex, Gemini, Aider, Continue, …). `CLAUDE.md` is a 1-line shim that points here. Slash command procedures live in `.agent/commands/{issue,issue-work,council,commit,pr,code-review,release}.md` and read this file at the start of every iteration.
 
 ---
 
@@ -20,7 +20,7 @@ Working memory is not persistent across tasks. Re-read at the start of every ite
 
 1. This file end-to-end.
 2. The file the task touches end-to-end, plus its immediate consumers (`grep -rn "SymbolName"`).
-3. The slash command procedure when invoking `/issue`, `/issue-work`, `/commit`, `/pr`, or `/review` — `.agent/commands/{issue,issue-work,commit,pr,code-review}.md`.
+3. The slash command procedure when invoking `/issue`, `/issue-work`, `/council`, `/commit`, `/pr`, or `/review` — `.agent/commands/{issue,issue-work,council,commit,pr,code-review}.md`.
 
 When a rule is missing, contradictory, or silent on the exact question, surface the gap and ask the human. Do not guess.
 
@@ -461,12 +461,13 @@ The full flow — branch model, when the version bump happens (first step of a r
 
 ## Slash commands
 
-Procedures live in `.agent/commands/`. `/commit`, `/pr` and `/review` are iterative loops: read AGENTS.md, check the diff, fix violations, restart — the cycle closes only when a clean pass produces zero violations. `/issue` and `/release-start` are linear, because neither produces a diff to re-verify. `/issue-work` is neither: it is a gated run that hands control back to the human at three points and cannot pass one of them on its own.
+Procedures live in `.agent/commands/`. `/commit`, `/pr` and `/review` are iterative loops: read AGENTS.md, check the diff, fix violations, restart — the cycle closes only when a clean pass produces zero violations. `/issue` and `/release-start` are linear, because neither produces a diff to re-verify. `/issue-work` is neither: it is a gated run that hands control back to the human at three points and cannot pass one of them on its own. `/council` is a bounded deliberation, three rounds and a verdict, that advises a decision the human still makes.
 
 | Command | Purpose | Rule file |
 | --- | --- | --- |
 | `/issue` | Classify + dedup + point at the code + `gh issue create` | `.agent/commands/issue.md` |
 | `/issue-work <n>` | Analysis lenses + disqualifier test → 3 blocking human checkpoints → implement → `/pr` | `.agent/commands/issue-work.md` |
+| `/council <question>` | Mobile expert council (iOS, Android, RN/Expo, CTO, design, privacy, product, QA) deliberates a decision → verdict with dissent, kill criteria, next step; advises, never decides | `.agent/commands/council.md` |
 | `/commit` | Stage + diff + Conventional Commit + push | `.agent/commands/commit.md` |
 | `/pr` | Run `/review` + rebase on `develop` + push + `gh pr create` | `.agent/commands/pr.md` |
 | `/review` | Self-review + adversarial panel (independent critics + skeptic verify per finding) + auto-fix loop | `.agent/commands/code-review.md` |

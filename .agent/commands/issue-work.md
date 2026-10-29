@@ -69,6 +69,8 @@ Present: the verdict · STOP signals hit, quoted · L3's `human-only` decisions 
 
 Front-load every visual decision you can foresee here, so CP-1 and CP-2 resolve in one round trip. A command that pings four times is worse than one that asks once.
 
+A `human-only` decision with real stakes (a new dependency, a privacy trade-off, a one-way-door migration) can be put to [`/council`](./council.md) when the human asks for it. Present its verdict as a recommendation next to the options. The decision stays the human's.
+
 **The turn ends.**
 
 ## Step 7 — Branch
@@ -108,7 +110,7 @@ Announce the URL and STOP. Do not merge.
 - Decide a visual question. The human is the authority on what a UI should be; AI supplies options, not the answer.
 - Implement part of a blocked issue, or park unfinished work in a draft PR.
 - Loop the analysis. `/review` loops because a fix invalidates the prior pass and there is a diff to re-verify; analysis has no diff, so a second pass only restates the first more confidently.
-- Partition a panel by job title. "Frontend" and "mobile expert" are one person in this repo, and a persona cannot return an empty list — it pads by construction.
+- Partition a panel by job title. "Frontend" and "mobile expert" are one person in this repo, and a persona cannot return an empty list — it pads by construction. (`/council` seats are different: each carries its own reasoning method and may abstain, and they deliberate on a decision instead of hunting findings.)
 - Score anything out of ten, or estimate effort in hours.
 - Cite a test count as evidence of coverage.
 - State a fact about this repo that no command produced.
