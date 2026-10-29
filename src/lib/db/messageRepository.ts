@@ -210,7 +210,7 @@ export class MessageRepository {
     );
   }
   // Boot reconciliation: the in-memory streaming store resets on launch, so any row still 'pending'/'streaming' is
-  // orphaned by a mid-stream process death. Flip to 'interrupted' so the bubble shows Retry, not eternal dots.
+  // orphaned by a mid-stream process death. Flip to 'interrupted' so the bubble offers Continue or Retry, not dots.
   async interruptOrphanedStreams(): Promise<number> {
     const result = await this.db.runAsync(
       "UPDATE messages SET status = 'interrupted', updated_at = ? WHERE status IN ('pending', 'streaming')",

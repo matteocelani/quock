@@ -102,6 +102,11 @@ function toolActivityTerm(call: WireToolCall): string {
 
 // Markdown paragraph break between the text of two tool rounds in one bubble.
 const ROUND_SEPARATOR = "\n\n";
+// Zero-width space, word joiner and BOM: gpt-oss opens a continuation with U+200B, which would sit inside the cut word.
+const LEADING_INVISIBLE = /^[\u200B\u2060\uFEFF]+/;
+const INVISIBLE = /[\u200B\u2060\uFEFF]/g;
+// The line breaks a model writes after closing inline reasoning; spaces stay, since one can separate two words.
+const LEADING_LINE_BREAKS = /^[\r\n]+/;
 const THINK_OPEN = "<think>";
 const THINK_CLOSE = "</think>";
 // Some models (e.g. kimi-k2.x) stream reasoning INLINE as <think>…</think> in the content field (sometimes a
@@ -157,6 +162,14 @@ export function splitInlineThink(raw: string): {
   return { content, thinking, isThinking: inThink };
 }
 
+// The saved half of an interrupted answer that a continuation resumes: new text appends to it, never replaces it.
+export interface StreamSeed {
+  content: string;
+  thinking: string | null;
+  hasReadWeb: boolean;
+  hasWebSearchFailed: boolean;
+}
+
 export async function runStream(
   ctx: RunStreamContext,
   modelName: string,
@@ -165,6 +178,7 @@ export async function runStream(
   think: boolean | undefined,
   tools: readonly ToolDefinition[] | undefined,
   memory?: MemoryRun,
+  seed?: StreamSeed,
 ): Promise<void> {
   const {
     client,
@@ -196,8 +210,10 @@ export async function runStream(
     controllerRef.current = null;
     endStream(chatId);
   };
+  // Kept out of rawContent: the think-tag parser and the tool-round slices must only ever see this run's words.
+  const seedContent = seed?.content ?? "";
   const buffers: StreamBuffers = {
-    content: "",
+    content: seedContent,
     rawContent: "",
     thinking: "",
     inlineThinking: "",
@@ -209,13 +225,16 @@ export async function runStream(
     pendingRaf: null,
     pendingReactTimer: null,
     hasStreamedToken: false,
-    webSearchFailed: false,
-    hasReadWeb: false,
+    webSearchFailed: seed?.hasWebSearchFailed ?? false,
+    hasReadWeb: seed?.hasReadWeb ?? false,
   };
   // Reasoning shown to the UI = dedicated `thinking` channel + any inline <think> parsed from content. Models use one or the other, so this is just whichever is non-empty.
   const effectiveThinking = (): string | null => {
     const merged = buffers.thinking + buffers.inlineThinking;
-    return merged.length > 0 ? merged : null;
+    // A continuation adds its reasoning under the saved half's, the same way its text adds to the saved answer.
+    const prior = seed?.thinking ?? "";
+    if (merged.length === 0) return prior.length > 0 ? prior : null;
+    return prior.length > 0 ? `${prior}${ROUND_SEPARATOR}${merged}` : merged;
   };
   // Patches DB + cache atomically so AssistantMessage always reads a coherent status/content/errorCode triplet.
   const writeStatus = async (
@@ -343,6 +362,15 @@ export async function runStream(
       buffers.pendingDbTimer = null;
     }
   };
+  // Judged on the answer, not on events: a reply of only <think> or whitespace streams tokens that show nothing. The
+  // rewind keeps the saved text byte-identical, so a stray newline cannot push the cut word off before the next Continue.
+  const rewindEmptyContinuation = (): boolean => {
+    if (seed === undefined) return false;
+    const added = buffers.content.slice(seedContent.length);
+    if (added.replace(INVISIBLE, "").trim().length > 0) return false;
+    buffers.content = seedContent;
+    return true;
+  };
   // Multi-turn agentic loop: each pass streams one /api/chat response. When a turn ends with tool calls we run them, append the results, and re-stream — until the model answers with no tool calls (or the round cap trips). Without tools this runs exactly once, identical to the old single-shot path.
   let tokenCount = 0;
   let turnMessages = wireMessages;
@@ -377,10 +405,11 @@ export async function runStream(
           case "chat": {
             if (event.content) {
               // A later round opens a new paragraph: glued on, "Nice to meet you!" ran straight into the next answer.
+              // Only this run's text counts: a continuation whose first round was a bare tool call still glues onto the seed.
               if (
                 round > 0 &&
                 buffers.rawContent.length === roundRawStart &&
-                buffers.content.length > 0
+                buffers.content.length > seedContent.length
               ) {
                 buffers.rawContent += ROUND_SEPARATOR;
                 roundRawStart = buffers.rawContent.length;
@@ -388,7 +417,14 @@ export async function runStream(
               buffers.rawContent += event.content;
               // Re-derive the visible answer + inline reasoning from the full raw buffer (tolerant of tags split across chunks).
               const split = splitInlineThink(buffers.rawContent);
-              buffers.content = split.content;
+              const fresh = split.content.replace(LEADING_INVISIBLE, "");
+              buffers.content =
+                seed === undefined
+                  ? split.content
+                  : seedContent +
+                    (split.thinking.length > 0
+                      ? fresh.replace(LEADING_LINE_BREAKS, "")
+                      : fresh);
               buffers.inlineThinking = split.thinking;
               // The parser knows whether the buffer ends mid-thought. Deducing it from the answer's length cannot: a
               // close tag reclassifies text already shown, so the answer shrinks while the model is writing again.
@@ -437,6 +473,10 @@ export async function runStream(
             setToolActivity(chatId, null);
             // The UI shows a friendly code-keyed message; keep the server's raw text in the log so a report can say what Ollama actually returned (e.g. a model that rejects images).
             console.warn("[chat] Ollama returned a stream error:", errMsg);
+            // An empty continuation goes through the catch below, which keeps it interrupted and lets the caller toast.
+            if (rewindEmptyContinuation()) {
+              throw new Error(`Continue failed: ${errMsg}`);
+            }
             await writeStatus("error", deriveMessageErrorCode(errMsg));
             releaseIfCurrent();
             // Status + cleanup already written with the server-derived code; return so the outer catch doesn't re-derive a generic code over it.
@@ -521,6 +561,12 @@ export async function runStream(
     }
     cancelPending();
     setToolActivity(chatId, null);
+    // A continuation that added nothing visible is still unfinished: "complete" would leave a cut answer with no way on.
+    if (rewindEmptyContinuation()) {
+      await writeStatus("interrupted", null);
+      releaseIfCurrent();
+      return;
+    }
     await writeStatus("complete", null);
     releaseIfCurrent();
     haptics.light();
@@ -528,7 +574,8 @@ export async function runStream(
     cancelPending();
     setToolActivity(chatId, null);
     if (isAbortError(err) || controller.signal.aborted) {
-      // User stop: bubble shows the interrupted label + Retry.
+      // User stop: bubble shows the interrupted label with Continue, or Retry when nothing arrived.
+      rewindEmptyContinuation();
       await writeStatus("interrupted", null);
       releaseIfCurrent();
       return;
@@ -538,9 +585,16 @@ export async function runStream(
     // CloudAPIError is excluded: the cloud answered, and an exhausted plan shown as "interrupted" explains nothing.
     if (hasLeftForeground && !CloudAPIError.isCloudAPIError(err)) {
       console.warn("runStream: the app was backgrounded mid-stream", err);
+      rewindEmptyContinuation();
       await writeStatus("interrupted", null);
       releaseIfCurrent();
       return;
+    }
+    // A continuation that failed before adding text keeps its half answer continuable: error offers only the wiping Retry.
+    if (rewindEmptyContinuation()) {
+      await writeStatus("interrupted", null);
+      releaseIfCurrent();
+      throw err;
     }
     // Anything else: typed terminal state so the bubble renders the inline error chip + Retry.
     await writeStatus("error", deriveMessageErrorCode(err));

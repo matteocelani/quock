@@ -209,6 +209,18 @@ export function toWireHistory(
   };
 }
 
+// Measured on the 18-model cloud catalogue: a bare trailing assistant turn resumed on 1, this explicit ask produced new
+// text on all 18, so continuation sends it after the partial instead of trusting each model's chat template.
+export const CONTINUE_INSTRUCTION =
+  "Continue exactly where you stopped, do not repeat anything.";
+
+// Never persisted: the ask exists only on the wire, so the chat itself still reads as one answer being finished.
+export function withContinueInstruction(
+  history: readonly WireChatMessage[],
+): WireChatMessage[] {
+  return [...history, { role: "user", content: CONTINUE_INSTRUCTION }];
+}
+
 // Locates an assistant turn and its preceding user turn, validating both. Shared by regenerate + retry;
 // `context` prefixes the thrown messages so a failure still says which path raised it.
 export function locateAssistantTurn(

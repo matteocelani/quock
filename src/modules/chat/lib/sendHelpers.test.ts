@@ -10,6 +10,7 @@ import {
 } from "@/lib/types/ids";
 import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import {
+  CONTINUE_INSTRUCTION,
   bumpSidebar,
   describePageCuts,
   describePickFailures,
@@ -19,6 +20,7 @@ import {
   pruneAttachmentMap,
   toWireHistory,
   topNotice,
+  withContinueInstruction,
 } from "@/modules/chat/lib/sendHelpers";
 import { PDF_OCR_MAX_PAGES } from "@/modules/chat/constants";
 
@@ -422,5 +424,19 @@ describe("bumpSidebar", () => {
 
     expect(touchUpdated).toHaveBeenCalledWith(CHAT_ID);
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.chats() });
+  });
+});
+
+describe("withContinueInstruction", () => {
+  it("asks for the rest after the partial answer, leaving the history untouched", () => {
+    const history = [
+      { role: "user" as const, content: "List Italian cities" },
+      { role: "assistant" as const, content: "1. Rome\n2. Mil" },
+    ];
+    expect(withContinueInstruction(history)).toEqual([
+      ...history,
+      { role: "user", content: CONTINUE_INSTRUCTION },
+    ]);
+    expect(history).toHaveLength(2);
   });
 });

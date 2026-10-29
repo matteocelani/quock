@@ -41,7 +41,7 @@ export class NetworkError extends Error {
     Object.setPrototypeOf(this, NetworkError.prototype);
   }
 }
-// `atToken` is the count received so far, used by the "Continue" affordance.
+// `atToken` is the count received so far; Continue resumes from the saved text, so nothing reads it today.
 export class StreamInterruptedError extends Error {
   public readonly atToken: number;
   constructor(atToken: number) {

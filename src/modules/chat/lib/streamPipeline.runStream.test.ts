@@ -17,6 +17,7 @@ import type { UseChatData } from "@/modules/chat/hooks/useChat";
 import {
   type RunStreamContext,
   runStream,
+  type StreamSeed,
 } from "@/modules/chat/lib/streamPipeline";
 import { MEMORY_REPLIES } from "@/modules/chat/lib/memoryGate";
 import {
@@ -717,6 +718,187 @@ describe("runStream when the app leaves the foreground", () => {
     expect(update).toHaveBeenLastCalledWith(
       ASSISTANT_ID,
       expect.objectContaining({ status: "error" }),
+    );
+  });
+});
+
+describe("runStream continuation", () => {
+  let appStateSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    mockSendChat.mockReset();
+    appStateSpy = jest
+      .spyOn(AppState, "addEventListener")
+      .mockImplementation(
+        () =>
+          ({ remove: jest.fn() }) as unknown as ReturnType<
+            typeof AppState.addEventListener
+          >,
+      );
+  });
+
+  afterEach(() => {
+    appStateSpy.mockRestore();
+  });
+
+  const SEED: StreamSeed = {
+    content: "1. Rome\n2. Mil",
+    thinking: "Listing cities.",
+    hasReadWeb: false,
+    hasWebSearchFailed: false,
+  };
+
+  function runSeeded(ctx: RunStreamContext): Promise<void> {
+    return runStream(
+      ctx,
+      "kimi",
+      ASSISTANT_ID,
+      USER_MESSAGES,
+      undefined,
+      undefined,
+      undefined,
+      SEED,
+    );
+  }
+
+  it("appends new text to the saved half and completes", async () => {
+    scriptTurns([[chatEvent("an\n3. Turin")]]);
+    const { ctx, queryClient } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).content).toBe(
+      "1. Rome\n2. Milan\n3. Turin",
+    );
+    expect(tailMessage(queryClient).status).toBe("complete");
+  });
+
+  // A continuation that adds nothing must not close the answer, or the cut text would lose its only way forward.
+  it("stays interrupted, text intact, when nothing new arrives", async () => {
+    scriptTurns([[thinkingEvent("Hmm.")]]);
+    const { ctx, queryClient, update } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).content).toBe(SEED.content);
+    expect(tailMessage(queryClient).status).toBe("interrupted");
+    expect(update).toHaveBeenLastCalledWith(
+      ASSISTANT_ID,
+      expect.objectContaining({ thinking: `${SEED.thinking}\n\nHmm.` }),
+    );
+    expect(update).not.toHaveBeenCalledWith(
+      ASSISTANT_ID,
+      expect.objectContaining({ status: "complete" }),
+    );
+  });
+
+  it("stays interrupted when the only new content is inline reasoning", async () => {
+    scriptTurns([[chatEvent("<think>Already done.</think>")]]);
+    const { ctx, queryClient } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).content).toBe(SEED.content);
+    expect(tailMessage(queryClient).status).toBe("interrupted");
+  });
+
+  it("drops an invisible lead so the cut word joins cleanly", async () => {
+    scriptTurns([[chatEvent("\u200Ban\n3. Turin")]]);
+    const { ctx, queryClient } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).content).toBe(
+      "1. Rome\n2. Milan\n3. Turin",
+    );
+  });
+
+  it("leaves the saved text byte-identical when only whitespace arrives", async () => {
+    scriptTurns([[chatEvent("\n")]]);
+    const { ctx, queryClient } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).content).toBe(SEED.content);
+    expect(tailMessage(queryClient).status).toBe("interrupted");
+  });
+
+  it("joins the cut word after inline reasoning and its line break", async () => {
+    scriptTurns([[chatEvent("<think>Go on.</think>\n\nan\n3. Turin")]]);
+    const { ctx, queryClient } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).content).toBe(
+      "1. Rome\n2. Milan\n3. Turin",
+    );
+  });
+
+  it("keeps a real space after inline reasoning", async () => {
+    scriptTurns([[chatEvent("<think>ok</think> 3. Turin")]]);
+    const { ctx, queryClient } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).content).toBe("1. Rome\n2. Mil 3. Turin");
+  });
+
+  // Offline or out of quota before any new text: error would leave only the wiping Retry, so it stays continuable.
+  it("stays interrupted and rethrows when it fails before adding text", async () => {
+    mockSendChat.mockImplementation(async function* () {
+      yield* [];
+      throw new Error("Network request failed");
+    });
+    const { ctx, queryClient } = makeCtx();
+
+    await expect(runSeeded(ctx)).rejects.toThrow("Network request failed");
+
+    expect(tailMessage(queryClient).content).toBe(SEED.content);
+    expect(tailMessage(queryClient).status).toBe("interrupted");
+  });
+
+  it("stays interrupted when the only new content is invisible", async () => {
+    scriptTurns([[chatEvent("\u200B")]]);
+    const { ctx, queryClient } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(tailMessage(queryClient).status).toBe("interrupted");
+  });
+
+  it("glues onto the cut word even after a round that only searched", async () => {
+    scriptTurns([
+      [toolCallsEvent([wsCall("cities")])],
+      [chatEvent("an\n3. Turin")],
+    ]);
+    mockExecuteTool.mockResolvedValue("[]");
+    const { ctx, queryClient } = makeCtx();
+
+    await runStream(
+      ctx,
+      "kimi",
+      ASSISTANT_ID,
+      USER_MESSAGES,
+      undefined,
+      WEB_TOOLS,
+      undefined,
+      SEED,
+    );
+
+    expect(tailMessage(queryClient).content).toBe(
+      "1. Rome\n2. Milan\n3. Turin",
+    );
+  });
+
+  it("keeps the saved reasoning when the continuation does not reason again", async () => {
+    scriptTurns([[chatEvent("an")]]);
+    const { ctx, update } = makeCtx();
+
+    await runSeeded(ctx);
+
+    expect(update).toHaveBeenLastCalledWith(
+      ASSISTANT_ID,
+      expect.objectContaining({ thinking: SEED.thinking, status: "complete" }),
     );
   });
 });

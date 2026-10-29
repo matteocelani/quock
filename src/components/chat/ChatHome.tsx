@@ -81,7 +81,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     if (chatGone) router.replace("/c");
   }, [chatGone, router]);
   const isStreaming = useIsStreaming(chatId);
-  const { regenerate, retry, editAndResend, abort, send } =
+  const { regenerate, retry, continueTurn, editAndResend, abort, send } =
     useSendMessage(chatId);
   const { model } = useChatModel(chatId);
   const canWebSearch = useHasToolsCapability(model?.name);
@@ -104,13 +104,16 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
       activeChatIdRef.current = null;
     };
   }, [chatId]);
+  // A ref, not isStreaming: that turns true only after several awaits, so a double-fired Continue would start two
+  // streams. Regenerate and retry read it too, since they rewrite the very row a starting continuation is resuming.
+  const isContinuingRef = useRef<boolean>(false);
   const handleRegenerate = useCallback(
     (assistantMessageId: MessageId): void => {
       if (isForkingRef.current) {
         toastForking();
         return;
       }
-      if (isStreaming) {
+      if (isStreaming || isContinuingRef.current) {
         toast({
           title: "Already streaming",
           description: "Stop the current response before regenerating.",
@@ -130,7 +133,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
         toastForking();
         return;
       }
-      if (isStreaming) {
+      if (isStreaming || isContinuingRef.current) {
         toast({
           title: "Already streaming",
           description: "Stop the current response before retrying.",
@@ -178,10 +181,44 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     },
     [chatId, createFork, isStreaming, router, toast],
   );
+  const handleContinue = useCallback(
+    (assistantMessageId: MessageId): void => {
+      if (isContinuingRef.current) return;
+      if (isForkingRef.current) {
+        toastForking();
+        return;
+      }
+      if (isStreaming || isContinuingRef.current) {
+        toast({
+          title: "Already streaming",
+          description: "Stop the current response before continuing.",
+        });
+        return;
+      }
+      isContinuingRef.current = true;
+      continueTurn(assistantMessageId)
+        .catch((err: unknown) => {
+          console.warn("ChatHome: continue failed", err);
+          toast({ title: "Continue failed", tone: "error" });
+        })
+        .finally(() => {
+          isContinuingRef.current = false;
+        });
+    },
+    [continueTurn, isStreaming, toast, toastForking],
+  );
   const handleEdit = useCallback(
     (userMessageId: MessageId, newContent: string): void => {
       if (isForkingRef.current) {
         toastForking();
+        return;
+      }
+      // A starting Continue is not abortable yet (no stream registered), and the edit would delete the row it resumes.
+      if (isContinuingRef.current) {
+        toast({
+          title: "Already streaming",
+          description: "Wait for the response to start before editing.",
+        });
         return;
       }
       // Editing mid-stream means "abandon this answer and re-ask": abort the in-flight stream, then resend. The
@@ -212,7 +249,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
     (unitKey: string): void => {
       // Guard before closing, or a refusal costs the user the selection. Sending mid-stream would also overwrite the
       // chat's single AbortController and orphan the running stream — the same guard regenerate and retry use.
-      if (isStreaming) {
+      if (isStreaming || isContinuingRef.current) {
         toast({
           title: "Already streaming",
           description: "Stop the current response before asking for more.",
@@ -246,7 +283,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
   );
   const handleWebSearch = useCallback(
     (unitKey: string): void => {
-      if (isStreaming) {
+      if (isStreaming || isContinuingRef.current) {
         toast({
           title: "Already streaming",
           description: "Stop the current response before asking for more.",
@@ -330,6 +367,7 @@ export function ChatHome({ chatId }: ChatHomeProps): React.ReactElement {
             onRegenerate={handleRegenerate}
             onRetry={handleRetry}
             onFork={handleFork}
+            onContinue={handleContinue}
             onEdit={handleEdit}
             attachmentsByMessage={data?.attachmentsByMessage}
           />
