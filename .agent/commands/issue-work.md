@@ -58,7 +58,7 @@ A judgement call always resolves to "workable", because the agent wants to work.
 
 - **L1 ground truth** — what the code does today, one `file:line` per fact. Not what it should do.
 - **L4 verification** — for each behaviour this change alters, name the gate that can actually SEE it: `jest`, `typecheck`, `lint`, `maestro`, a simulator screenshot, a real build, a physical device, or **none**. The list of "none" answers is the blind-spot list and it drives CP-3.
-- **L5 prior art** (visible surfaces) — find, never invent: the closest existing surface in Quock and how it already solves this, with `file:line`. Non-negotiable #5 owns the design system in-repo, so the design input is what Quock already does, not what a designer would do. L5 feeds options to CP-2; it decides nothing.
+- **L5 prior art** (visible surfaces) — find, never invent: the closest existing surface in Quock and how it already solves this, with `file:line`. Non-negotiable #5 owns the design system in-repo, so every option starts from what Quock already does. L5 supplies CP-2's options; the design agent (AGENTS.md §Design system) only ranks them and states a preference, and never invents a surface without a precedent. Neither decides.
 - **L6 adversarial input** (model output, untrusted input) — enumerate what the input space really contains and predict the output for each. All four defects that escaped the LaTeX work were adversarial-input defects and none were architectural.
 
 Each lens returns at most seven items, every item cited. **An uncited item is dropped by the caller, silently.** Uncited output is the spend with negative value.
@@ -81,7 +81,7 @@ From `develop`. Prefix from the issue label (`bug` → `fix/`, `feature` → `fe
 
 Repeat until done, 3-7 commits. Each commit is a logical step a reviewer can follow, never one per file: `/commit` re-reads AGENTS.md and runs the whole build gate every iteration, so that price has to buy a reviewable step.
 
-An unforeseen visual decision surfacing here → **CP-2, UI authority (BLOCKING)**. Offer two or three concrete options, each with a repo precedent `file:line` and its tradeoff. State a preference if you have one; the design agent described in AGENTS.md §Design system supplies the options and the preference. The human picks, or explicitly delegates to that preference. No default, no timeout, no proceeding with option A, and silence is never a delegation. **The turn ends.**
+An unforeseen visual decision surfacing here → **CP-2, UI authority (BLOCKING)**. Offer two or three concrete options, each with a repo precedent `file:line` and its tradeoff. State the design agent's preference among them (AGENTS.md §Design system); it is mandatory, so a delegation always points at an option named before the human answered. The human picks, or explicitly delegates to that preference. No default, no timeout, no proceeding with option A, and silence is never a delegation. **The turn ends.**
 
 Then `/commit` ([`commit.md`](./commit.md)), which owns its own loop and gate.
 

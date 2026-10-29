@@ -21,7 +21,7 @@ Adapted from the protocol in [0xNyk/council-of-high-intelligence](https://github
 /council --duo <a>,<b> <question>          duo mode: two seats, one tension, 3 short rounds
 ```
 
-Cost is real. A triad in standard mode is about 10 agent calls, `--quick` about 7, and `--all` about 26. Default to a triad.
+Cost is real. A triad in standard mode is about 10 agent calls, `--quick` about 7, and `--all` about 25 (seats × rounds + 1 chairman, before enforcement prompts). Default to a triad.
 
 ## Step 0 — Read the rules (BLOCKING)
 
@@ -95,9 +95,9 @@ Decision brief:
 
 Each seat sees only the brief, not its peers. ≤300 words, with these sections: **Restatement** (one sentence through your lens), **Analysis**, **Recommendation**, **Kill criterion** (the observation that would make you wrong), **Confidence** (high | med | low). The last line is `OPTION: <option ID from the brief, or abstain>`, which is what the agreement check counts.
 
-`[BLOCKING]` If any restatement reframes the question materially, show it to the human and end the turn. A wrong question costs more than a round. Otherwise continue. When the human replies: if they amend the brief, restart at Step 1 with a fresh panel selection and Round 1 (this does not spend the round budget, which starts with the amended brief); if they keep the original framing, continue to Round 2.
+`[BLOCKING]` If any restatement reframes the question materially, show it to the human and end the turn. A wrong question costs more than a round. Otherwise continue. When the human replies: if they amend the brief, rerun Round 1 on it with the **same panel and domain-weight seat** (a new panel only if the human picks it), once per session, and record the restart in the Session line; if they keep the original framing, continue to Round 2.
 
-A seat that **abstained** in Round 1 sits out Round 2 and is recorded in Round 3 as `STANCE: abstain` without another call.
+A seat that **abstained** in Round 1 sits out Round 2 and is recorded in Round 3 as `STANCE: abstain` without another call. If fewer than two seats remain active, skip Round 2 and the peer-based enforcement prompts and go to Round 3; the tally will usually read insufficient conviction or out of scope, so suggest a better panel.
 
 ### Round 2 — Cross-examination (anonymized)
 
@@ -110,7 +110,7 @@ Each seat, ≤250 words, engaging at least two other seats by label (every other
 **Enforcement scan** (coordinator, after Round 2). Count every extra prompt sent for the verdict metadata.
 - **Dissent quota**: fewer than 2 non-overlapping objections means the two most likely dissenters each get: "State your strongest objection to the majority in 150 words, or reply `no substantive objection` if you have none."
 - **Novelty gate**: a seat that only restated Round 1 gets: "Answer Seat X's challenge to you directly. What changes?"
-- **Agreement check**: when over 70% of the non-abstaining seats named the same `OPTION:` in Round 1, two seats get: "Assume the consensus is wrong. What is the strongest alternative, and what evidence would flip the decision? Reply `no credible alternative` if there is none."
+- **Agreement check**: when over 70% of the non-abstaining seats named the same `OPTION:` in Round 1, the two of them with the lowest Round 1 confidence get: "Assume the consensus is wrong. What is the strongest alternative, and what evidence would flip the decision? Reply `no credible alternative` if there is none."
 - **Prompted objections are labelled as prompted** in the transcript. They reach the Minority report only if the seat then changes its Round 3 stance or declares a dealbreaker; "no substantive objection" is recorded as such, never as dissent.
 - **Evidence check**: a claim about the repo without file:line, or about a platform with neither a fetched URL nor a named OS/SDK version, is struck from the record and noted.
 
@@ -126,8 +126,8 @@ The Round 3 prompt lists the brief's option IDs. Any label outside that list, ot
 
 ### `--quick` and `--duo`
 
-- `--quick`: Round 1, then Round 3 with peers' Round 1 visible. No cross-examination and no enforcement scan.
-- `--duo a,b`: both seats open blind, then each answers the other directly (≤200 words), then both give a Round 3 stance. Use it when one tension defines the decision, for example `ios,android` or `product,privacy`.
+- `--quick`: Round 1, then Round 3 with peers' Round 1 visible. No cross-examination, and of the enforcement scan only the evidence check runs (after Round 1).
+- `--duo a,b`: both seats open blind, then each answers the other directly (≤200 words, with the anti-conformity directive; no anonymization, since two seats know each other), then both give a Round 3 stance. The evidence check runs after the exchange. Use it when one tension defines the decision, for example `ios,android` or `product,privacy`.
 
 ## Step 4 — Tally
 
