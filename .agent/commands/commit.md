@@ -25,6 +25,21 @@ STOP if empty. Ignore lockfiles, minified files, `.svg` paths.
 
 Walk through every rule in [`AGENTS.md`](../../AGENTS.md) §"Code rules" and §"Design system intent" against the diff. List `file:line — rule violated` for every hit. The 5 non-negotiables and STOP signals also apply.
 
+Two mechanical checks run on every pass. Each one has already cost this repo a blocked push or a noisy diff:
+
+- **Credential-shaped strings.** GitHub push protection rejects a staged string that merely *looks* like a secret, test fixture or not. A fake `sk_live_…` in a memory test blocked a push. Scan the staged diff and treat a hit as a violation. A fixture that must look like a key is built at runtime (`"a1".repeat(n)`), never written as a literal.
+
+  ```bash
+  git diff --staged -U0 | grep -nE '^\+.*(sk_(live|test)_[A-Za-z0-9]{8,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|xox[abprs]-|-----BEGIN [A-Z ]*PRIVATE KEY)'
+  ```
+
+- **Formatting drift.** The tree carries pre-existing Prettier drift, so never run `prettier --write` on an existing file: it reformats lines you did not touch (§Surgical edits). A new file may be written by Prettier. For an edited file, compare drift before and after; the count must not grow from lines you added:
+
+  ```bash
+  f=<file>; diff <(git show origin/develop:$f) <(git show origin/develop:$f | npx prettier --stdin-filepath $f) | grep -c '^[<>]'
+  npx prettier $f | diff $f - | grep -c '^[<>]'
+  ```
+
 ### Step 3 — Branch on the result
 
 - **Violations found** → fix them, then **GOTO Step 0**. Do not proceed to commit; the loop restarts. A correction means the pre-fix state was non-compliant, so the post-fix state must be re-verified from scratch.
