@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, View } from "react-native";
+import Bell from "lucide-react-native/icons/bell";
 import BookUser from "lucide-react-native/icons/book-user";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
 import Globe from "lucide-react-native/icons/globe";
@@ -24,6 +25,11 @@ import {
   type ThemeMode,
 } from "@/lib/theme/ThemeContext";
 import { iconSize, size, strokeWidth } from "@/lib/design/tokens";
+import { useToast } from "@/lib/hooks/useToast";
+import {
+  isAnswerNotificationSupported,
+  requestAnswerNotificationPermission,
+} from "@/modules/chat/lib/answerNotification";
 import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { formatModelName } from "@/modules/models/lib/formatModelName";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
@@ -65,6 +71,13 @@ export function SettingsView({
   const setHapticsEnabled = useSettingsStore((s) => s.setHapticsEnabled);
   const isMemoryEnabled = useSettingsStore((s) => s.isMemoryEnabled);
   const setMemoryEnabled = useSettingsStore((s) => s.setMemoryEnabled);
+  const isAnswerNotificationEnabled = useSettingsStore(
+    (s) => s.isAnswerNotificationEnabled,
+  );
+  const setAnswerNotificationEnabled = useSettingsStore(
+    (s) => s.setAnswerNotificationEnabled,
+  );
+  const toast = useToast();
   const {
     isChooserOpen,
     openChooser,
@@ -120,6 +133,27 @@ export function SettingsView({
       setThemeMode(next as ThemeMode);
     },
     [setThemeMode],
+  );
+  // iOS asks only once, so after a denial the toast is the one way back to the permission.
+  const handleAnswerNotificationChange = useCallback(
+    (next: boolean): void => {
+      if (!next) {
+        setAnswerNotificationEnabled(false);
+        return;
+      }
+      requestAnswerNotificationPermission()
+        .then((isGranted) => {
+          setAnswerNotificationEnabled(isGranted);
+          if (!isGranted) {
+            toast({ title: "Allow notifications for Quock in iOS Settings." });
+          }
+        })
+        .catch((err: unknown) => {
+          console.warn("[settings] notification permission failed:", err);
+          setAnswerNotificationEnabled(false);
+        });
+    },
+    [setAnswerNotificationEnabled, toast],
   );
   const handleHapticsChange = useCallback(
     (next: boolean): void => {
@@ -274,6 +308,18 @@ export function SettingsView({
               />
             }
           />
+          {isAnswerNotificationSupported ? (
+            <ListRow
+              icon={Bell}
+              label="Answer notifications"
+              trailing={
+                <Switch
+                  value={isAnswerNotificationEnabled}
+                  onValueChange={handleAnswerNotificationChange}
+                />
+              }
+            />
+          ) : null}
           <ListRow
             icon={Trash2}
             label="Clear all chats"
