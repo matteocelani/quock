@@ -16,6 +16,8 @@ interface SettingsState {
   aiConsentVersion: number | null;
   // On by default; off only stops memory being offered or injected, it never deletes the stored facts.
   isMemoryEnabled: boolean;
+  // Off by default: turning it on is what asks iOS for permission, so nobody is prompted for a feature they never chose.
+  isAnswerNotificationEnabled: boolean;
   // Excerpt-action instructions the user can reword. Null means "use the shipped default", so improving a default
   // reaches everyone instead of being shadowed by a copy written into storage on first launch.
   deepDiveInstruction: string | null;
@@ -24,6 +26,7 @@ interface SettingsState {
   setSelectedModelName: (name: string | null) => void;
   setHapticsEnabled: (enabled: boolean) => void;
   setMemoryEnabled: (isMemoryEnabled: boolean) => void;
+  setAnswerNotificationEnabled: (isAnswerNotificationEnabled: boolean) => void;
   acceptAiConsent: () => void;
   revokeAiConsent: () => void;
   /** Null (or blank) restores the shipped wording. */
@@ -63,6 +66,7 @@ export const useSettingsStore = create<SettingsState>()(
       aiConsentAcceptedAt: null,
       aiConsentVersion: null,
       isMemoryEnabled: DEFAULT_MEMORY,
+      isAnswerNotificationEnabled: false,
       deepDiveInstruction: null,
       webSearchInstruction: null,
       setThemeMode: (themeMode): void => {
@@ -76,6 +80,9 @@ export const useSettingsStore = create<SettingsState>()(
       },
       setMemoryEnabled: (isMemoryEnabled): void => {
         set({ isMemoryEnabled });
+      },
+      setAnswerNotificationEnabled: (isAnswerNotificationEnabled): void => {
+        set({ isAnswerNotificationEnabled });
       },
       acceptAiConsent: (): void => {
         set({
@@ -106,6 +113,7 @@ export const useSettingsStore = create<SettingsState>()(
         aiConsentAcceptedAt: state.aiConsentAcceptedAt,
         aiConsentVersion: state.aiConsentVersion,
         isMemoryEnabled: state.isMemoryEnabled,
+        isAnswerNotificationEnabled: state.isAnswerNotificationEnabled,
         deepDiveInstruction: state.deepDiveInstruction,
         webSearchInstruction: state.webSearchInstruction,
       }),
