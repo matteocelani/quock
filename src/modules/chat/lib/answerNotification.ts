@@ -6,7 +6,8 @@ import { asChatId, type ChatId } from "@/lib/types/ids";
 
 interface AnswerNotificationModule {
   requestPermission: () => Promise<boolean>;
-  post: (body: string, chatId: string) => Promise<void>;
+  isAuthorized: () => Promise<boolean>;
+  post: (body: string, chatId: ChatId) => Promise<void>;
   takeOpenedChatId: () => Promise<string | null>;
   addListener: (
     eventName: "onOpenChat",
@@ -29,6 +30,12 @@ export const isAnswerNotificationSupported = native !== null;
 export async function requestAnswerNotificationPermission(): Promise<boolean> {
   if (native === null) return false;
   return native.requestPermission();
+}
+
+/** Whether iOS would show a banner right now; the user can revoke it in iOS Settings behind Quock's back. */
+export async function hasAnswerNotificationPermission(): Promise<boolean> {
+  if (native === null) return false;
+  return native.isAuthorized();
 }
 
 /** Never throws: a lost banner must not turn a finished answer into a failed one. */

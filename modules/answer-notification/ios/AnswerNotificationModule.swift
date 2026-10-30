@@ -69,6 +69,11 @@ public class AnswerNotificationModule: Module {
       try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
     }
 
+    // The user can revoke it in iOS Settings at any time, and a request posted without it is dropped silently.
+    AsyncFunction("isAuthorized") { () async -> Bool in
+      await UNUserNotificationCenter.current().notificationSettings().authorizationStatus == .authorized
+    }
+
     // Resolves once iOS has the request, so the caller can hold the background window open until then.
     AsyncFunction("post") { (body: String, chatId: String) async throws in
       let content = UNMutableNotificationContent()

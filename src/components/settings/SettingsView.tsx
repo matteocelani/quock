@@ -1,7 +1,7 @@
 // Settings pane inside AccountSheet — appearance + chat preferences. About/legal lives in AboutView.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { AppState, ScrollView, View } from "react-native";
 import Bell from "lucide-react-native/icons/bell";
 import BookUser from "lucide-react-native/icons/book-user";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
@@ -27,6 +27,7 @@ import {
 import { iconSize, size, strokeWidth } from "@/lib/design/tokens";
 import { useToast } from "@/lib/hooks/useToast";
 import {
+  hasAnswerNotificationPermission,
   isAnswerNotificationSupported,
   requestAnswerNotificationPermission,
 } from "@/modules/chat/lib/answerNotification";
@@ -151,10 +152,30 @@ export function SettingsView({
         .catch((err: unknown) => {
           console.warn("[settings] notification permission failed:", err);
           setAnswerNotificationEnabled(false);
+          toast({ title: "Couldn't turn on notifications.", tone: "error" });
         });
     },
     [setAnswerNotificationEnabled, toast],
   );
+  // A permission revoked in iOS Settings, or a backup restored onto a new phone, would leave the switch promising a
+  // banner iOS drops. Checked on open and on every return from iOS Settings.
+  useEffect(() => {
+    if (!isAnswerNotificationEnabled) return undefined;
+    const syncWithPermission = (): void => {
+      hasAnswerNotificationPermission()
+        .then((isAllowed) => {
+          if (!isAllowed) setAnswerNotificationEnabled(false);
+        })
+        .catch((err: unknown) => {
+          console.warn("[settings] notification permission check failed:", err);
+        });
+    };
+    syncWithPermission();
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") syncWithPermission();
+    });
+    return () => subscription.remove();
+  }, [isAnswerNotificationEnabled, setAnswerNotificationEnabled]);
   const handleHapticsChange = useCallback(
     (next: boolean): void => {
       setHapticsEnabled(next);
