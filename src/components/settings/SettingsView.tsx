@@ -1,8 +1,7 @@
 // Settings pane inside AccountSheet — appearance + chat preferences. About/legal lives in AboutView.
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { AppState, ScrollView, View } from "react-native";
-import Bell from "lucide-react-native/icons/bell";
+import { ScrollView, View } from "react-native";
 import BookUser from "lucide-react-native/icons/book-user";
 import ChevronRight from "lucide-react-native/icons/chevron-right";
 import Globe from "lucide-react-native/icons/globe";
@@ -10,6 +9,7 @@ import Palette from "lucide-react-native/icons/palette";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import Trash2 from "lucide-react-native/icons/trash-2";
 import Vibrate from "lucide-react-native/icons/vibrate";
+import { AnswerNotificationRow } from "@/components/settings/AnswerNotificationRow";
 import { ClearChatsChooser } from "@/components/settings/ClearChatsChooser";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ListRow } from "@/components/ui/ListRow";
@@ -25,12 +25,6 @@ import {
   type ThemeMode,
 } from "@/lib/theme/ThemeContext";
 import { iconSize, size, strokeWidth } from "@/lib/design/tokens";
-import { useToast } from "@/lib/hooks/useToast";
-import {
-  hasAnswerNotificationPermission,
-  isAnswerNotificationSupported,
-  requestAnswerNotificationPermission,
-} from "@/modules/chat/lib/answerNotification";
 import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { formatModelName } from "@/modules/models/lib/formatModelName";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
@@ -72,13 +66,6 @@ export function SettingsView({
   const setHapticsEnabled = useSettingsStore((s) => s.setHapticsEnabled);
   const isMemoryEnabled = useSettingsStore((s) => s.isMemoryEnabled);
   const setMemoryEnabled = useSettingsStore((s) => s.setMemoryEnabled);
-  const isAnswerNotificationEnabled = useSettingsStore(
-    (s) => s.isAnswerNotificationEnabled,
-  );
-  const setAnswerNotificationEnabled = useSettingsStore(
-    (s) => s.setAnswerNotificationEnabled,
-  );
-  const toast = useToast();
   const {
     isChooserOpen,
     openChooser,
@@ -135,47 +122,6 @@ export function SettingsView({
     },
     [setThemeMode],
   );
-  // iOS asks only once, so after a denial the toast is the one way back to the permission.
-  const handleAnswerNotificationChange = useCallback(
-    (next: boolean): void => {
-      if (!next) {
-        setAnswerNotificationEnabled(false);
-        return;
-      }
-      requestAnswerNotificationPermission()
-        .then((isGranted) => {
-          setAnswerNotificationEnabled(isGranted);
-          if (!isGranted) {
-            toast({ title: "Allow notifications for Quock in iOS Settings." });
-          }
-        })
-        .catch((err: unknown) => {
-          console.warn("[settings] notification permission failed:", err);
-          setAnswerNotificationEnabled(false);
-          toast({ title: "Couldn't turn on notifications.", tone: "error" });
-        });
-    },
-    [setAnswerNotificationEnabled, toast],
-  );
-  // A permission revoked in iOS Settings, or a backup restored onto a new phone, would leave the switch promising a
-  // banner iOS drops. Checked on open and on every return from iOS Settings.
-  useEffect(() => {
-    if (!isAnswerNotificationEnabled) return undefined;
-    const syncWithPermission = (): void => {
-      hasAnswerNotificationPermission()
-        .then((isAllowed) => {
-          if (!isAllowed) setAnswerNotificationEnabled(false);
-        })
-        .catch((err: unknown) => {
-          console.warn("[settings] notification permission check failed:", err);
-        });
-    };
-    syncWithPermission();
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") syncWithPermission();
-    });
-    return () => subscription.remove();
-  }, [isAnswerNotificationEnabled, setAnswerNotificationEnabled]);
   const handleHapticsChange = useCallback(
     (next: boolean): void => {
       setHapticsEnabled(next);
@@ -329,18 +275,7 @@ export function SettingsView({
               />
             }
           />
-          {isAnswerNotificationSupported ? (
-            <ListRow
-              icon={Bell}
-              label="Answer notifications"
-              trailing={
-                <Switch
-                  value={isAnswerNotificationEnabled}
-                  onValueChange={handleAnswerNotificationChange}
-                />
-              }
-            />
-          ) : null}
+          <AnswerNotificationRow />
           <ListRow
             icon={Trash2}
             label="Clear all chats"
