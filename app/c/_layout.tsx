@@ -54,14 +54,18 @@ export default function ChatSectionLayout(): React.ReactElement {
     [router, closeChatHistory],
   );
   // A tap while Quock is still running. The tap that launches it is taken by `/c` instead, before it makes a new chat.
+  // A sheet left open would cover the answer, and the model picker would retarget the tapped chat under the user.
   useEffect(
     () =>
       addOpenedChatListener(() => {
         void takeOpenedChatId().then((openedChatId) => {
-          if (openedChatId !== null) handleSelectChat(openedChatId);
+          if (openedChatId === null) return;
+          closeAccount();
+          closeModelPicker();
+          handleSelectChat(openedChatId);
         });
       }),
-    [handleSelectChat],
+    [closeAccount, closeModelPicker, handleSelectChat],
   );
   const handleNewChat = useCallback((): void => {
     router.replace("/c");
