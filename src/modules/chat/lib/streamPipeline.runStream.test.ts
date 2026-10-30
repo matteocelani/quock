@@ -21,7 +21,7 @@ import {
   type StreamSeed,
 } from "@/modules/chat/lib/streamPipeline";
 import { MEMORY_REPLIES } from "@/modules/chat/lib/memoryGate";
-import { notifyAnswerReady } from "@/modules/chat/lib/answerNotification";
+import { notifyAnswerReady } from "@/lib/notifications/answerNotification";
 import { releaseBackgroundAssertion } from "@/modules/chat/lib/backgroundAssertion";
 import {
   executeToolCall,
@@ -43,7 +43,7 @@ jest.mock("@/modules/chat/lib/tools", () => ({
   ...jest.requireActual("@/modules/chat/lib/tools"),
   executeToolCall: jest.fn(),
 }));
-jest.mock("@/modules/chat/lib/answerNotification", () => ({
+jest.mock("@/lib/notifications/answerNotification", () => ({
   notifyAnswerReady: jest.fn(async () => {}),
 }));
 jest.mock("@/modules/chat/lib/backgroundAssertion", () => ({

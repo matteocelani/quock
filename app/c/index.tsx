@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { timingsNamed } from "@/lib/design/tokens";
 import { useCreateChat } from "@/modules/chat/hooks/useCreateChat";
-import { takeOpenedChatId } from "@/modules/chat/lib/answerNotification";
+import { takeOpenedChatId } from "@/lib/notifications/answerNotification";
 
 export default function NewChatRoute(): React.ReactElement {
   const router = useRouter();

@@ -15,7 +15,7 @@ import { asChatId, type ChatId } from "@/lib/types/ids";
 import {
   addOpenedChatListener,
   takeOpenedChatId,
-} from "@/modules/chat/lib/answerNotification";
+} from "@/lib/notifications/answerNotification";
 
 export default function ChatSectionLayout(): React.ReactElement {
   const router = useRouter();

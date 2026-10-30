@@ -23,7 +23,7 @@ import {
   sendChatMessage,
   type WireChatMessage,
 } from "@/modules/chat/api/chat";
-import { notifyAnswerReady } from "@/modules/chat/lib/answerNotification";
+import { notifyAnswerReady } from "@/lib/notifications/answerNotification";
 import {
   holdBackgroundAssertion,
   releaseBackgroundAssertion,

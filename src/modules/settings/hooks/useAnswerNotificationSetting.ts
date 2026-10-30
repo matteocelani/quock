@@ -8,11 +8,11 @@ import { useSettingsStore } from "@/lib/stores/settings.store";
 import {
   hasAnswerNotificationPermission,
   requestAnswerNotificationPermission,
-} from "@/modules/chat/lib/answerNotification";
+} from "@/lib/notifications/answerNotification";
 
 export interface UseAnswerNotificationSettingResult {
   isEnabled: boolean;
-  onChange: (next: boolean) => void;
+  onChange: (isNextEnabled: boolean) => void;
 }
 
 export function useAnswerNotificationSetting(): UseAnswerNotificationSettingResult {
@@ -21,8 +21,8 @@ export function useAnswerNotificationSetting(): UseAnswerNotificationSettingResu
   const toast = useToast();
   // iOS asks only once, so after a denial the toast is the one way back to the permission.
   const onChange = useCallback(
-    (next: boolean): void => {
-      if (!next) {
+    (isNextEnabled: boolean): void => {
+      if (!isNextEnabled) {
         setEnabled(false);
         return;
       }

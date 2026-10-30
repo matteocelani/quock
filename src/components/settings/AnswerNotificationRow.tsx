@@ -5,7 +5,7 @@ import Bell from "lucide-react-native/icons/bell";
 import React from "react";
 import { ListRow } from "@/components/ui/ListRow";
 import { Switch } from "@/components/ui/Switch";
-import { isAnswerNotificationSupported } from "@/modules/chat/lib/answerNotification";
+import { isAnswerNotificationSupported } from "@/lib/notifications/answerNotification";
 import { useAnswerNotificationSetting } from "@/modules/settings/hooks/useAnswerNotificationSetting";
 
 function AnswerNotificationRowImpl(): React.ReactElement | null {
