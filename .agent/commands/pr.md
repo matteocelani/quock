@@ -98,7 +98,7 @@ git remote prune origin
 
 ## NEVER
 
-- Skip Step 0 or Step 2 — re-read AGENTS.md and run `/review` to a clean pass every time.
+- Skip Step 0 or Step 2 — re-read AGENTS.md and run `/review` to a clean pass (or to its declared severity-aware exit) every time.
 - Open PR on red CI.
 - Force-push without `--force-with-lease`.
 - Merge own PR.

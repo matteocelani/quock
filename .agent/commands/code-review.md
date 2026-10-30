@@ -84,7 +84,7 @@ Cost is real — multi-agent panels are token-heavy. That's why this runs AFTER 
 ✓ /review PASS
   - <N> self-pass violations + <M> panel survivors, all auto-fixed in <K> iterations
   - typecheck ✓ lint ✓ test ✓
-  - adversarial panel: <N> lenses · <X> raw findings · <Y> deduped · <Z> confirmed · 0 surviving
+  - adversarial panel: <N> lenses · <X> raw findings · <Y> deduped · <Z> confirmed · <0 | K minor/nit, see severity-aware exit> surviving
   - severity-aware exit: <none | K minor/nit fixed after panel #P, not re-paneled: …>
   → Ready for /commit + /pr
 ```
