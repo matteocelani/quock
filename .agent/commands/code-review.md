@@ -2,11 +2,11 @@
 
 **Triggers**: `/review`, `@review`, "review the code", "check before PR".
 
-**Rules apply categorically.** No "minor", no "matches legacy". Every violation = FAIL.
+**Rules apply categorically.** No "minor", no "matches legacy". Every violation = FAIL and gets fixed. Severity only decides, from the third panel on, whether a fix needs another panel (Stage C).
 
 ## The loop (iterative)
 
-`/review` is a loop, not a one-shot. The cycle closes only when a clean self-pass AND a clean adversarial panel produce zero violations on a fresh read of the rules and the diff. Fixing a violation means starting again from Step 0 — never skip ahead from "I just fixed it" to "done". A fix proves the previous pass was non-compliant, so the new state must be re-verified from scratch.
+`/review` is a loop, not a one-shot. The cycle closes only when a clean self-pass AND a clean adversarial panel produce zero violations on a fresh read of the rules and the diff. Fixing a violation means starting again from Step 0 — never skip ahead from "I just fixed it" to "done". A fix proves the previous pass was non-compliant, so the new state must be re-verified from scratch. The one declared exception is Stage C's severity-aware exit.
 
 ### Step 0 — Read the rules (BLOCKING, every iteration)
 
@@ -40,7 +40,7 @@ pnpm typecheck && pnpm lint && pnpm test
 
 Any failure → fix → **GOTO Step 0**.
 
-### Step 5 — Adversarial panel (BLOCKING, never skip)
+### Step 5 — Adversarial panel (BLOCKING; skipped only on Stage C's severity-aware exit)
 
 The agent that wrote the diff cannot reliably catch what it didn't notice writing. Self-review is structurally biased — the same blind spot that produced the violation also produces the "clean" self-pass. Before announcing PASS, spawn an **independent panel of critics** that re-read `AGENTS.md` from scratch and try to *refute* your pass — not validate it.
 
@@ -72,8 +72,11 @@ Skeptics **default to `real=true` if uncertain** — the panel favours recall ov
 
 **Stage C — Branch on the panel result**
 
-- **Any survivor** → fix it, then **GOTO Step 0**. Same restart contract as the self-pass: a correction means the previous pass was non-compliant, so the loop restarts fully.
+First prove every critic reviewed: each must have returned an explicit list (empty, or with findings the skeptics refuted). A critic that returned nothing, null or an error has not reviewed; re-run that lens before taking any branch below, including the severity-aware exit. Silence is never a pass.
+
+- **Any survivor** (outside the severity-aware exit below) → fix it, then **GOTO Step 0**. Same restart contract as the self-pass: a correction means the previous pass was non-compliant, so the loop restarts fully.
 - **Zero survivors** → continue to Step 6.
+- **Severity-aware exit (from the 3rd panel iteration on).** Panels favour recall, so each round finds narrower edge cases than the last. From the third panel onward, if **every** survivor is `minor` or `nit`: fix them, then run Step 0 through Step 4 again (re-read, self-pass on the fixes, build gate) and continue to Step 6. Only Step 5, the panel, is skipped. Any self-pass hit or build-gate failure in that re-run cancels the exit and restarts the full loop, panel included: the author never grades its own new failure. List those last fixes in the PASS announcement so the human sees what no panel re-checked. A `critical` or `major` survivor always restarts at Step 0. After 3 iterations, a survivor the loop cannot auto-fix is the AGENTS.md STOP signal: ask the human.
 
 Cost is real — multi-agent panels are token-heavy. That's why this runs AFTER the cheap self-loop and build gate have already cleared. The panel is the gate before PASS, not in place of self-review.
 
@@ -83,7 +86,8 @@ Cost is real — multi-agent panels are token-heavy. That's why this runs AFTER 
 ✓ /review PASS
   - <N> self-pass violations + <M> panel survivors, all auto-fixed in <K> iterations
   - typecheck ✓ lint ✓ test ✓
-  - adversarial panel: <N> lenses · <X> raw findings · <Y> deduped · <Z> confirmed · 0 surviving
+  - adversarial panel: <N> lenses · <X> raw findings · <Y> deduped · <Z> confirmed · <0 | K minor/nit, see severity-aware exit> surviving
+  - severity-aware exit: <none | K minor/nit fixed after panel #P, not re-paneled: …>
   → Ready for /commit + /pr
 ```
 
@@ -99,8 +103,8 @@ Cost is real — multi-agent panels are token-heavy. That's why this runs AFTER 
 
 - Skip Step 0 — re-read AGENTS.md and the touched file every iteration, no exceptions.
 - Skim the rules. Read them.
-- Announce PASS after a fix — every fix means the previous pass was non-compliant, so the cycle restarts at Step 0.
+- Announce PASS after a fix — every fix means the previous pass was non-compliant, so the cycle restarts at Step 0. The single exception is Stage C's severity-aware exit (third panel onward, minor/nit only), and it is declared in the PASS line.
 - Skip Step 5 because the self-pass looked clean — clean self-pass is exactly when the adversarial panel is most useful. Self-confirmation bias is the failure mode this step is designed to catch.
 - Let the panel critics share context with the self-pass — they must read AGENTS.md and the diff fresh, with no priming.
-- "Minor" exceptions.
+- "Minor" exceptions to fixing. Every violation is fixed; severity never excuses one, it only decides whether a fix needs another panel (Stage C).
 - Auto-fix away a non-negotiable rule (LICENSE, new dep, Ed25519 only, brand neutrality) — STOP and ask the human.

@@ -58,7 +58,7 @@ A judgement call always resolves to "workable", because the agent wants to work.
 
 - **L1 ground truth** — what the code does today, one `file:line` per fact. Not what it should do.
 - **L4 verification** — for each behaviour this change alters, name the gate that can actually SEE it: `jest`, `typecheck`, `lint`, `maestro`, a simulator screenshot, a real build, a physical device, or **none**. The list of "none" answers is the blind-spot list and it drives CP-3.
-- **L5 prior art** (visible surfaces) — find, never invent: the closest existing surface in Quock and how it already solves this, with `file:line`. Non-negotiable #5 owns the design system in-repo, so the design input is what Quock already does, not what a designer would do. L5 feeds options to CP-2; it decides nothing.
+- **L5 prior art** (visible surfaces) — find, never invent: the closest existing surface in Quock and how it already solves this, with `file:line`. Non-negotiable #5 owns the design system in-repo, so every option starts from what Quock already does. L5 supplies CP-2's options; the design agent (AGENTS.md §Design system) only ranks them and states a preference, and never invents a surface without a precedent. Neither decides.
 - **L6 adversarial input** (model output, untrusted input) — enumerate what the input space really contains and predict the output for each. All four defects that escaped the LaTeX work were adversarial-input defects and none were architectural.
 
 Each lens returns at most seven items, every item cited. **An uncited item is dropped by the caller, silently.** Uncited output is the spend with negative value.
@@ -68,6 +68,8 @@ Each lens returns at most seven items, every item cited. **An uncited item is dr
 Present: the verdict · STOP signals hit, quoted · L3's `human-only` decisions · the blind-spot list from L4 · what is out of scope. State confidence as **a named observation that would change it**, never a number.
 
 Front-load every visual decision you can foresee here, so CP-1 and CP-2 resolve in one round trip. A command that pings four times is worse than one that asks once.
+
+Wherever a `human-only` decision with real stakes reaches the human (the single question of a Step 4 not-workable stop, CP-1, or CP-2 through the `design` triad), it can be put to [`/council`](./council.md) when the human asks for it. Present its Unresolved questions, Recommendation, Kill criteria, Minority report and Human decisions required next to the options, and leave only the numeric Vote tally out, since these checkpoints never state confidence as a number. The decision stays the human's.
 
 **The turn ends.**
 
@@ -79,7 +81,7 @@ From `develop`. Prefix from the issue label (`bug` → `fix/`, `feature` → `fe
 
 Repeat until done, 3-7 commits. Each commit is a logical step a reviewer can follow, never one per file: `/commit` re-reads AGENTS.md and runs the whole build gate every iteration, so that price has to buy a reviewable step.
 
-An unforeseen visual decision surfacing here → **CP-2, UI authority (BLOCKING)**. Offer two or three concrete options, each with a repo precedent `file:line` and its tradeoff. State a preference if you have one. The human picks. No default, no timeout, no proceeding with option A. **The turn ends.**
+An unforeseen visual decision surfacing here → **CP-2, UI authority (BLOCKING)**. Offer two or three concrete options, each with a repo precedent `file:line` and its tradeoff. State the design agent's preference among them (AGENTS.md §Design system); it is mandatory, so a delegation always points at an option named before the human answered. The human picks, or explicitly delegates to that preference. No default, no timeout, no proceeding with option A, and silence is never a delegation. **The turn ends.**
 
 Then `/commit` ([`commit.md`](./commit.md)), which owns its own loop and gate.
 
@@ -105,10 +107,10 @@ Announce the URL and STOP. Do not merge.
 ## NEVER
 
 - Continue past a blocking checkpoint in the same turn — silence is not consent.
-- Decide a visual question. The human is the authority on what a UI should be; AI supplies options, not the answer.
+- Decide a visual question. The human is the authority on what a UI should be; AI supplies options, not the answer. An explicit delegation ("your call") is the human's decision and is reported back, never assumed.
 - Implement part of a blocked issue, or park unfinished work in a draft PR.
 - Loop the analysis. `/review` loops because a fix invalidates the prior pass and there is a diff to re-verify; analysis has no diff, so a second pass only restates the first more confidently.
-- Partition a panel by job title. "Frontend" and "mobile expert" are one person in this repo, and a persona cannot return an empty list — it pads by construction.
+- Partition a panel by job title. "Frontend" and "mobile expert" are one person in this repo, and a persona cannot return an empty list — it pads by construction. (`/council` seats are different: each is defined by its reasoning method, the job title is only a label, each may abstain, and they deliberate on a decision instead of hunting findings.)
 - Score anything out of ten, or estimate effort in hours.
 - Cite a test count as evidence of coverage.
 - State a fact about this repo that no command produced.

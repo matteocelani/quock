@@ -1,6 +1,6 @@
 # AGENTS.md — Quock
 
-Single source of truth for any AI coding agent operating on this repository (Claude Code, Cursor, Codex, Gemini, Aider, Continue, …). `CLAUDE.md` is a 1-line shim that points here. Slash command procedures live in `.agent/commands/{issue,issue-work,commit,pr,code-review,release}.md` and read this file at the start of every iteration.
+Single source of truth for any AI coding agent operating on this repository (Claude Code, Cursor, Codex, Gemini, Aider, Continue, …). `CLAUDE.md` is a 1-line shim that points here. Slash command procedures live in `.agent/commands/{issue,issue-work,council,commit,pr,code-review,release}.md` and read this file at the start of every iteration.
 
 ---
 
@@ -20,7 +20,7 @@ Working memory is not persistent across tasks. Re-read at the start of every ite
 
 1. This file end-to-end.
 2. The file the task touches end-to-end, plus its immediate consumers (`grep -rn "SymbolName"`).
-3. The slash command procedure when invoking `/issue`, `/issue-work`, `/commit`, `/pr`, or `/review` — `.agent/commands/{issue,issue-work,commit,pr,code-review}.md`.
+3. The slash command procedure when invoking `/issue`, `/issue-work`, `/council`, `/commit`, `/pr`, or `/review` — `.agent/commands/{issue,issue-work,council,commit,pr,code-review}.md`.
 
 When a rule is missing, contradictory, or silent on the exact question, surface the gap and ask the human. Do not guess.
 
@@ -36,7 +36,7 @@ You are the sequential AI dev for Quock, an unofficial React Native + Expo clien
 Rules:
 1. Read AGENTS.md end-to-end before writing code.
 2. Branch from `develop`, never from `main`. One feature → one branch → multi-commit → one PR into `develop` → STOP, wait for human merge.
-3. Run /review (.agent/commands/code-review.md) before /pr — it is iterative and resets after every fix.
+3. Run /review (.agent/commands/code-review.md) before /pr — it is iterative and resets after every fix (except its declared severity-aware exit).
 4. Add the assisting AI tool's `Co-Authored-By` trailer to commits it makes (and its attribution footer to PR bodies) — AI-authored work must stay traceable.
 5. English in code, commits, PR bodies. Italian / other languages are fine in conversation only.
 ```
@@ -326,6 +326,8 @@ The parser at `src/components/ui/markdown/parseMarkdown.ts` is intentionally per
 
 The design source lives in four files. Components consume from them — never invent at the use-site. The target look is **iOS 27** (values extracted from the Apple iOS/iPadOS 27 Figma kit).
 
+**Who decides a visual question.** The maintainer, always. Agents propose options with a preference and never pick on their own (`/issue-work` CP-2). The options come from the app's existing surfaces (`/issue-work` L5); a design agent briefed with **Jony Ive's design philosophy** (restraint, reduction, iOS-native clarity) ranks them within this design system and states the preference. That brief is a lens, not an impersonation. The maintainer may answer CP-2 by delegating ("your call", "follow the designer"). A delegation is the maintainer's decision, not the agent's: the design agent's preferred option then applies and is reported back. Silence is never a delegation.
+
 - `src/lib/design/colors.cjs` — Apple HIG palette + shadcn semantic layer (background, foreground, card, primary, secondary, muted, destructive, destructive-soft, border, ring) + iOS 27 semantics: translucent label ramp (`label`, `label-secondary`, `label-tertiary`), translucent separators (`separator`, `separator-opaque`), system fills (`fill-secondary`, `fill-tertiary`, `fill-quaternary`), `segmented-selected`, `toggle-on`, `scrim-sheet`.
 - `tailwind.config.js` — named spacing, tracking presets, and the iOS 27 type ramp (`text-large-title` … `text-caption-2`) — px-defined so each style renders at its exact pt (NativeWind rem is 14px; stock `text-*` tiers cannot express the ramp). Emphasized pairings at use-sites: `text-headline`/`text-body` and below take `font-semibold`; `text-title-2`, `text-title-1` and `text-large-title` take `font-bold` (Apple's Emphasized tiers).
 - `src/lib/design/motion.ts` — springs and easing curves. Never call `Easing.bezier()` at a use-site.
@@ -418,7 +420,7 @@ The docs are the contract. If a rule in AGENTS.md no longer matches reality:
 ### Workflow principles
 
 1. **Sequential, never parallel.** One feature at a time, one branch at a time, one PR at a time. Parallel work guarantees spaghetti and rule loss.
-2. **Mandatory self-review.** `/review` runs before every PR and loops until clean.
+2. **Mandatory self-review.** `/review` runs before every PR and loops until clean (or until its severity-aware exit, defined in `code-review.md`).
 3. **Stop at PR ready.** Once the PR is open, stop and wait for the human to merge. Only after merge do you move to the next task.
 4. **Trust the docs.** When in doubt, re-read AGENTS.md before inventing — existing rule beats improvisation.
 
@@ -461,12 +463,13 @@ The full flow — branch model, when the version bump happens (first step of a r
 
 ## Slash commands
 
-Procedures live in `.agent/commands/`. `/commit`, `/pr` and `/review` are iterative loops: read AGENTS.md, check the diff, fix violations, restart — the cycle closes only when a clean pass produces zero violations. `/issue` and `/release-start` are linear, because neither produces a diff to re-verify. `/issue-work` is neither: it is a gated run that hands control back to the human at three points and cannot pass one of them on its own.
+Procedures live in `.agent/commands/`. `/commit`, `/pr` and `/review` are iterative loops: read AGENTS.md, check the diff, fix violations, restart — the cycle closes only when a clean pass produces zero violations; `/review` has one declared exception, its severity-aware exit for minor/nit findings from the third panel on, and `/pr` inherits it through its `/review` step. `/issue` and `/release-start` are linear, because neither produces a diff to re-verify. `/issue-work` is neither: it is a gated run that hands control back to the human at three points and cannot pass one of them on its own. `/council` is a bounded deliberation, at most three rounds (plus one Round 1 rerun if the human amends the brief) and a verdict, that advises a decision the human still makes.
 
 | Command | Purpose | Rule file |
 | --- | --- | --- |
 | `/issue` | Classify + dedup + point at the code + `gh issue create` | `.agent/commands/issue.md` |
 | `/issue-work <n>` | Analysis lenses + disqualifier test → 3 blocking human checkpoints → implement → `/pr` | `.agent/commands/issue-work.md` |
+| `/council <question>` | Mobile expert council (iOS, Android, RN/Expo, CTO, design, privacy, product, QA) deliberates a decision → verdict with dissent, kill criteria, next step; advises, never decides | `.agent/commands/council.md` |
 | `/commit` | Stage + diff + Conventional Commit + push | `.agent/commands/commit.md` |
 | `/pr` | Run `/review` + rebase on `develop` + push + `gh pr create` | `.agent/commands/pr.md` |
 | `/review` | Self-review + adversarial panel (independent critics + skeptic verify per finding) + auto-fix loop | `.agent/commands/code-review.md` |

@@ -8,7 +8,7 @@
 
 ## The loop (iterative)
 
-The PR procedure is wrapped around a full `/review` cycle. Any violation found before opening the PR resets the loop — the cycle closes only when a clean pass produces zero violations.
+The PR procedure is wrapped around a full `/review` cycle. Any violation found before opening the PR resets the loop — the cycle closes only when a clean pass produces zero violations (or on `/review`'s declared severity-aware exit, code-review.md Stage C).
 
 ### Step 0 — Read the rules (BLOCKING, every iteration)
 
@@ -21,7 +21,7 @@ Read [`AGENTS.md`](../../AGENTS.md) end-to-end.
 
 ### Step 2 — Run `/review` (BLOCKING)
 
-Invoke `/review` (see [`code-review.md`](./code-review.md)). It is itself a loop that will not return until it has produced a clean pass. If `/review` reports any violation, it fixes + restarts on its own — by the time it returns, the branch is compliant.
+Invoke `/review` (see [`code-review.md`](./code-review.md)). It is itself a loop that will not return until it has produced a clean pass (or reached its declared severity-aware exit). If `/review` reports any violation, it fixes + restarts on its own — by the time it returns, the branch is compliant.
 
 ### Step 3 — Rebase
 
@@ -98,7 +98,7 @@ git remote prune origin
 
 ## NEVER
 
-- Skip Step 0 or Step 2 — re-read AGENTS.md and run `/review` to a clean pass every time.
+- Skip Step 0 or Step 2 — re-read AGENTS.md and run `/review` to a clean pass (or to its declared severity-aware exit) every time.
 - Open PR on red CI.
 - Force-push without `--force-with-lease`.
 - Merge own PR.
