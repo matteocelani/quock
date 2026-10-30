@@ -4,6 +4,7 @@ import type { ApiClient } from "@/lib/api/client";
 import { CloudAPIError } from "@/lib/api/errors";
 import type { MessageRepository } from "@/lib/db/messageRepository";
 import { queryKeys } from "@/lib/hooks/queryKeys";
+import { useSettingsStore } from "@/lib/stores/settings.store";
 import type { UseHapticsResult } from "@/lib/hooks/useHaptics";
 import type { DbMemoryFact } from "@/lib/db/types";
 import { asChatId, asFactId, asMessageId, type FactId } from "@/lib/types/ids";
@@ -20,6 +21,8 @@ import {
   type StreamSeed,
 } from "@/modules/chat/lib/streamPipeline";
 import { MEMORY_REPLIES } from "@/modules/chat/lib/memoryGate";
+import { notifyAnswerReady } from "@/lib/notifications/answerNotification";
+import { releaseBackgroundAssertion } from "@/modules/chat/lib/backgroundAssertion";
 import {
   executeToolCall,
   MEMORY_TOOLS,
@@ -40,9 +43,22 @@ jest.mock("@/modules/chat/lib/tools", () => ({
   ...jest.requireActual("@/modules/chat/lib/tools"),
   executeToolCall: jest.fn(),
 }));
+jest.mock("@/lib/notifications/answerNotification", () => ({
+  notifyAnswerReady: jest.fn(async () => {}),
+}));
+jest.mock("@/modules/chat/lib/backgroundAssertion", () => ({
+  holdBackgroundAssertion: jest.fn(),
+  releaseBackgroundAssertion: jest.fn(),
+}));
 
 const mockSendChat = sendChatMessage as jest.MockedFunction<typeof sendChatMessage>;
 const mockExecuteTool = executeToolCall as jest.MockedFunction<typeof executeToolCall>;
+const mockNotify = notifyAnswerReady as jest.MockedFunction<
+  typeof notifyAnswerReady
+>;
+const mockRelease = releaseBackgroundAssertion as jest.MockedFunction<
+  typeof releaseBackgroundAssertion
+>;
 
 const CHAT_ID = asChatId("chat-1");
 const ASSISTANT_ID = asMessageId(1);
@@ -704,6 +720,72 @@ describe("runStream when the app leaves the foreground", () => {
       ASSISTANT_ID,
       expect.objectContaining({ status: "interrupted", errorCode: null }),
     );
+  });
+
+  describe("the answer-ready notification", () => {
+    beforeEach(() => {
+      mockNotify.mockClear();
+      mockRelease.mockClear();
+      useSettingsStore.setState({ isAnswerNotificationEnabled: true });
+      mockSendChat.mockImplementation(async function* () {
+        yield chatEvent("Done while away.");
+        setAppState("background");
+      });
+    });
+
+    afterEach(() => {
+      useSettingsStore.setState({ isAnswerNotificationEnabled: false });
+    });
+
+    // Posted after the release, iOS could suspend the app before it ever had the banner.
+    it("posts for an answer that finished away, before the background window closes", async () => {
+      const { ctx } = makeCtx();
+
+      await run(ctx);
+
+      expect(mockNotify).toHaveBeenCalledWith(CHAT_ID);
+      expect(mockNotify.mock.invocationCallOrder[0]).toBeLessThan(
+        mockRelease.mock.invocationCallOrder[0] ?? 0,
+      );
+    });
+
+    it("stays quiet while the switch is off", async () => {
+      useSettingsStore.setState({ isAnswerNotificationEnabled: false });
+      const { ctx } = makeCtx();
+
+      await run(ctx);
+
+      expect(mockNotify).not.toHaveBeenCalled();
+    });
+
+    it("stays quiet when the user watched the answer finish", async () => {
+      mockSendChat.mockImplementation(async function* () {
+        yield chatEvent("Done in front of you.");
+      });
+      const { ctx } = makeCtx();
+
+      await run(ctx);
+
+      expect(mockNotify).not.toHaveBeenCalled();
+    });
+
+    it("stays quiet for an answer the user stopped", async () => {
+      const { ctx, update } = makeCtx();
+      mockSendChat.mockImplementation(async function* () {
+        yield chatEvent("Half");
+        setAppState("background");
+        ctx.controllerRef.current?.abort();
+        yield chatEvent(" more");
+      });
+
+      await run(ctx);
+
+      expect(update).toHaveBeenLastCalledWith(
+        ASSISTANT_ID,
+        expect.objectContaining({ status: "interrupted" }),
+      );
+      expect(mockNotify).not.toHaveBeenCalled();
+    });
   });
 
   it("only a real backgrounding counts, not the transient inactive state", async () => {

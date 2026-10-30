@@ -9,6 +9,7 @@ import Palette from "lucide-react-native/icons/palette";
 import Sparkles from "lucide-react-native/icons/sparkles";
 import Trash2 from "lucide-react-native/icons/trash-2";
 import Vibrate from "lucide-react-native/icons/vibrate";
+import { AnswerNotificationRow } from "@/components/settings/AnswerNotificationRow";
 import { ClearChatsChooser } from "@/components/settings/ClearChatsChooser";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ListRow } from "@/components/ui/ListRow";
@@ -274,6 +275,7 @@ export function SettingsView({
               />
             }
           />
+          <AnswerNotificationRow />
           <ListRow
             icon={Trash2}
             label="Clear all chats"

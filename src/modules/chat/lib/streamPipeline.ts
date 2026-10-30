@@ -15,6 +15,7 @@ import type {
   MessageStatus,
 } from "@/lib/db/types";
 import { queryKeys } from "@/lib/hooks/queryKeys";
+import { useSettingsStore } from "@/lib/stores/settings.store";
 import type { UseHapticsResult } from "@/lib/hooks/useHaptics";
 import type { ChatId, MessageId } from "@/lib/types/ids";
 import {
@@ -22,6 +23,7 @@ import {
   sendChatMessage,
   type WireChatMessage,
 } from "@/modules/chat/api/chat";
+import { notifyAnswerReady } from "@/lib/notifications/answerNotification";
 import {
   holdBackgroundAssertion,
   releaseBackgroundAssertion,
@@ -570,6 +572,13 @@ export async function runStream(
     await writeStatus("complete", null);
     releaseIfCurrent();
     haptics.light();
+    // Awaited before the finally releases the background window, or iOS may suspend before it has the banner.
+    if (
+      AppState.currentState === "background" &&
+      useSettingsStore.getState().isAnswerNotificationEnabled
+    ) {
+      await notifyAnswerReady(chatId);
+    }
   } catch (err) {
     cancelPending();
     setToolActivity(chatId, null);

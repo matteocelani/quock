@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { timingsNamed } from "@/lib/design/tokens";
 import { useCreateChat } from "@/modules/chat/hooks/useCreateChat";
+import { takeOpenedChatId } from "@/lib/notifications/answerNotification";
 
 export default function NewChatRoute(): React.ReactElement {
   const router = useRouter();
@@ -18,6 +19,12 @@ export default function NewChatRoute(): React.ReactElement {
   const createChat = React.useCallback(async (): Promise<void> => {
     setHasFailed(false);
     try {
+      // A notification tap that launched the app lands here first: it opens that chat, not a new one.
+      const openedChatId = await takeOpenedChatId();
+      if (openedChatId !== null) {
+        router.replace(`/c/${openedChatId}`);
+        return;
+      }
       // A new chat is created with a NULL model column, so it follows the user's global default until they pin one; no carry-over from the previous chat to clear.
       const newChatId = await mutateAsync();
       router.replace(`/c/${newChatId}`);

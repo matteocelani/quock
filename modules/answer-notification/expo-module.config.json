@@ -1,0 +1,7 @@
+{
+  "platforms": ["ios"],
+  "apple": {
+    "modules": ["AnswerNotificationModule"],
+    "appDelegateSubscribers": ["AnswerNotificationAppDelegate"]
+  }
+}

@@ -2,7 +2,7 @@
 // replaced the route, so the open drawer unmounted and a closed one took its place — a cut, not a transition.
 
 import { Slot, useGlobalSearchParams, useRouter } from "expo-router";
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import { View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { AccountSheet } from "@/components/settings/AccountSheet";
@@ -12,6 +12,10 @@ import { ModelPickerSheet } from "@/components/models/ModelPickerSheet";
 import { Drawer } from "@/components/ui/Drawer";
 import { useUIStore } from "@/lib/stores/ui.store";
 import { asChatId, type ChatId } from "@/lib/types/ids";
+import {
+  addOpenedChatListener,
+  takeOpenedChatId,
+} from "@/lib/notifications/answerNotification";
 
 export default function ChatSectionLayout(): React.ReactElement {
   const router = useRouter();
@@ -48,6 +52,20 @@ export default function ChatSectionLayout(): React.ReactElement {
       closeChatHistory();
     },
     [router, closeChatHistory],
+  );
+  // A tap while Quock is still running. The tap that launches it is taken by `/c` instead, before it makes a new chat.
+  // A sheet left open would cover the answer, and the model picker would retarget the tapped chat under the user.
+  useEffect(
+    () =>
+      addOpenedChatListener(() => {
+        void takeOpenedChatId().then((openedChatId) => {
+          if (openedChatId === null) return;
+          closeAccount();
+          closeModelPicker();
+          handleSelectChat(openedChatId);
+        });
+      }),
+    [closeAccount, closeModelPicker, handleSelectChat],
   );
   const handleNewChat = useCallback((): void => {
     router.replace("/c");
