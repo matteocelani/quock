@@ -54,7 +54,7 @@ Every seat is an analytical **lens with its own reasoning method**, not an imper
 | `android` | Android platform engineer: process lifecycle, OEM battery killers, runtime permissions (API 33+), Play policies, ABI/APK size, R8 | **Device-matrix reasoning**: walk the decision across API levels, OEM skins and form factors (foldables, tablets) | Fragmentation, process death, Play policy, size budget | iOS-specific review risk |
 | `rn` | React Native / Expo engineer: New Architecture, Expo SDK upgrades, config plugins, local modules, EAS Build/Update, Hermes, JS bundle | **Dependency and upgrade-path analysis**: what this adds to the native surface and the next SDK upgrade | Native-module cost, prebuild drift, OTA limits, lockfile risk | Product value of the feature |
 | `cto` | Technical lead: architecture, maintainability, sequencing, total cost of ownership | **Reversibility and total-cost analysis**: classify one-way and two-way doors, then cost the 12-month maintenance | Lock-in, irreversible migrations, team capacity, what to defer | Short-term user delight |
-| `design` | Design lead with **Jony Ive's design philosophy** as its lens (AGENTS.md §Design system, "Who decides a visual question"): restraint, clarity, iOS-native feel, grounded first in the in-repo design system and existing surfaces | **Reduction**: what can be removed until only the essential remains | Surface bloat, inconsistency with the in-repo design system | Engineering cost and platform limits |
+| `design` | Design lead with **Jony Ive's design philosophy** as its lens (AGENTS.md §Design system, "Who decides a visual question"): restraint, clarity, iOS-native feel; ranks only options that have an existing-surface precedent (`/issue-work` L5, file:line) and never invents a surface | **Reduction**: what can be removed until only the essential remains | Surface bloat, inconsistency with the in-repo design system | Engineering cost and platform limits |
 | `privacy` | Privacy and security engineer: data flows, permissions, on-device storage, Apple privacy labels, GDPR, threat model | **Data-flow and threat tracing**: follow every byte the decision creates, from where it is born to where it is seen | Lock-screen exposure, permission cost, what leaves the device, docs/PRIVACY.md promises | Feature value that justifies a permission |
 | `product` | Product strategist: user value, scope, adoption, conversion cost of prompts | **Opportunity cost and jobs-to-be-done**: which job this does, for whom, and what it displaces | Whether anyone needs it, what to measure, the cheaper 80% version | Implementation risk |
 | `qa` | QA and release engineer: device verification, rollback, store timing, what CI cannot see | **Pre-mortem and failure-mode enumeration**: assume it shipped and broke, then list how | Blind spots of the build gate, rollback paths, review delays, migrations on old installs | Upside of moving fast |
@@ -86,7 +86,7 @@ You are the `{seat}` seat of the Quock council: {lens}. Reason by {method}.
 Read AGENTS.md first. You are READ-ONLY: never edit files, install packages, or touch git or GitHub.
 Every claim about this repo cites file:line; every claim about a platform cites a URL you fetched
 or names the OS/SDK version it holds for. Label each claim FACT | INFERENCE | ASSUMPTION | UNKNOWN.
-If the question is outside your lens, abstain in one sentence instead of padding, then end with `OPTION: abstain`.
+If the question is outside your lens, abstain in one sentence instead of padding, and end with the abstain form of this round's required last line.
 Decision brief:
 {brief}
 ```
@@ -122,12 +122,12 @@ Identities restored. Each seat states its position in ≤100 words, with no new 
 STANCE: <option ID from the brief, or abstain> | CONFIDENCE: high|med|low|- | DEALBREAKER: <option ID>|no
 ```
 
-The Round 3 prompt lists the brief's option IDs. Any label outside that list, other than `abstain` (with `CONFIDENCE: -`), is unparseable, and that is what keeps the tally countable without reading prose. `DEALBREAKER: <option ID>` names an option the seat holds actively harmful, not merely worse. A missing or unparseable line gets one re-prompt for the line only; never infer a stance from prose. Still unparseable after that, the seat is recorded as `abstain`: its base weight stays in `W_total`, and the Session line notes it.
+The Round 3 prompt lists the brief's option IDs. `CONFIDENCE: -` is valid only with `abstain`, and an option stance needs high, med or low; any other label or combination is unparseable, and that is what keeps the tally countable without reading prose. `DEALBREAKER: <option ID>` names an option the seat holds actively harmful, not merely worse. A missing or unparseable line gets one re-prompt for the line only; never infer a stance from prose. Still unparseable after that, the seat is recorded as `abstain`: its base weight stays in `W_total`, and the Session line notes it.
 
 ### `--quick` and `--duo`
 
 - `--quick`: Round 1, then Round 3 with peers' Round 1 visible. No cross-examination, and of the enforcement scan only the evidence check runs (after Round 1).
-- `--duo a,b`: both seats open blind, then each answers the other directly (≤200 words, with the anti-conformity directive; no anonymization, since two seats know each other), then both give a Round 3 stance. The evidence check runs after the exchange. Use it when one tension defines the decision, for example `ios,android` or `product,privacy`.
+- `--duo a,b`: both seats open blind, then each answers the other directly (≤200 words, with the anti-conformity directive; no anonymization, since two seats know each other), then both give a Round 3 stance. Of the enforcement scan only the evidence check runs, after the exchange. Use it when one tension defines the decision, for example `ios,android` or `product,privacy`.
 
 ## Step 4 — Tally
 
@@ -163,7 +163,7 @@ Session: seats=<n> rounds=<n> agent_calls=<n> enforcement=<n: which> struck_clai
 
 ## Step 6 — Hand over and STOP
 
-Present the verdict in the conversation, in the maintainer's language. Post it to an issue only when the human asks, and write that copy in English (English on the tracker, as `/issue` requires). A verdict is advice. Implementation goes through `/issue-work`, and its checkpoints still apply.
+Present the verdict in the conversation, in the maintainer's language. Inside `/issue-work` the Vote tally may be left out, since its checkpoints never state confidence as a number; that one omission is not a rewrite, and every other section stays. Post it to an issue only when the human asks, and write that copy in English (English on the tracker, as `/issue` requires). A verdict is advice. Implementation goes through `/issue-work`, and its checkpoints still apply.
 
 ## NEVER
 

@@ -69,7 +69,7 @@ Present: the verdict · STOP signals hit, quoted · L3's `human-only` decisions 
 
 Front-load every visual decision you can foresee here, so CP-1 and CP-2 resolve in one round trip. A command that pings four times is worse than one that asks once.
 
-Wherever a `human-only` decision with real stakes reaches the human (the single question of a Step 4 not-workable stop, CP-1, or CP-2 through the `design` triad), it can be put to [`/council`](./council.md) when the human asks for it. Present its Recommendation, Kill criteria and Minority report next to the options, and leave the numeric tally out, since CP-1 never states confidence as a number. The decision stays the human's.
+Wherever a `human-only` decision with real stakes reaches the human (the single question of a Step 4 not-workable stop, CP-1, or CP-2 through the `design` triad), it can be put to [`/council`](./council.md) when the human asks for it. Present its Unresolved questions, Recommendation, Kill criteria, Minority report and Human decisions required next to the options, and leave only the numeric Vote tally out, since these checkpoints never state confidence as a number. The decision stays the human's.
 
 **The turn ends.**
 

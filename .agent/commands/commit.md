@@ -27,7 +27,7 @@ Walk through every rule in [`AGENTS.md`](../../AGENTS.md) §"Code rules" and §"
 
 Two mechanical checks run on every pass. Each one has already cost this repo a blocked push or a noisy diff:
 
-- **Credential-shaped strings.** GitHub push protection rejects a staged string that merely *looks* like a secret, test fixture or not. A fake `sk_live_…` in a memory test blocked a push. Scan the staged diff and treat a hit as a violation. A fixture that must look like a key is built at runtime (`"a1".repeat(n)`), never written as a literal.
+- **Credential-shaped strings.** GitHub push protection rejects a staged string that merely *looks* like a secret, test fixture or not. A fake `sk_live_…` in a memory test blocked a push. Scan the staged diff and treat a hit as a violation. No output (grep exits 1) is the clean result, and a drift count of 0 is too. A fixture that must look like a key is built at runtime (`"a1".repeat(n)`), never written as a literal.
 
   ```bash
   git diff --staged -U0 | grep -nE '^\+.*(sk_(live|test)_[A-Za-z0-9]{8,}|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|xox[abprs]-|-----BEGIN [A-Z ]*PRIVATE KEY)'
