@@ -68,7 +68,7 @@ Every seat is an analytical **lens with its own reasoning method**, not an imper
 | `product` | product · design · privacy | Whether and how a user-facing feature should exist |
 | `release` | qa · ios · android | Ship or hold, store review risk, rollout |
 | `privacy` | privacy · product · ios | Permissions, what leaves the device, lock-screen content |
-| `design` | design · ios · android | Interaction patterns and platform-native feel, with options drawn from existing surfaces (`/issue-work` L5, file:line); the verdict is input to CP-2, and a delegation still resolves to the design seat's stated preference |
+| `design` | design · ios · android | Interaction patterns and platform-native feel, with options drawn from existing surfaces (`/issue-work` L5, file:line); the verdict is input to CP-2, and a delegation still resolves to the design agent's preference, stated separately at CP-2 if the design seat abstained |
 | `ship` | cto · product · qa | Scope cuts, sequencing, "is this worth doing now" |
 
 **Auto-selection** (no flag): match the brief against the "Use it for" column, pick one triad, and state the choice and its reason in one line.
@@ -86,14 +86,14 @@ You are the `{seat}` seat of the Quock council: {lens}. Reason by {method}.
 Read AGENTS.md first. You are READ-ONLY: never edit files, install packages, or touch git or GitHub.
 Every claim about this repo cites file:line; every claim about a platform cites a URL you fetched
 or names the OS/SDK version it holds for. Label each claim FACT | INFERENCE | ASSUMPTION | UNKNOWN.
-If the question is outside your lens, abstain in one sentence instead of padding.
+If the question is outside your lens, abstain in one sentence instead of padding, then end with `OPTION: abstain`.
 Decision brief:
 {brief}
 ```
 
 ### Round 1 — Independent analysis (parallel, blind)
 
-Each seat sees only the brief, not its peers. ≤300 words, with these sections: **Restatement** (one sentence through your lens), **Analysis**, **Recommendation**, **Kill criterion** (the observation that would make you wrong), **Confidence** (high | med | low). The last line is `OPTION: <option ID from the brief, or abstain>`, which is what the agreement check counts.
+Each seat sees only the brief, not its peers. ≤300 words, with these sections: **Restatement** (one sentence through your lens), **Analysis**, **Recommendation**, **Kill criterion** (the observation that would make you wrong), **Confidence** (high | med | low). The last line is `OPTION: <option ID from the brief, or abstain>`, which is what the agreement check counts. A missing or unparseable `OPTION:` line gets one re-prompt for the line only; after that the seat is recorded as abstain.
 
 `[BLOCKING]` If any restatement reframes the question materially, show it to the human and end the turn. A wrong question costs more than a round. Otherwise continue. When the human replies: if they amend the brief, rerun Round 1 on it with the **same panel and domain-weight seat** (a new panel only if the human picks it, and then the human also names its domain-weight seat or none; the coordinator never re-chooses it after Round 1), once per session, and record the restart in the Session line; if they keep the original framing, continue to Round 2. After that one rerun, a further material reframe is not re-blocked: record it under Unresolved questions and continue.
 
@@ -109,7 +109,7 @@ Each seat, ≤250 words, engaging at least two other seats by label (every other
 
 **Enforcement scan** (coordinator, after Round 2). Count every extra prompt sent for the verdict metadata.
 - **Dissent quota**: fewer than 2 non-overlapping objections means two seats each get the prompt below, chosen mechanically before reading Round 2 content, among non-abstaining seats only: seats whose Round 1 `OPTION:` differs from the plurality option first (skip this criterion when the plurality is tied), then lowest Round 1 confidence, then Seats-table order: "State your strongest objection to the majority in 150 words, or reply `no substantive objection` if you have none."
-- **Novelty gate**: a seat that only restated Round 1 gets: "Answer Seat X's challenge to you directly. What changes?"
+- **Novelty gate**: a seat that only restated Round 1 although another seat challenged it gets: "Answer Seat X's challenge to you directly. What changes?" A seat nobody challenged is skipped; the agreement check covers unchallenged consensus.
 - **Agreement check**: when over 70% of the non-abstaining seats named the same `OPTION:` in Round 1, the two of them with the lowest Round 1 confidence (ties broken by Seats-table order) get: "Assume the consensus is wrong. What is the strongest alternative, and what evidence would flip the decision? Reply `no credible alternative` if there is none."
 - **Prompted objections are labelled as prompted** in the transcript. They reach the Minority report only if the seat then changes its Round 3 stance or declares a dealbreaker; "no substantive objection" is recorded as such, never as dissent.
 - **Evidence check**: a claim about the repo without file:line, or about a platform with neither a fetched URL nor a named OS/SDK version, is struck from the record and noted.
