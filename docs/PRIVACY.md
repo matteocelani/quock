@@ -1,6 +1,6 @@
 # Privacy Policy — Quock
 
-**Effective date**: 2026-11-05
+**Effective date**: 2026-10-14
 **Version**: 0.3 (alpha)
 **Document language**: English (controlling).
 
@@ -52,7 +52,7 @@ Reading a document happens entirely on Your device: its text layer is parsed loc
 
 Memory works the same way: the AI proposes a fact while it answers, and Quock decides on Your device whether to keep it. A fact can come only from what You write: Quock refuses to save one in any chat where the AI has read a web page or search result, and in any chat that contains an attached file or image, because every later message in that chat carries that text along again; so text You did not write cannot plant a fact about You. The list is small; when it is full, the oldest fact makes room for the newest. To see what is remembered, ask the AI what it remembers about You while memory is on. To remove a fact, ask it to forget it, with memory on, in a chat with no attachments and no web results, on a model that supports tools; when that is not possible, revoking consent always deletes every fact. Turning memory off stops facts being saved or sent but does not delete them, and turning it back on brings them back.
 
-The answer-ready notification always reads the same fixed sentence ("Your answer is ready.") and never includes a chat title, the answer or the model name, so nothing from a conversation appears on Your lock screen.
+The answer-ready notification is off until You turn it on, and nothing is processed for it before then. It always reads the same fixed sentence ("Your answer is ready.") and never includes a chat title, the answer or the model name, so nothing from a conversation appears on Your lock screen. A delivered notification stays in Notification Center until You open or dismiss it, or uninstall Quock; clearing chats or revoking consent does not remove one already shown.
 
 Quock collects **no** advertising identifier, **no** crash reporting telemetry (today; see Section 8 on potential future inclusions), **no** behavioral analytics, **no** location data, **no** contacts, **no** photos beyond what You explicitly attach to a single message.
 
