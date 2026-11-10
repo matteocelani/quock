@@ -9,9 +9,11 @@
 
 **Ollama Cloud, in your pocket.**
 
-A community-built mobile client for [Ollama Cloud](https://ollama.com). Chat with cloud-hosted LLMs from your phone — privately, with conversations stored locally on-device.
+A community-built iPhone client for [Ollama Cloud](https://ollama.com). Chat with cloud-hosted LLMs from your phone — an [`ollama.com`](https://ollama.com) account is required, inference runs in the cloud, and conversations stay on your phone.
 
-**[Download on the App Store](https://apps.apple.com/app/quock/id6785608333)**
+<a href="https://apps.apple.com/app/quock/id6785608333?utm_source=github&utm_medium=readme&utm_campaign=quock_free_2026">
+  <img src="https://toolbox.marketingtools.apple.com/api/badges/download-on-the-app-store/black/en-us?size=250x83" alt="Download on the App Store" width="120" height="40" />
+</a>
 
 </div>
 
@@ -19,7 +21,7 @@ A community-built mobile client for [Ollama Cloud](https://ollama.com). Chat wit
 
 ## What is Quock?
 
-**Quock is a mobile app for using [Ollama Cloud](https://ollama.com) on your phone** — a native chat client for iPhone and Android. Sign in once with your `ollama.com` account, pick any cloud-hosted model — Gemma, Qwen, Llama, GPT-OSS, DeepSeek, and more — and start typing. Answers stream back word by word.
+**Quock is an iPhone client for [Ollama Cloud](https://ollama.com).** Sign in once with your `ollama.com` account, pick any cloud-hosted model — Gemma, Qwen, Llama, GPT-OSS, DeepSeek, and more — and start typing. Answers stream back word by word. Inference runs in the cloud.
 
 It's deliberately small and focused: **open the app, tap a model, type — a streamed reply in under three taps from home.** Your chat history lives in a local database on the device; the only thing that ever leaves your phone is the conversation you are actively sending.
 
@@ -34,6 +36,8 @@ It's deliberately small and focused: **open the app, tap a model, type — a str
 - 🎨 **Quietly beautiful** — light, dark, and system themes with frosted-glass surfaces, smooth animations, and instant scrolling even on long chats.
 
 ## Screenshots
+
+<!-- TODO: demo GIF of streaming chat (5-10 s, <5 MB) -->
 
 <div align="center">
   <img src="docs/screenshots/0.2.png" width="100%" alt="Pick a model, attach a document, and watch the model think" />
@@ -53,7 +57,7 @@ pnpm ios
 pnpm android
 ```
 
-You'll need [Node 22+](https://nodejs.org), [pnpm 11+](https://pnpm.io), [Xcode 16+](https://developer.apple.com/xcode/) or [Android Studio](https://developer.android.com/studio), and an [`ollama.com`](https://ollama.com) account. On first launch, follow the on-device prompt to pair the app with your account. Running on a physical phone? See [`AGENTS.md`](./AGENTS.md#getting-started).
+You'll need [Node 22+](https://nodejs.org), [pnpm 11+](https://pnpm.io), [Xcode 16+](https://developer.apple.com/xcode/) or [Android Studio](https://developer.android.com/studio), and an [`ollama.com`](https://ollama.com) account. On first launch, follow the prompt in the app to pair it with your account. Running on a physical phone? See [`AGENTS.md`](./AGENTS.md#getting-started).
 
 ## Contributing
 
@@ -80,9 +84,9 @@ Bug reports and PRs welcome. Found a security issue? See [`SECURITY.md`](./SECUR
 
 ## Acknowledgments
 
-Built on the foundation of [**Ollama**](https://github.com/ollama/ollama) — the open-source local-AI runtime. Thank you to the Ollama team for the support.
+Thank you to the [**Ollama**](https://github.com/ollama/ollama) team. Quock is an unofficial iPhone client for [Ollama Cloud](https://ollama.com), not affiliated with Ollama, Inc. It requires an [`ollama.com`](https://ollama.com) account, and inference runs in the cloud.
 
-If you're new to Ollama, start at [**ollama.com**](https://ollama.com) for the official runtime, models, and cloud subscription. Quock is a mobile lens on top.
+If you're new to Ollama Cloud, start at [**ollama.com**](https://ollama.com) for models and the cloud subscription.
 
 ## License
 
