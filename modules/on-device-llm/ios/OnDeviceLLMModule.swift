@@ -16,6 +16,8 @@ public class OnDeviceLLMModule: Module {
     // iOS refuses GPU work from a backgrounded app and the failure is fatal inside Metal, so a reply stops at the
     // last token it finished instead; the cloud path keeps streaming in the background, a local one cannot.
     OnCreate { [weak self] in
+      MLXFailure.install()
+      Task { @MainActor in ForegroundGate.shared.start() }
       if let self {
         self.backgroundObserver = NotificationCenter.default.addObserver(
           forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main

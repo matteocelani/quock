@@ -173,8 +173,17 @@ enum OllamaRegistry {
     let handle = try FileHandle(forReadingFrom: url)
     defer { try? handle.close() }
     var hasher = SHA256()
-    while let chunk = try handle.read(upToCount: 4 << 20), !chunk.isEmpty {
-      hasher.update(data: chunk)
+    // Each chunk is released before the next is read; without the pool a multi-GB file piles up in memory until the
+    // whole loop returns, which is what left a 2B model too little room to load right after its download.
+    var isDone = false
+    while !isDone {
+      try autoreleasepool {
+        guard let chunk = try handle.read(upToCount: 4 << 20), !chunk.isEmpty else {
+          isDone = true
+          return
+        }
+        hasher.update(data: chunk)
+      }
     }
     return "sha256:" + hasher.finalize().map { String(format: "%02x", $0) }.joined()
   }
@@ -209,8 +218,15 @@ enum OllamaRegistry {
     var length = UInt64(newHeader.count).littleEndian
     try output.write(contentsOf: Data(bytes: &length, count: 8))
     try output.write(contentsOf: newHeader)
-    while let chunk = try input.read(upToCount: 8 << 20), !chunk.isEmpty {
-      try output.write(contentsOf: chunk)
+    var isDone = false
+    while !isDone {
+      try autoreleasepool {
+        guard let chunk = try input.read(upToCount: 8 << 20), !chunk.isEmpty else {
+          isDone = true
+          return
+        }
+        try output.write(contentsOf: chunk)
+      }
     }
   }
 

@@ -44,7 +44,9 @@ enum OllamaCatalog {
     let manifest = try await OllamaRegistry.manifest(for: ref)
     let layers = OllamaRegistry.neededLayers(of: manifest)
     let bytes = layers.reduce(Int64(0)) { $0 + $1.size }
-    guard bytes > 0, bytes + kvAllowanceBytes <= memoryBudget,
+    // Offered only if it could load right now as well: a fixed share of RAM alone offered a 2B build that the app's
+    // own memory limit then refused, after a 2.3 GB download.
+    guard bytes > 0, bytes + kvAllowanceBytes <= memoryBudget, AppMemory.neededToLoad(bytes: bytes) <= AppMemory.available,
       let configLayer = layers.first(where: { $0.name == "config.json" })
     else { return nil }
     let configData = try await OllamaRegistry.blob(configLayer.digest, of: ref)
