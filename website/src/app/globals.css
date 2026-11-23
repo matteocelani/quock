@@ -16,6 +16,11 @@
   --marker: oklch(0.87 0.07 248);
   --ring: #0060c0;
   --shade: 29 35 52;
+  /* Mock app surfaces: an opaque iOS card and the system colours the app itself uses. */
+  --surface: #ffffff;
+  --system-red: #ff3b30;
+  --system-yellow: #febc2e;
+  --system-green: #34c759;
 }
 
 [data-theme="dark"] {
@@ -47,6 +52,10 @@
   --color-accent: var(--accent);
   --color-marker: var(--marker);
   --color-ring: var(--ring);
+  --color-surface: var(--surface);
+  --color-system-red: var(--system-red);
+  --color-system-yellow: var(--system-yellow);
+  --color-system-green: var(--system-green);
 
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
 
@@ -55,6 +64,7 @@
 
   --shadow-raised:
     0 20px 25px -5px rgb(var(--shade) / 0.15), 0 8px 10px -6px rgb(var(--shade) / 0.15);
+  --shadow-card: 0 6px 20px rgb(var(--shade) / 0.1);
   --shadow-float:
     0 24px 48px -12px rgb(var(--shade) / 0.28), 0 0 0 1px rgb(255 255 255 / 0.5) inset;
 
@@ -195,6 +205,16 @@
       radial-gradient(30% 40% at 30% 85%, var(--w4, oklch(0.88 0.07 210)) 0%, transparent 70%),
       linear-gradient(160deg, var(--w5, oklch(0.9 0.04 250)), var(--w6, oklch(0.8 0.08 262)));
     animation: drift 18s ease-in-out infinite;
+  }
+
+  /* Warmer palette for a second stage, so two showcases in a row do not read as one. */
+  .wallpaper-dusk {
+    --w1: oklch(0.78 0.1 300);
+    --w2: oklch(0.84 0.08 20);
+    --w3: oklch(0.7 0.13 275);
+    --w4: oklch(0.86 0.07 330);
+    --w5: oklch(0.9 0.04 300);
+    --w6: oklch(0.76 0.09 280);
   }
 
   .glass {

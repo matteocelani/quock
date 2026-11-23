@@ -10,9 +10,17 @@ import {
 } from "@/components/home/bento/mocks";
 import { cn } from "@/lib/utils";
 
-function Cell({ lead, body, className, children }: { lead: string; body: string; className?: string; children: ReactNode }): ReactNode {
+interface CellProps {
+  lead: string;
+  body: string;
+  className?: string;
+  children: ReactNode;
+}
+
+// The copy carries the meaning, so the mock under it is hidden from assistive tech.
+function Cell({ lead, body, className, children }: CellProps): ReactNode {
   return (
-    <div className={cn("reveal bg-panel relative flex flex-col overflow-hidden rounded-tile", className)}>
+    <div className={cn("reveal bg-panel rounded-tile relative flex flex-col overflow-hidden", className)}>
       <p className="relative z-10 p-6 pb-0 text-[17px] leading-snug font-bold text-pretty sm:p-7 sm:pb-0">
         {lead} <span className="text-muted-foreground">{body}</span>
       </p>
@@ -45,7 +53,7 @@ export function Bento(): ReactNode {
         </Cell>
         <Cell
           lead="Private by design."
-          body="No Quock server and no analytics. Your history lives on your iPhone."
+          body="Your history lives on your iPhone, and your messages go only to Ollama Cloud."
           className="sm:col-span-2"
         >
           <DataFlowMock />

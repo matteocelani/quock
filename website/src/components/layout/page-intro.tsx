@@ -10,9 +10,13 @@ interface PageIntroProps {
   path: string;
 }
 
+interface PageColumnProps {
+  children: ReactNode;
+}
+
 const MONTH = new Intl.DateTimeFormat("en", { month: "long", year: "numeric", timeZone: "UTC" });
 
-// Inner-page opening: a 96px title and a quiet "Updated …" line.
+// Every reading page opens the same way, and carries its breadcrumb so search shows Home > Page.
 export function PageIntro({ title, updated, path }: PageIntroProps): ReactNode {
   return (
     <div className="pt-32 pb-10 sm:pt-44 sm:pb-12">
@@ -28,6 +32,7 @@ export function PageIntro({ title, updated, path }: PageIntroProps): ReactNode {
   );
 }
 
-export function PageColumn({ children }: { children: ReactNode }): ReactNode {
+// One narrow column keeps reading pages at a comfortable line length.
+export function PageColumn({ children }: PageColumnProps): ReactNode {
   return <div className="mx-auto max-w-[40rem] px-5 sm:px-0">{children}</div>;
 }

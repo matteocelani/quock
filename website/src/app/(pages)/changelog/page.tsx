@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { Accordion, AccordionItem } from "@/components/ui/accordion";
 import { Heading } from "@/components/ui/heading";
+import { TextLink } from "@/components/ui/text-link";
 import { PageColumn, PageIntro } from "@/components/layout/page-intro";
-import { CHANGELOG_UPDATED, MINOR_LINES, RELEASES } from "@/modules/changelog/content";
+import { CHANGELOG_FOOTNOTE, CHANGELOG_UPDATED, MINOR_LINES, RELEASES } from "@/modules/changelog/content";
 import { pageMetadata } from "@/lib/metadata";
-import { SITE } from "@/lib/site";
+import { PATHS, SITE } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata({
   title: "Changelog",
   description: `What changed in each Quock release, up to version ${SITE.version}.`,
-  path: "/changelog/",
+  path: PATHS.changelog,
 });
 
 const DATE_FORMAT = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -19,9 +19,9 @@ const DATE_FORMAT = new Intl.DateTimeFormat("en", { day: "numeric", month: "shor
 export default function ChangelogPage(): ReactNode {
   return (
     <PageColumn>
-      <PageIntro title="Changelog" updated={CHANGELOG_UPDATED} path="/changelog/" />
+      <PageIntro title="Changelog" updated={CHANGELOG_UPDATED} path={PATHS.changelog} />
       <div className="space-y-20">
-        {MINOR_LINES.map((line) => {
+        {MINOR_LINES.map((line, lineIndex) => {
           const releases = RELEASES.filter((release) => release.version.startsWith(`${line.minor}.`));
           return (
             <section key={line.minor} aria-labelledby={`minor-${line.minor}`}>
@@ -34,7 +34,7 @@ export default function ChangelogPage(): ReactNode {
                   <AccordionItem
                     key={release.version}
                     title={release.version}
-                    open={line === MINOR_LINES[0] && index === 0}
+                    open={lineIndex === 0 && index === 0}
                     aside={
                       <time dateTime={release.date} className="text-faint-foreground shrink-0 text-sm font-bold">
                         {DATE_FORMAT.format(new Date(release.date))}
@@ -58,16 +58,7 @@ export default function ChangelogPage(): ReactNode {
         })}
       </div>
       <p className="text-muted-foreground mt-16 text-[17px]">
-        Pull requests and commits behind each tagged release are on{" "}
-        <Link
-          href={`${SITE.githubUrl}/releases`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-foreground font-semibold underline decoration-accent decoration-2 underline-offset-4"
-        >
-          GitHub
-        </Link>
-        .
+        {CHANGELOG_FOOTNOTE.body} <TextLink href={SITE.releasesUrl}>{CHANGELOG_FOOTNOTE.linkLabel}</TextLink>.
       </p>
     </PageColumn>
   );

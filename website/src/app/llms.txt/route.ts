@@ -1,40 +1,37 @@
 import { FAQ } from "@/modules/faq/content";
-import { GUIDE_PATH, GUIDE_STEPS } from "@/modules/guide/content";
-import { SITE } from "@/lib/site";
+import { GUIDE_STEPS, GUIDE_TITLE } from "@/modules/guide/content";
+import { APP_FEATURES } from "@/modules/home/content";
+import { PATHS, SITE } from "@/lib/site";
 import { absoluteUrl } from "@/lib/utils";
 
 export const dynamic = "force-static";
 
-// llms.txt (llmstxt.org): a plain summary AI assistants can read and cite, built from the same content as the pages.
+// llms.txt (llmstxt.org) is assembled from the same modules as the pages, so assistants quote what the site says.
 export function GET(): Response {
   const body = [
     `# ${SITE.name}`,
     "",
     `> ${SITE.description}`,
     "",
-    `Quock is a native iPhone app for chatting with the open models hosted on Ollama Cloud. Version ${SITE.version}, free on the App Store, iOS ${SITE.minimumIos} or later. Made by ${SITE.author}, MIT licensed. ${SITE.disclaimer}`,
+    `Version ${SITE.version}, free on the App Store, iOS ${SITE.minimumIos} or later. Made by ${SITE.author}, MIT licensed. ${SITE.disclaimer}`,
     "",
-    "## Key facts",
+    "## Features",
     "",
-    "- Works with every model in the Ollama Cloud catalogue (Gemma, Qwen, Llama, GPT-OSS, DeepSeek, Kimi, GLM and more).",
-    "- Streamed replies, thinking for reasoning models, live web search, PDFs with on-device OCR, images for vision models.",
-    "- Memory, pinned chats, forks, answers that finish in the background, and resuming interrupted answers.",
-    "- Chats are stored on the iPhone. There is no Quock server and no analytics.",
-    "- Sign-in uses a per-device key pair approved once on ollama.com; no password is stored in the app.",
+    ...APP_FEATURES.map((feature) => `- ${feature}`),
     "",
-    "## How to use Ollama Cloud on iPhone",
+    `## ${GUIDE_TITLE}`,
     "",
     ...GUIDE_STEPS.map((step, index) => `${index + 1}. ${step.title} ${step.body}`),
     "",
     "## Pages",
     "",
-    `- [Home](${absoluteUrl("/")}): what Quock does`,
-    `- [Guide](${absoluteUrl(GUIDE_PATH)}): how to use Ollama Cloud on iPhone`,
-    `- [FAQs](${absoluteUrl("/faq/")}): ${FAQ.length} answered questions`,
-    `- [Changelog](${absoluteUrl("/changelog/")}): every release`,
-    `- [Privacy](${absoluteUrl("/privacy/")}): where your data goes`,
-    `- [App Store](${SITE.appStoreUrl}): download`,
-    `- [Source code](${SITE.githubUrl}): GitHub`,
+    `- [Home](${absoluteUrl(PATHS.home)})`,
+    `- [Guide](${absoluteUrl(PATHS.guide)})`,
+    `- [FAQs](${absoluteUrl(PATHS.faq)})`,
+    `- [Changelog](${absoluteUrl(PATHS.changelog)})`,
+    `- [Privacy](${absoluteUrl(PATHS.privacy)})`,
+    `- [App Store](${SITE.appStoreUrl})`,
+    `- [Source code](${SITE.githubUrl})`,
     "",
     "## FAQs",
     "",

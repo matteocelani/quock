@@ -16,7 +16,7 @@ interface Feature {
   title: [string, string];
 }
 
-// Big outline glyphs over two-line titles, the page's closing summary.
+// A recap the eye takes in at once, just before the last call to download.
 const FEATURES: readonly Feature[] = [
   { icon: StreamIcon, title: ["Streamed", "replies"] },
   { icon: ModelsIcon, title: ["Every cloud", "model"] },
@@ -30,7 +30,10 @@ const FEATURES: readonly Feature[] = [
 
 export function FeatureGrid(): ReactNode {
   return (
-    <section id="features" aria-label="Features" className="scroll-mt-28 px-5 pt-32 sm:px-8 sm:pt-44">
+    <section id="features" aria-labelledby="features-title" className="scroll-mt-28 px-5 pt-32 sm:px-8 sm:pt-44">
+      <h2 id="features-title" className="sr-only">
+        Features
+      </h2>
       <ul className="mx-auto grid max-w-[61rem] grid-cols-2 gap-x-4 gap-y-14 lg:grid-cols-4">
         {FEATURES.map(({ icon: Icon, title }) => (
           <li key={title.join(" ")} className="reveal flex flex-col items-center text-center">

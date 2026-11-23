@@ -1,7 +1,14 @@
+import type { Viewport } from "next";
 import type { ReactNode } from "react";
 import { SiteShell } from "@/components/layout/site-shell";
+import { THEME_COLOR } from "@/lib/site";
 
-// FAQs, changelog, guide and privacy read in the dark, set apart from the light home page.
+// Reading pages are dark, so the browser chrome and first paint must be dark too.
+export const viewport: Viewport = {
+  themeColor: THEME_COLOR.dark,
+  colorScheme: "dark",
+};
+
 export default function PagesLayout({ children }: Readonly<{ children: ReactNode }>): ReactNode {
   return <SiteShell theme="dark">{children}</SiteShell>;
 }

@@ -1,6 +1,6 @@
 """Build the site's image assets from the repo's own screenshots, frame, icon and logo.
 
-Run from website/:  pnpm assets   (macOS: the OG card uses the system SF Pro font)
+Run from website/:  pnpm assets   (Python 3 + Pillow; the share card uses Apple's SF Pro fonts)
 Outputs are committed, so a deploy never needs Python. Re-run after the screenshots change.
 
 The header avatar orb in the app shows the signed-in user's ollama.com profile picture,
@@ -160,7 +160,7 @@ def compose_og(devices: dict[str, Image.Image]) -> None:
         card.paste((20, 30, 60), (x - pad, y + 28 - pad), shadow)
         card.paste(phone, (x, y), phone)
 
-    card.save(APP / "opengraph-image.png", optimize=True)
+    card.save(PUBLIC / "og.png", optimize=True)
 
 
 def main() -> int:

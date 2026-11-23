@@ -1,4 +1,6 @@
-export interface FaqItem {
+import { SITE } from "@/lib/site";
+
+interface FaqItem {
   question: string;
   answer: string;
   isPrivacy?: boolean;
@@ -6,7 +8,7 @@ export interface FaqItem {
 
 export const FAQ_UPDATED = "2026-11-23";
 
-// Plain text on purpose: the same strings feed the page and the FAQPage JSON-LD.
+// Plain text on purpose: the same strings feed the page, the FAQPage JSON-LD and llms.txt.
 export const FAQ: readonly FaqItem[] = [
   {
     question: "What is Quock?",
@@ -15,13 +17,11 @@ export const FAQ: readonly FaqItem[] = [
   },
   {
     question: "Who makes Quock?",
-    answer:
-      "Quock is an independent, open-source app by Matteo Celani. It connects to Ollama Cloud with your own ollama.com account, and is not affiliated with, endorsed by, or sponsored by Ollama, Inc.",
+    answer: `Quock is an independent, open-source app by ${SITE.author}. It connects to Ollama Cloud with your own ollama.com account. ${SITE.disclaimer}`,
   },
   {
     question: "What do I need to use it?",
-    answer:
-      "An iPhone on iOS 15.1 or later and an ollama.com account. Quock itself is free. Usage limits and any paid plan are set by Ollama Cloud, not by Quock.",
+    answer: `An iPhone on iOS ${SITE.minimumIos} or later and an ollama.com account. Quock itself is free. Usage limits and any paid plan are set by Ollama Cloud, not by Quock.`,
   },
   {
     question: "How much does Quock cost?",
@@ -43,7 +43,7 @@ export const FAQ: readonly FaqItem[] = [
     question: "Does Quock track me?",
     isPrivacy: true,
     answer:
-      "No. There are no analytics, no advertising identifiers, no crash reporters and no profiling. Apart from your chats going to Ollama Cloud, the app only checks for its own updates. This website does not use cookies or trackers either.",
+      "No. There are no analytics, no advertising identifiers, no crash reporters and no profiling. This website does not use cookies or trackers either.",
   },
   {
     question: "How does sign-in work?",
@@ -77,4 +77,10 @@ export const FAQ: readonly FaqItem[] = [
     answer:
       "Yes. The full source is on GitHub under the MIT licence. Bug reports, ideas and pull requests are welcome there.",
   },
-] as const;
+];
+
+export const FAQ_MORE = {
+  title: "Have more questions?",
+  body: "Ask on GitHub, where bug reports and ideas are welcome.",
+  linkLabel: "Open an issue",
+} as const;

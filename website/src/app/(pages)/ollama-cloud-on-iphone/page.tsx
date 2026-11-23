@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import type { ReactNode } from "react";
-import { ButtonLink } from "@/components/ui/button";
-import { Heading } from "@/components/ui/heading";
-import { PhoneIcon } from "@/components/ui/icons";
+import { Heading, Lead } from "@/components/ui/heading";
+import { DownloadButton } from "@/components/global/download-button";
 import { JsonLd } from "@/components/global/json-ld";
 import { PageColumn, PageIntro } from "@/components/layout/page-intro";
-import { GUIDE_PATH, GUIDE_STEPS, GUIDE_TIPS, GUIDE_TITLE, GUIDE_UPDATED } from "@/modules/guide/content";
+import {
+  GUIDE_CHATS,
+  GUIDE_HEADLINE,
+  GUIDE_INTRO,
+  GUIDE_PATH,
+  GUIDE_STEPS,
+  GUIDE_TIPS,
+  GUIDE_TIPS_TITLE,
+  GUIDE_TITLE,
+  GUIDE_UPDATED,
+} from "@/modules/guide/content";
 import { HOW_TO_JSON_LD } from "@/modules/guide/schema";
 import { pageMetadata } from "@/lib/metadata";
-import { SITE } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata({
   title: GUIDE_TITLE,
@@ -18,22 +25,17 @@ export const metadata: Metadata = pageMetadata({
   path: GUIDE_PATH,
 });
 
-const linkClass = "text-foreground font-semibold underline decoration-accent decoration-2 underline-offset-4";
-
 export default function GuidePage(): ReactNode {
   return (
     <PageColumn>
       <JsonLd data={HOW_TO_JSON_LD} />
-      <PageIntro title="Ollama Cloud on iPhone" updated={GUIDE_UPDATED} path={GUIDE_PATH} />
-      <p className="text-[1.4375rem] leading-[1.35] font-bold tracking-[-0.01em] text-pretty">
-        Ollama Cloud runs the best open models, from Gemma and Qwen to GPT-OSS, DeepSeek and Kimi, on
-        Ollama&rsquo;s servers. Quock puts them on your iPhone in about three minutes.
-      </p>
+      <PageIntro title={GUIDE_HEADLINE} updated={GUIDE_UPDATED} path={GUIDE_PATH} />
+      <Lead>{GUIDE_INTRO}</Lead>
 
       <h2 className="sr-only">{GUIDE_TITLE}</h2>
       <ol className="mt-12 space-y-10">
         {GUIDE_STEPS.map((step, index) => (
-          <li key={step.title} id={`step-${index + 1}`} className="flex gap-5 scroll-mt-28">
+          <li key={step.title} id={`step-${index + 1}`} className="flex scroll-mt-28 gap-5">
             <span className="bg-panel text-foreground flex size-10 shrink-0 items-center justify-center rounded-xl text-lg font-bold">
               {index + 1}
             </span>
@@ -44,13 +46,10 @@ export default function GuidePage(): ReactNode {
           </li>
         ))}
       </ol>
-      <ButtonLink href={SITE.appStoreUrl} className="mt-12">
-        <PhoneIcon />
-        Download for iPhone
-      </ButtonLink>
+      <DownloadButton className="mt-12" />
 
       <Heading as="h2" size="card" className="mt-24 text-3xl sm:text-4xl">
-        Make the most of it
+        {GUIDE_TIPS_TITLE}
       </Heading>
       <ul className="mt-6 divide-y">
         {GUIDE_TIPS.map((tip) => (
@@ -62,20 +61,9 @@ export default function GuidePage(): ReactNode {
       </ul>
 
       <Heading as="h2" size="card" className="mt-24 text-3xl sm:text-4xl">
-        Where your chats live
+        {GUIDE_CHATS.title}
       </Heading>
-      <p className="text-muted-foreground mt-4 text-[17px] leading-relaxed text-pretty">
-        On your iPhone, in a local database. There is no Quock server and no analytics. When you send a
-        message, it goes straight to Ollama Cloud with the earlier turns of that chat. Read the{" "}
-        <Link href="/privacy" className={linkClass}>
-          privacy summary
-        </Link>{" "}
-        or browse the{" "}
-        <Link href="/faq" className={linkClass}>
-          FAQs
-        </Link>
-        .
-      </p>
+      <p className="text-muted-foreground mt-4 text-[17px] leading-relaxed text-pretty">{GUIDE_CHATS.body}</p>
     </PageColumn>
   );
 }

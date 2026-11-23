@@ -1,17 +1,14 @@
-export interface Release {
+interface Release {
   version: string;
   date: string;
   title: string;
-  summary: string;
   changes: readonly string[];
 }
 
-export interface MinorLine {
+interface MinorLine {
   minor: string;
   summary: string;
 }
-
-export const CHANGELOG_UPDATED = "2026-11-06";
 
 // One sentence per minor line; the page groups each line's patches under it.
 export const MINOR_LINES: readonly MinorLine[] = [
@@ -33,8 +30,6 @@ export const RELEASES: readonly Release[] = [
     version: "0.2.1",
     date: "2026-11-06",
     title: "Answers that survive the background.",
-    summary:
-      "Leave mid-answer and come back to a finished reply. Plus memory, pinned chats and forks.",
     changes: [
       "Answers keep streaming for a while after you leave the app.",
       "Optional notification when an answer finishes in the background.",
@@ -49,7 +44,6 @@ export const RELEASES: readonly Release[] = [
     version: "0.2.0",
     date: "2026-08-31",
     title: "A new design, documents and excerpt actions.",
-    summary: "Quock adopts an iOS 27 design system and learns to read PDFs.",
     changes: [
       "New design system with floating glass controls and sheet cards.",
       "Long-press any paragraph of a reply to send it to Deep dive or Web search.",
@@ -62,14 +56,12 @@ export const RELEASES: readonly Release[] = [
     version: "0.1.3",
     date: "2026-08-18",
     title: "Every model in the picker.",
-    summary: "The full Ollama Cloud catalogue, not just the featured two.",
     changes: ["The model picker lists every cloud model, with better capability detection."],
   },
   {
     version: "0.1.2",
     date: "2026-07-30",
     title: "Select, copy and tap.",
-    summary: "Better reading and editing for long replies, and a tidier account sheet.",
     changes: [
       "Select and copy any part of a reply.",
       "Tappable links and readable tables in replies.",
@@ -81,7 +73,6 @@ export const RELEASES: readonly Release[] = [
     version: "0.1.1",
     date: "2026-06-27",
     title: "Consent and quicker photos.",
-    summary: "Clearer data sharing and faster attachments.",
     changes: [
       "Ask for consent before any chat is sent to the cloud, with review and revoke.",
       "Chats are scoped to the signed-in account.",
@@ -92,7 +83,6 @@ export const RELEASES: readonly Release[] = [
     version: "0.1.0",
     date: "2026-06-22",
     title: "Hello, Quock.",
-    summary: "The first release: sign in, pick a model, type.",
     changes: [
       "Sign in with your ollama.com account.",
       "Pick any Ollama Cloud model and chat with streamed replies.",
@@ -100,3 +90,11 @@ export const RELEASES: readonly Release[] = [
     ],
   },
 ] as const;
+
+// The newest release is the page's "Updated" date.
+export const CHANGELOG_UPDATED = RELEASES[0].date;
+
+export const CHANGELOG_FOOTNOTE = {
+  body: "Pull requests and commits behind each tagged release are on",
+  linkLabel: "GitHub",
+} as const;

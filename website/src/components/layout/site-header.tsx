@@ -3,11 +3,11 @@ import type { ReactNode } from "react";
 import { ButtonLink } from "@/components/ui/button";
 import { ChatBubbleIcon, DownloadIcon, NotesIcon } from "@/components/ui/icons";
 import { Wordmark } from "@/components/global/logo";
-import { SITE } from "@/lib/site";
+import { PATHS, SITE } from "@/lib/site";
 
 const NAV = [
-  { href: "/faq", label: "FAQs", icon: ChatBubbleIcon },
-  { href: "/changelog", label: "Changelog", icon: NotesIcon },
+  { href: PATHS.faq, label: "FAQs", icon: ChatBubbleIcon },
+  { href: PATHS.changelog, label: "Changelog", icon: NotesIcon },
 ] as const;
 
 export function SiteHeader(): ReactNode {
@@ -30,7 +30,7 @@ export function SiteHeader(): ReactNode {
             <DownloadIcon />
             Download for iPhone
           </ButtonLink>
-          <ButtonLink href="/faq" variant="secondary" size="icon" aria-label="FAQs" className="md:hidden">
+          <ButtonLink href={PATHS.faq} variant="secondary" size="icon" aria-label="FAQs" className="md:hidden">
             <ChatBubbleIcon />
           </ButtonLink>
         </nav>

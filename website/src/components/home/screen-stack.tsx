@@ -1,36 +1,28 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { SCREEN_ALT, type ScreenName } from "@/lib/screens";
+import { SCREEN_ALT, SHOT_HEIGHT, SHOT_WIDTH, screenSrc, type ScreenName } from "@/modules/home/screens";
 import { cn } from "@/lib/utils";
 
-const SHOT_WIDTH = 840;
-const SHOT_HEIGHT = 1714;
-
 interface ScreenStackProps {
+  id?: string;
   screens: readonly ScreenName[];
   active: ScreenName;
+  sizes: string;
   className?: string;
-  sizes?: string;
   isPriority?: boolean;
 }
 
 // Every capture is mounted once and cross-faded, so switching never waits on the network.
-export function ScreenStack({
-  screens,
-  active,
-  className,
-  sizes = "(min-width: 1024px) 340px, 260px",
-  isPriority = false,
-}: ScreenStackProps): ReactNode {
+export function ScreenStack({ id, screens, active, sizes, className, isPriority = false }: ScreenStackProps): ReactNode {
   return (
-    <div className={cn("relative aspect-[840/1714]", className)}>
+    <div id={id} role="tabpanel" className={cn("relative", className)} style={{ aspectRatio: `${SHOT_WIDTH} / ${SHOT_HEIGHT}` }}>
       {screens.map((screen, index) => {
         const isActive = screen === active;
         return (
           <Image
             key={screen}
-            src={`/screens/${screen}-${SHOT_WIDTH}.webp`}
-            alt={SCREEN_ALT[screen]}
+            src={screenSrc(screen)}
+            alt={isActive ? SCREEN_ALT[screen] : ""}
             width={SHOT_WIDTH}
             height={SHOT_HEIGHT}
             sizes={sizes}
