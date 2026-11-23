@@ -1,5 +1,6 @@
 import Darwin
 import Foundation
+import Metal
 import os
 
 // What iOS lets this process use, as opposed to how much RAM the phone has: without the increased-memory-limit
@@ -13,11 +14,19 @@ enum AppMemory {
 
   static var available: UInt64 {
     #if os(iOS)
-      UInt64(os_proc_available_memory())
-    #else
-      // macOS has no per-process limit to query; the benchmark host treats unused RAM as available.
-      ProcessInfo.processInfo.physicalMemory - min(footprint, ProcessInfo.processInfo.physicalMemory)
+      let limit = UInt64(os_proc_available_memory())
+      // An iPad app running on a Mac has no per-process limit, and the call answers 0: without this every load would
+      // be refused there.
+      if limit > 0 { return limit }
     #endif
+    return gpuWorkingSetAvailable
+  }
+
+  // Where no process limit exists (macOS, iPad apps on a Mac), the GPU's recommended working set is the real ceiling
+  // for weights that MLX keeps resident; what this process already holds is subtracted.
+  private static var gpuWorkingSetAvailable: UInt64 {
+    let ceiling = MTLCreateSystemDefaultDevice()?.recommendedMaxWorkingSetSize ?? ProcessInfo.processInfo.physicalMemory
+    return ceiling - min(footprint, ceiling)
   }
 
   static var footprint: UInt64 {
