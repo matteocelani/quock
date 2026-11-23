@@ -5,7 +5,7 @@ import {
   normalizeModelName,
   type CloudModel,
 } from "@/modules/models/api/models";
-import { useCloudModels } from "@/modules/models/hooks/useCloudModels";
+import { useAvailableModels } from "@/modules/models/hooks/useAvailableModels";
 import { DEFAULT_MODEL_PRIORITY } from "@/modules/models/constants";
 import { useSettingsStore } from "@/lib/stores/settings.store";
 
@@ -28,7 +28,7 @@ function pickDefault(models: readonly CloudModel[]): CloudModel | null {
 }
 
 export function useSelectedModel(): UseSelectedModelResult {
-  const { data: cloudModels } = useCloudModels();
+  const { data: cloudModels } = useAvailableModels();
   const storedName = useSettingsStore((s) => s.selectedModelName);
   const setSelectedModelName = useSettingsStore(
     (s) => s.setSelectedModelName,

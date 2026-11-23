@@ -6,7 +6,7 @@ import {
   normalizeModelName,
   type CloudModel,
 } from "@/modules/models/api/models";
-import { useCloudModels } from "@/modules/models/hooks/useCloudModels";
+import { useAvailableModels } from "@/modules/models/hooks/useAvailableModels";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
 import { useDb } from "@/lib/contexts/DbContext";
 import { queryKeys } from "@/lib/hooks/queryKeys";
@@ -25,7 +25,7 @@ export interface UseChatModelResult {
 export function useChatModel(chatId: ChatId | null): UseChatModelResult {
   const { chats } = useDb();
   const queryClient = useQueryClient();
-  const { data: cloudModels } = useCloudModels();
+  const { data: cloudModels } = useAvailableModels();
   const { model: defaultModel } = useSelectedModel();
   // Model-only read: the payload is the pinned NAME (or null), so this subscription
   // only re-renders when the pin itself changes, never on the chat's streaming traffic.

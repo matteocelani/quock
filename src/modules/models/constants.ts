@@ -23,3 +23,5 @@ export const DEFAULT_MODEL_PRIORITY: readonly string[] = [
   "qwen",
   "llama",
 ];
+// Ollama's MLX catalogue changes with new releases, not within a session.
+export const ON_DEVICE_CATALOG_STALE_TIME_MS = 60 * 60 * 1000;

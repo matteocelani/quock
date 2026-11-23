@@ -8,6 +8,9 @@ export interface CloudModel {
   // Set when the model came from the recommendations endpoint, which is the only source that ranks anything: `/api/tags`
   // answers in a different order on every call, so position alone cannot say whether the first row means anything.
   isRecommended?: boolean;
+  // Runs on this phone through MLX instead of on ollama.com; `bytes` is what it occupies on disk.
+  isOnDevice?: boolean;
+  bytes?: number;
 }
 // Mirrors `getModelRecommendations` in `app/ui/app/src/api.ts:421`. Returns featured cloud models with description and inference-time metadata.
 interface ModelRecommendationsResponse {

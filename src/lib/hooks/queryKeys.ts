@@ -17,6 +17,9 @@ export const queryKeys = {
   // Prefix key for matching every per-chat cache entry at once (e.g. bulk removeQueries).
   chatRoot: () => ["chat"] as const,
   cloudModels: () => ["models", "cloud"] as const,
+  // Models already downloaded to this phone (read from disk), and the ones Ollama offers to download (from ollama.com).
+  onDeviceInstalled: () => ["models", "onDevice", "installed"] as const,
+  onDeviceCatalog: () => ["models", "onDevice", "catalog"] as const,
   modelCapabilities: (name: string | null) =>
     ["modelCapabilities", name] as const,
 } as const;

@@ -4,6 +4,7 @@ import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import Brain from "lucide-react-native/icons/brain";
+import Download from "lucide-react-native/icons/download";
 import Eye from "lucide-react-native/icons/eye";
 import X from "lucide-react-native/icons/x";
 import { type LucideIcon } from "lucide-react-native";
@@ -19,7 +20,19 @@ import { SheetHeader } from "@/components/ui/SheetHeader";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { componentLayout, iconSize, strokeWidth } from "@/lib/design/tokens";
 import { formatModelName } from "@/modules/models/lib/formatModelName";
-import { useCloudModels } from "@/modules/models/hooks/useCloudModels";
+import { formatBytes } from "@/modules/chat/lib/formatBytes";
+import { useAvailableModels } from "@/modules/models/hooks/useAvailableModels";
+import { useListOnDeviceCatalog } from "@/modules/models/hooks/useOnDeviceModels";
+import { usePullOnDeviceModel } from "@/modules/models/hooks/usePullOnDeviceModel";
+import {
+  useOnDeviceDownloadsStore,
+  type OnDeviceDownload,
+} from "@/modules/models/stores/onDeviceDownloads.store";
+import {
+  isOnDeviceSupported,
+  type OnDeviceModelInfo,
+} from "@/lib/onDevice/onDeviceLLM";
+import { Section } from "@/components/ui/Section";
 import { useListModelCapabilities } from "@/modules/models/hooks/useModelCapabilities";
 import { useChatModel } from "@/modules/models/hooks/useChatModel";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
@@ -81,13 +94,61 @@ function ModelRow({
     <ListRow
       leading={<RadioIndicator selected={isSelected} />}
       label={formatModelName(model.name)}
-      subtitle={model.description}
+      subtitle={
+        model.isOnDevice
+          ? `On this iPhone · ${formatBytes(model.bytes ?? 0)}`
+          : model.description
+      }
       chips={chips}
       onPress={onPress}
       showDivider={showDivider}
       chipsBelowSubtitle
       subtitleNumberOfLines={componentLayout.modelPicker.descriptionMaxLines}
       testID={`model-row-${model.name.replace(/:/g, "-")}`}
+    />
+  );
+}
+
+interface DownloadRowProps {
+  entry: OnDeviceModelInfo;
+  download: OnDeviceDownload | undefined;
+  showDivider: boolean;
+  onPress: () => void;
+}
+
+function downloadSubtitle(
+  entry: OnDeviceModelInfo,
+  download: OnDeviceDownload | undefined,
+): string {
+  if (!download) return `Download · ${formatBytes(entry.bytes)}`;
+  if (download.hasFailed) return "Download stopped · Tap to resume";
+  if (download.total <= 0) return "Starting download…";
+  const percent = Math.floor((download.completed / download.total) * 100);
+  return `Downloading · ${percent}% of ${formatBytes(download.total)}`;
+}
+
+// A model Ollama offers as an MLX build that is not on the phone yet; a tap downloads it in place.
+function DownloadRow({
+  entry,
+  download,
+  showDivider,
+  onPress,
+}: DownloadRowProps): React.ReactElement {
+  const colors = useThemeColors();
+  return (
+    <ListRow
+      leading={
+        <Download
+          size={iconSize.md}
+          color={colors.mutedForeground}
+          strokeWidth={strokeWidth.bold}
+        />
+      }
+      label={formatModelName(entry.model)}
+      subtitle={downloadSubtitle(entry, download)}
+      onPress={onPress}
+      showDivider={showDivider}
+      testID={`model-download-${entry.model.replace(/:/g, "-")}`}
     />
   );
 }
@@ -99,7 +160,11 @@ export function ModelPickerSheet({
   chatId,
 }: ModelPickerSheetProps): React.ReactElement {
   const colors = useThemeColors();
-  const modelsQuery = useCloudModels();
+  const modelsQuery = useAvailableModels();
+  const isOnDeviceEnabled = visible && isOnDeviceSupported();
+  const catalogQuery = useListOnDeviceCatalog(isOnDeviceEnabled);
+  const downloads = useOnDeviceDownloadsStore((s) => s.downloads);
+  const { pull } = usePullOnDeviceModel();
   const mode = useUIStore((s) => s.modelPickerMode);
   // "default" → writes the persisted user preference; "current" → pins the model to this chat (chats.model).
   const defaultModel = useSelectedModel();
@@ -170,6 +235,19 @@ export function ModelPickerSheet({
       return activeFilters.every((key) => caps.includes(key));
     });
   }, [models, capabilitiesByName, activeFilters, query]);
+  // Offered for download: Ollama's MLX builds this phone can hold, minus the ones already on it.
+  const downloadable = useMemo(() => {
+    const installed = new Set(
+      models.filter((m) => m.isOnDevice === true).map((m) => m.name),
+    );
+    const needle = query.trim().toLowerCase();
+    return (catalogQuery.data ?? []).filter(
+      (entry) =>
+        !installed.has(entry.model) &&
+        (!needle || entry.model.toLowerCase().includes(needle)) &&
+        activeFilters.every((key) => entry.capabilities.includes(key)),
+    );
+  }, [catalogQuery.data, models, query, activeFilters]);
   return (
     <Sheet
       visible={visible}
@@ -270,6 +348,23 @@ export function ModelPickerSheet({
             );
           })
         )}
+        {downloadable.length > 0 ? (
+          <Section label="Download to this iPhone" className="mt-6">
+            {downloadable.map((entry, index) => (
+              <DownloadRow
+                key={entry.model}
+                entry={entry}
+                download={downloads.get(entry.model)}
+                showDivider={index < downloadable.length - 1}
+                onPress={(): void => {
+                  const current = downloads.get(entry.model);
+                  if (current && !current.hasFailed) return;
+                  pull(entry.model);
+                }}
+              />
+            ))}
+          </Section>
+        ) : null}
       </ScrollView>
     </Sheet>
   );

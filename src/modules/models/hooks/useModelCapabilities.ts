@@ -6,14 +6,33 @@ import { useApi } from "@/lib/contexts/ApiContext";
 import { useAuth } from "@/modules/auth/hooks/useAuth";
 import { fetchModelCapabilities } from "@/modules/models/api/models";
 import { inferCapabilities } from "@/modules/models/lib/inferCapabilities";
+import { useListInstalledOnDeviceModels } from "@/modules/models/hooks/useOnDeviceModels";
+import {
+  isOnDeviceModelName,
+  type OnDeviceModelInfo,
+} from "@/lib/onDevice/onDeviceLLM";
 import { queryKeys } from "@/lib/hooks/queryKeys";
 import {
+  COMPLETION_CAPABILITY,
   MODEL_CAPABILITIES_RETRY,
   MODEL_CAPABILITIES_STALE_TIME_MS,
   THINKING_CAPABILITY,
   TOOLS_CAPABILITY,
   VISION_CAPABILITY,
 } from "@/modules/models/constants";
+// A local model's capabilities were recorded from Ollama's own config when it was downloaded; the cloud's `/api/show`
+// knows nothing about it, and the name heuristic would promise vision the on-device engine does not load.
+function onDeviceCapabilities(
+  name: string,
+  installed: readonly OnDeviceModelInfo[] | undefined,
+): readonly string[] {
+  return (
+    installed?.find((m) => m.model === name)?.capabilities ?? [
+      COMPLETION_CAPABILITY,
+    ]
+  );
+}
+
 // Tries `/api/show`; returns null when the cloud doesn't expose the endpoint so the consumer can fall through to the heuristic without treating it as an error.
 function useApiCapabilities(modelName: string | undefined): string[] | null {
   const { client } = useApi();
@@ -26,7 +45,10 @@ function useApiCapabilities(modelName: string | undefined): string[] | null {
       return fetchModelCapabilities(client, modelName);
     },
     // Only run when both the model is set and the user is signed in (the endpoint requires auth).
-    enabled: Boolean(modelName) && isAuthenticated,
+    enabled:
+      Boolean(modelName) &&
+      isAuthenticated &&
+      !isOnDeviceModelName(modelName ?? ""),
     staleTime: MODEL_CAPABILITIES_STALE_TIME_MS,
     retry: MODEL_CAPABILITIES_RETRY,
   });
@@ -39,11 +61,15 @@ export function useModelCapabilities(
   modelName: string | undefined,
 ): readonly string[] {
   const apiCapabilities = useApiCapabilities(modelName);
+  const { data: installed } = useListInstalledOnDeviceModels();
   return React.useMemo<readonly string[]>(() => {
     if (!modelName) return [];
+    if (isOnDeviceModelName(modelName)) {
+      return onDeviceCapabilities(modelName, installed);
+    }
     if (apiCapabilities !== null) return apiCapabilities;
     return inferCapabilities(modelName);
-  }, [apiCapabilities, modelName]);
+  }, [apiCapabilities, installed, modelName]);
 }
 
 // Capabilities for a whole list, so a filter hides rows by the same answers those rows show — filtering on the name
@@ -54,11 +80,12 @@ export function useListModelCapabilities(
   const { client } = useApi();
   const { user } = useAuth();
   const isAuthenticated = user !== null;
+  const { data: installed } = useListInstalledOnDeviceModels();
   return useQueries({
     queries: names.map((name) => ({
       queryKey: queryKeys.modelCapabilities(name),
       queryFn: (): Promise<string[]> => fetchModelCapabilities(client, name),
-      enabled: isAuthenticated,
+      enabled: isAuthenticated && !isOnDeviceModelName(name),
       staleTime: MODEL_CAPABILITIES_STALE_TIME_MS,
       retry: MODEL_CAPABILITIES_RETRY,
     })),
@@ -67,6 +94,10 @@ export function useListModelCapabilities(
     combine: (results): ReadonlyMap<string, readonly string[]> => {
       const byName = new Map<string, readonly string[]>();
       names.forEach((name, index) => {
+        if (isOnDeviceModelName(name)) {
+          byName.set(name, onDeviceCapabilities(name, installed));
+          return;
+        }
         const query = results[index];
         const served =
           query !== undefined && !query.isError ? query.data : undefined;
@@ -90,6 +121,7 @@ export function useHasThinkingCapability(
 ): boolean {
   const capabilities = useModelCapabilities(modelName);
   if (capabilities.includes(THINKING_CAPABILITY)) return true;
+  if (modelName !== undefined && isOnDeviceModelName(modelName)) return false;
   // /api/show sometimes omits thinking for a model that actually reasons (e.g. minimax-m3), and the server then defaults think ON with no toggle to turn it off. Trust the curated name heuristic too for this gate, so the toggle shows and the opt-out is wired.
   return (
     modelName !== undefined &&
