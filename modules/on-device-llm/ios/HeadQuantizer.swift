@@ -12,19 +12,7 @@ enum HeadQuantizer {
     let bytesAfter: Int
   }
 
-  private static let embeddingSuffix = "embed_tokens.weight"
-  private static let sourceBitsPerWeight = 16.0
-
-  // What a download will occupy once installed: the BF16 embedding shrinks to `bits` per weight plus a float16 scale
-  // and bias per group. Used to decide, before downloading, whether the model can run on this phone.
-  static func installedBytes(of layers: [OllamaLayer], bits: Int, groupSize: Int) -> Int64 {
-    layers.reduce(Int64(0)) { total, layer in
-      guard layer.name?.hasSuffix(embeddingSuffix) == true else { return total + layer.size }
-      let bitsPerWeight = Double(bits) + 32.0 / Double(groupSize)
-      return total + Int64(Double(layer.size) * bitsPerWeight / sourceBitsPerWeight)
-    }
-  }
-
+  static let embeddingSuffix = "embed_tokens.weight"
   // Returns nil when the build has no full-precision embedding to quantize (already quantized, or none found).
   static func quantizeEmbedding(in directory: URL, bits: Int, groupSize: Int) throws -> Outcome? {
     for file in try safetensorFiles(in: directory) {

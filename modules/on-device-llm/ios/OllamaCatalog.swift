@@ -37,17 +37,24 @@ enum OllamaCatalog {
     return entries.sorted { $0.bytes < $1.bytes }
   }
 
-  private struct ConfigBlob: Decodable { let capabilities: [String]? }
+  private struct ConfigBlob: Decodable {
+    let capabilities: [String]?
+    let file_type: String?
+  }
   private struct ModelConfig: Decodable { let model_type: String? }
 
   private static func entry(for ref: ModelReference) async throws -> CatalogEntry? {
     let manifest = try await OllamaRegistry.manifest(for: ref)
     let layers = OllamaRegistry.neededLayers(of: manifest)
     let bytes = layers.reduce(Int64(0)) { $0 + $1.size }
-    let loadedBytes = HeadQuantizer.installedBytes(
-      of: layers, bits: LocalModelStore.headBits, groupSize: LocalModelStore.headGroupSize)
-    // Offered only if it could load right now as well: a fixed share of RAM alone offered a 2B build that the app's
-    // own memory limit then refused, after a 2.3 GB download.
+    var blob: ConfigBlob?
+    if let digest = manifest.configDigest {
+      blob = try? JSONDecoder().decode(ConfigBlob.self, from: try await OllamaRegistry.blob(digest, of: ref))
+    }
+    // Sized as it will be after the install-time optimization, and offered only if it could load right now too: a
+    // fixed share of RAM alone once offered a 2B build that the app's own memory limit then refused.
+    let loadedBytes = InstallOptimizer.estimatedBytes(
+      of: layers, isFullPrecision: InstallOptimizer.isFullPrecision(fileType: blob?.file_type))
     guard bytes > 0, loadedBytes + kvAllowanceBytes <= memoryBudget,
       AppMemory.neededToLoad(bytes: loadedBytes) <= AppMemory.available,
       let configLayer = layers.first(where: { $0.name == "config.json" })
@@ -57,12 +64,7 @@ enum OllamaCatalog {
       await LLMTypeRegistry.shared.contains(modelType, configuration: configData)
     else { return nil }
     var capabilities = ["completion"]
-    if let digest = manifest.configDigest,
-      let blob = try? JSONDecoder().decode(ConfigBlob.self, from: try await OllamaRegistry.blob(digest, of: ref)),
-      blob.capabilities?.contains("thinking") == true
-    {
-      capabilities.append("thinking")
-    }
+    if blob?.capabilities?.contains("thinking") == true { capabilities.append("thinking") }
     return CatalogEntry(model: ref.display, bytes: bytes, capabilities: capabilities)
   }
 }

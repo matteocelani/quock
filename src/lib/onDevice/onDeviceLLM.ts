@@ -68,9 +68,10 @@ interface OnDeviceLLMModule {
 
 const native = requireOptionalNativeModule<OnDeviceLLMModule>("OnDeviceLLM");
 
-// Ollama names its MLX builds with a `-mlx` tag (`qwen3.5:0.8b-mlx`), and the cloud never serves one, so the tag alone
-// tells which engine a stored model name belongs to — even before the installed list has loaded.
-const ON_DEVICE_TAG = /:[^:]*-mlx$/;
+// Ollama names its MLX builds with a `-mlx` tag (`qwen3.5:0.8b-mlx`, or `-mlx-bf16` for full precision), and the cloud
+// never serves one, so the tag alone tells which engine a stored model name belongs to, even before the installed
+// list has loaded.
+const ON_DEVICE_TAG = /:[^:]*-mlx(-bf16)?$/;
 
 export function isOnDeviceModelName(name: string): boolean {
   return ON_DEVICE_TAG.test(name);

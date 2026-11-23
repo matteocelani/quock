@@ -1,4 +1,26 @@
 {
-  "qwen3.5:0.8b-mlx": { "decodeTokPerSec": 347.7, "peakMemoryMB": 951, "meanKL": 0.0211, "top1": 0.947 },
-  "qwen3.5:2b-mlx": { "decodeTokPerSec": 189.3, "peakMemoryMB": 2063, "meanKL": 0.0137, "top1": 0.962 }
+  "qwen3.5:0.8b-mlx": {
+    "decodeTokPerSec": 347.7,
+    "peakMemoryMB": 951,
+    "meanKL": 0.0211,
+    "top1": 0.947
+  },
+  "qwen3.5:2b-mlx": {
+    "decodeTokPerSec": 189.3,
+    "peakMemoryMB": 2063,
+    "meanKL": 0.0137,
+    "top1": 0.962
+  },
+  "qwen3.5:0.8b-mlx-bf16": {
+    "decodeTokPerSec": 379.8,
+    "peakMemoryMB": 817,
+    "meanKL": 0.0198,
+    "top1": 0.943
+  },
+  "qwen3.5:2b-mlx-bf16": {
+    "decodeTokPerSec": 220.3,
+    "peakMemoryMB": 1758,
+    "meanKL": 0.0096,
+    "top1": 0.964
+  }
 }

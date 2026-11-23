@@ -16,11 +16,6 @@ enum LocalModelStore {
   // sha256 of every file as written to disk, checked before the weights are first loaded in a session.
   static let fileHashesName = "quock-files.json"
   static let mlxFormat = "mlx"
-  // The tied embedding / LM head Ollama ships in BF16, quantized at install. Chosen by the benchmark loop on
-  // qwen3.5:0.8b (30 prompts, 3,840 teacher-forced positions, T 0.7): +18% decode and -235 MB for mean KL 0.0018 and
-  // 98.6% top-1 agreement; 6-bit and below missed the 98% agreement bar.
-  static let headBits = 8
-  static let headGroupSize = 128
   private static let concurrentDownloads = 4
   // A phone drops connections all the time (Wi-Fi handoff, sleep, a flaky CDN edge); one lost file must not end a pull.
   private static let downloadAttempts = 4
@@ -127,10 +122,12 @@ enum LocalModelStore {
       }
     }
 
+    // Read before patching: an unquantized build has no quantization to derive.
+    let isFullPrecision = try OllamaRegistry.quantization(ofTensorsIn: directory) == nil
     try patchConfiguration(in: directory)
-    // The macOS benchmark keeps its full-precision reference this way; the app always quantizes.
+    // The macOS benchmark keeps its full-precision reference this way; the app always optimizes.
     if ProcessInfo.processInfo.environment["QUOCK_LLM_KEEP_HEAD"] == nil {
-      _ = try HeadQuantizer.quantizeEmbedding(in: directory, bits: headBits, groupSize: headGroupSize)
+      try InstallOptimizer.optimize(directory: directory, isFullPrecision: isFullPrecision)
     }
     try recordFileHashes(in: directory)
     // What is on disk now, not what was downloaded: the memory checks need the size of the weights that load.

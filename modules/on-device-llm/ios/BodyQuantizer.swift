@@ -24,6 +24,11 @@ enum BodyQuantizer {
 
   private static let skippedFragments = ["norm", "embed_tokens", "conv1d", "A_log", "dt_bias", "visual", "vision"]
 
+  // Whether a checkpoint tensor name is a linear layer's weight this quantizer would convert.
+  static func isLinearWeight(_ name: String) -> Bool {
+    name.hasSuffix(".weight") && !skippedFragments.contains(where: name.contains)
+  }
+
   static func quantize(directory: URL, plan: Plan) throws -> Outcome {
     let configURL = directory.appending(path: "config.json")
     guard var config = try JSONSerialization.jsonObject(with: Data(contentsOf: configURL)) as? [String: Any] else {
