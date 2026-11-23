@@ -12,6 +12,8 @@ module.exports = [
       "node_modules/**",
       ".expo/**",
       "codegen/**",
+      // The marketing site is its own Next.js project with its own lint config.
+      "website/**",
     ],
   },
   {
