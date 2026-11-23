@@ -1,6 +1,8 @@
 import Foundation
 import MLX
-import UIKit
+#if canImport(UIKit)
+  import UIKit
+#endif
 
 // iOS forbids GPU work from a backgrounded app and Metal reports it as a fatal error, so MLX only runs while the app
 // is active. Resigning active (lock button, app switcher, Control Center) comes before backgrounding, which leaves
@@ -16,6 +18,11 @@ final class ForegroundGate: @unchecked Sendable {
 
   @MainActor
   func start() {
+    #if !canImport(UIKit)
+      // The macOS benchmark host has no app lifecycle to gate on.
+      set(true)
+      return
+    #else
     guard observers.isEmpty else { return }
     set(UIApplication.shared.applicationState == .active)
     let center = NotificationCenter.default
@@ -27,6 +34,7 @@ final class ForegroundGate: @unchecked Sendable {
         [weak self] _ in self?.set(false)
       },
     ]
+    #endif
   }
 
   private func set(_ value: Bool) {

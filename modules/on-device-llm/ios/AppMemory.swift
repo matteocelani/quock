@@ -1,4 +1,5 @@
 import Darwin
+import Foundation
 import os
 
 // What iOS lets this process use, as opposed to how much RAM the phone has: without the increased-memory-limit
@@ -10,7 +11,14 @@ enum AppMemory {
   // Below this, generation stops with what it has rather than letting iOS kill the app mid-reply.
   static let generationFloorBytes: UInt64 = 256 << 20
 
-  static var available: UInt64 { UInt64(os_proc_available_memory()) }
+  static var available: UInt64 {
+    #if os(iOS)
+      UInt64(os_proc_available_memory())
+    #else
+      // macOS has no per-process limit to query; the benchmark host treats unused RAM as available.
+      ProcessInfo.processInfo.physicalMemory - min(footprint, ProcessInfo.processInfo.physicalMemory)
+    #endif
+  }
 
   static var footprint: UInt64 {
     var info = task_vm_info_data_t()

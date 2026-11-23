@@ -107,6 +107,8 @@ actor LocalEngine {
     turns: [LocalTurn],
     think: Bool?,
     maxTokens: Int,
+    // Benchmarks pin sampling (0 = greedy) so two variants of a model can be compared token for token.
+    temperatureOverride: Float? = nil,
     onEvent: @escaping @Sendable (LocalEvent) -> Void
   ) async throws -> LocalStats {
     // Loading moves the weights to the GPU too, so it waits for the foreground like generation does.
@@ -130,8 +132,9 @@ actor LocalEngine {
     // Qwen's published sampling defaults for each mode.
     let isThinking = think ?? true
     let parameters = GenerateParameters(
-      maxTokens: maxTokens, maxKVSize: Self.maxKVTokens, temperature: isThinking ? 0.6 : 0.7,
-      topP: isThinking ? 0.95 : 0.8)
+      maxTokens: maxTokens, maxKVSize: Self.maxKVTokens,
+      temperature: temperatureOverride ?? (isThinking ? 0.6 : 0.7),
+      topP: temperatureOverride == nil ? (isThinking ? 0.95 : 0.8) : 1.0)
 
     return try await container.perform { context in
       let prepared = try await context.processor.prepare(input: input)
