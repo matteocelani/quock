@@ -1,33 +1,8 @@
-import type { ComponentType, ReactNode, SVGProps } from "react";
+import type { ReactNode } from "react";
 import { Heading } from "@/components/ui/heading";
-import {
-  CodeIcon,
-  DocumentIcon,
-  GlobeIcon,
-  ModelsIcon,
-  MoonIcon,
-  PinIcon,
-  StreamIcon,
-  ThinkIcon,
-} from "@/components/ui/icons";
-
-interface Feature {
-  icon: ComponentType<SVGProps<SVGSVGElement>>;
-  title: [string, string];
-}
+import { FEATURES } from "@/modules/home/content";
 
 // A recap the eye takes in at once, just before the last call to download.
-const FEATURES: readonly Feature[] = [
-  { icon: StreamIcon, title: ["Streamed", "replies"] },
-  { icon: ModelsIcon, title: ["Every cloud", "model"] },
-  { icon: ThinkIcon, title: ["Thinking", "on demand"] },
-  { icon: GlobeIcon, title: ["Live web", "search"] },
-  { icon: DocumentIcon, title: ["On-device", "PDF reading"] },
-  { icon: PinIcon, title: ["Pinned chats", "and forks"] },
-  { icon: MoonIcon, title: ["Light and", "dark themes"] },
-  { icon: CodeIcon, title: ["Free and", "open source"] },
-];
-
 export function FeatureGrid(): ReactNode {
   return (
     <section id="features" aria-labelledby="features-title" className="scroll-mt-28 px-5 pt-32 sm:px-8 sm:pt-44">

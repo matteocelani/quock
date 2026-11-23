@@ -11,7 +11,7 @@ interface MinorLine {
 }
 
 // One sentence per minor line; the page groups each line's patches under it.
-export const MINOR_LINES: readonly MinorLine[] = [
+const MINOR_LINES: readonly MinorLine[] = [
   {
     minor: "0.2",
     summary:
@@ -25,7 +25,7 @@ export const MINOR_LINES: readonly MinorLine[] = [
 ];
 
 // Written for people, from the GitHub release notes and the release branch history.
-export const RELEASES: readonly Release[] = [
+const RELEASES: readonly Release[] = [
   {
     version: "0.2.1",
     date: "2026-11-06",
@@ -91,8 +91,15 @@ export const RELEASES: readonly Release[] = [
   },
 ] as const;
 
-// The newest release is the page's "Updated" date.
-export const CHANGELOG_UPDATED = RELEASES[0].date;
+// The newest entry is the live release: its version and date are the site's version and "Updated" date.
+export const LATEST_RELEASE = RELEASES[0];
+export const CHANGELOG_UPDATED = LATEST_RELEASE.date;
+
+// Each minor line with its patches, newest first, ready for the page to render.
+export const RELEASE_LINES = MINOR_LINES.map((line) => ({
+  ...line,
+  releases: RELEASES.filter((release) => release.version.startsWith(`${line.minor}.`)),
+}));
 
 export const CHANGELOG_FOOTNOTE = {
   body: "Pull requests and commits behind each tagged release are on",

@@ -8,9 +8,14 @@ interface FactProps {
   value: string;
 }
 
+// The two facts a visitor needs before tapping Download: what it works with, and what to sign in with.
+const FACTS: readonly FactProps[] = [
+  { label: "Every model on", value: "Ollama Cloud" },
+  { label: "Sign in with your", value: "ollama.com account" },
+];
+
 const step = (ms: number): CSSProperties => ({ "--delay": `${ms}ms` }) as CSSProperties;
 
-// A faint label over a bold value: the two facts a visitor needs before tapping Download.
 function Fact({ label, value }: FactProps): ReactNode {
   return (
     <div className="leading-tight">
@@ -33,8 +38,9 @@ export function Hero(): ReactNode {
           <DownloadButton />
           <AppStoreButton className="hidden sm:inline-flex" />
           <div className="flex gap-7 sm:ml-4">
-            <Fact label="Every model on" value="Ollama Cloud" />
-            <Fact label="Sign in with your" value="ollama.com account" />
+            {FACTS.map((fact) => (
+              <Fact key={fact.value} {...fact} />
+            ))}
           </div>
         </div>
       </div>

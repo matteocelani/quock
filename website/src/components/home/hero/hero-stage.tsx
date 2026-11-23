@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type ComponentType, type ReactNode, type SVGProps } from "react";
-import { Caption } from "@/components/ui/heading";
 import {
   ChatBubbleIcon,
   CheckIcon,
@@ -13,6 +12,8 @@ import {
 } from "@/components/ui/icons";
 import { ScreenStack } from "@/components/home/screen-stack";
 import { handleTabKeys } from "@/components/home/tab-keys";
+import { Caption } from "@/components/home/typography";
+import { LATEST_RELEASE } from "@/modules/changelog/content";
 import { MODELS, type ScreenName } from "@/modules/home/screens";
 import { SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,11 @@ const TABS: readonly Tab[] = [
 
 const SCREENS = TABS.map((tab) => tab.screen);
 const PANEL_ID = "hero-screen";
+const tabId = (index: number): string => `hero-tab-${index}`;
+
+type ModelName = (typeof MODELS)[number]["name"];
+// The capture shows glm-5.2 as the picked model, so the panel starts there too.
+const INITIAL_MODEL: ModelName = MODELS[1].name;
 
 // The app's per-chat tools, as the attach sheet shows them; memory is a global setting, not one of them.
 const TOOLS = [
@@ -74,11 +80,11 @@ function Switch({ isOn, label, onToggle }: SwitchProps): ReactNode {
 // Every control on the stage changes what the phone shows, so the hero proves the app instead of describing it.
 export function HeroStage(): ReactNode {
   const [screen, setScreen] = useState<ScreenName>("home");
-  const [model, setModel] = useState<string>("glm-5.2");
+  const [model, setModel] = useState<ModelName>(INITIAL_MODEL);
   const [tools, setTools] = useState<Record<ToolId, boolean>>({ search: true, thinking: false });
   const activeIndex = SCREENS.indexOf(screen);
 
-  const pickModel = (name: string): void => {
+  const pickModel = (name: ModelName): void => {
     setModel(name);
     setScreen("open_model");
   };
@@ -91,11 +97,12 @@ export function HeroStage(): ReactNode {
   return (
     <div className="relative mx-auto max-w-[75rem] px-4 sm:px-8">
       <div className="relative">
-        <div className="sm:rounded-stage relative isolate h-[30rem] overflow-hidden rounded-4xl sm:h-[36rem] lg:h-[38rem]">
+        <div className="rounded-stage relative isolate h-[30rem] overflow-hidden sm:h-[36rem] lg:h-[38rem]">
           <div aria-hidden="true" className="wallpaper -z-10" />
           <div className="absolute inset-x-0 top-6 flex justify-center sm:top-10">
             <ScreenStack
               id={PANEL_ID}
+              labelledBy={tabId(activeIndex)}
               screens={SCREENS}
               active={screen}
               className="w-[15.5rem] sm:w-[19rem] lg:w-[20.5rem]"
@@ -107,16 +114,19 @@ export function HeroStage(): ReactNode {
 
         {/* Picking a model opens the picker capture, so the list reads as the app's own. */}
         <div className="glass text-foreground absolute top-12 -left-2 hidden w-80 rounded-2xl p-2 lg:block xl:-left-6">
-          <p className="text-faint-foreground px-3 pt-2 pb-1 text-xs font-bold">Choose a model</p>
-          <ul>
+          <p id="hero-models" className="text-faint-foreground px-3 pt-2 pb-1 text-xs font-bold">
+            Choose a model
+          </p>
+          <ul role="radiogroup" aria-labelledby="hero-models">
             {MODELS.map((item) => {
               const isSelected = item.name === model;
               return (
                 <li key={item.name}>
                   <button
                     type="button"
+                    role="radio"
+                    aria-checked={isSelected}
                     onClick={() => pickModel(item.name)}
-                    aria-pressed={isSelected}
                     className="hover:bg-foreground/5 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors"
                   >
                     <span
@@ -161,7 +171,7 @@ export function HeroStage(): ReactNode {
             ))}
           </ul>
           <div className="bg-foreground/10 my-3 h-px" />
-          <p className="text-faint-foreground text-xs font-bold">Version {SITE.version}</p>
+          <p className="text-faint-foreground text-xs font-bold">Version {LATEST_RELEASE.version}</p>
         </div>
       </div>
 
@@ -172,6 +182,7 @@ export function HeroStage(): ReactNode {
             return (
               <button
                 key={tabScreen}
+                id={tabId(index)}
                 type="button"
                 role="tab"
                 aria-selected={isActive}

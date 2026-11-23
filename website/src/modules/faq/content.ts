@@ -21,7 +21,7 @@ export const FAQ: readonly FaqItem[] = [
   },
   {
     question: "What do I need to use it?",
-    answer: `An iPhone on iOS ${SITE.minimumIos} or later and an ollama.com account. Quock itself is free. Usage limits and any paid plan are set by Ollama Cloud, not by Quock.`,
+    answer: `An iPhone on iOS ${SITE.minimumIos} or later and an ollama.com account. Quock itself is free. Ollama sets the usage limits and any paid plan on ollama.com.`,
   },
   {
     question: "How much does Quock cost?",
@@ -43,7 +43,7 @@ export const FAQ: readonly FaqItem[] = [
     question: "Does Quock track me?",
     isPrivacy: true,
     answer:
-      "No. There are no analytics, no advertising identifiers, no crash reporters and no profiling. This website does not use cookies or trackers either.",
+      "No. There are no analytics, no advertising identifiers, no crash reporters and no profiling for ads or analytics. This website does not use cookies or trackers either.",
   },
   {
     question: "How does sign-in work?",
@@ -60,7 +60,7 @@ export const FAQ: readonly FaqItem[] = [
     question: "What does memory do?",
     isPrivacy: true,
     answer:
-      "Quock can remember a few lasting facts you share, such as your name or how you like answers, so new chats do not start from zero. Memory is on by default. The facts are stored on your phone and travel to Ollama Cloud with your messages while memory is on. Turn it off in Settings at any time, and revoke consent to delete every fact.",
+      "Quock can remember a few lasting facts you share, such as your name or how you like answers, so new chats start warm. Memory is on by default. The facts are stored on your phone and travel to Ollama Cloud with your messages while memory is on. Turn it off in Settings at any time, and revoke consent to delete every fact.",
   },
   {
     question: "What happens if I leave the app mid-answer?",

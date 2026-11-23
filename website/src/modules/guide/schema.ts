@@ -1,5 +1,5 @@
-import { GUIDE_PATH, GUIDE_STEPS, GUIDE_TITLE } from "@/modules/guide/content";
-import { SITE } from "@/lib/site";
+import { GUIDE_MINUTES, GUIDE_STEPS, GUIDE_TITLE } from "@/modules/guide/content";
+import { PATHS, SITE } from "@/lib/site";
 import { absoluteUrl } from "@/lib/utils";
 
 export const HOW_TO_JSON_LD = {
@@ -7,7 +7,7 @@ export const HOW_TO_JSON_LD = {
   "@type": "HowTo",
   name: GUIDE_TITLE,
   description: "Chat with Ollama Cloud models on an iPhone using Quock.",
-  totalTime: "PT3M",
+  totalTime: `PT${GUIDE_MINUTES}M`,
   tool: [{ "@type": "HowToTool", name: `iPhone with iOS ${SITE.minimumIos} or later` }],
   supply: [{ "@type": "HowToSupply", name: "An ollama.com account" }],
   step: GUIDE_STEPS.map((step, index) => ({
@@ -15,6 +15,6 @@ export const HOW_TO_JSON_LD = {
     position: index + 1,
     name: step.title,
     text: step.body,
-    url: absoluteUrl(`${GUIDE_PATH}#step-${index + 1}`),
+    url: absoluteUrl(`${PATHS.guide}#step-${index + 1}`),
   })),
 };

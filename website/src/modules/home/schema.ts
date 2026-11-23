@@ -1,3 +1,4 @@
+import { LATEST_RELEASE } from "@/modules/changelog/content";
 import { APP_FEATURES } from "@/modules/home/content";
 import { screenSrc, type ScreenName } from "@/modules/home/screens";
 import { AUTHOR_JSON_LD, SHARE_IMAGE } from "@/lib/metadata";
@@ -14,9 +15,9 @@ export const APP_JSON_LD = {
   description: SITE.description,
   operatingSystem: `iOS ${SITE.minimumIos} or later`,
   applicationCategory: "ProductivityApplication",
-  softwareVersion: SITE.version,
+  softwareVersion: LATEST_RELEASE.version,
   datePublished: SITE.releaseDate,
-  dateModified: SITE.versionDate,
+  dateModified: LATEST_RELEASE.date,
   contentRating: SITE.ageRating,
   fileSize: `${SITE.sizeMb}MB`,
   inLanguage: "en",

@@ -14,7 +14,7 @@ Quock's promise is in its headline: *Open. Type. That's it.* The app removes eve
 
 2. **One idea per screen.** Each section makes one claim: one headline, one visual, one supporting line. Big type and generous space are how we say "this matters". If a section needs two headlines, it is two sections.
 
-3. **Calm surface, one accent.** The page is quiet: a soft blue-white tint (it echoes the app), ink-black type, and pale panels instead of borders. Colour goes to two places only: the highlighter stroke on one phrase per headline, and the wallpapers behind the phones. A highlight is an accent; too many of them turn into noise.
+3. **Calm surface, one accent.** The page is quiet: a soft blue-white tint (it echoes the app), ink-black type, and pale panels instead of borders. Colour goes to the highlighter stroke on one phrase per headline, to the wallpapers behind the phones, and inside a mock to the one active thing (the chosen line, the selected action), the way the app itself marks it. Links carry the accent as an underline. A highlight is an accent; too many of them turn into noise.
 
 4. **Native, not decorated.** The site borrows its feel from iOS itself: the system font, glass only where something floats over imagery, springy presses, rounded-rectangle buttons, and a light/dark split that sets the reading pages apart. We add nothing iOS wouldn't: no gradient text on body copy, no drop shadows on flat UI, no ornaments.
 
@@ -45,18 +45,18 @@ The inner pages (FAQ, changelog, guide, privacy) are for reading. They are dark 
 ## Visual language, in brief
 
 - **Type:**
-  - one family, the system font, with weight 700 for anything that is not body text;
+  - one family, the system font, with weight 700 for headings and labels. Mock UI uses 600 like iOS does, and model names use the system monospace, as the app shows them;
   - a steep scale: a 96px hero, 70px sections, 30px feature titles, and 17px body;
   - tight tracking on large sizes.
 - **Colour:**
   - tint, ink, panel, muted and faint, plus a marker colour and a link accent;
   - light tokens on the home page, dark tokens on the inner pages;
   - colour never carries meaning on its own.
-- **Shape:** buttons are 16px-radius rectangles 60px tall, tiles are 24px, stages are 40px. Pills are only for the segmented control and the small tags.
+- **Shape:** buttons are 16px-radius rectangles 60px tall, tiles are 24px, stages are 40px at every size, and app icons use the squircle token. Pills are for the segmented control, small tags, and iOS controls that are pills in the app (switches, a Continue button).
 - **Depth:**
   - flat by default;
   - one raised shadow on the primary button;
-  - glass only for panels floating over wallpaper;
+  - glass only for things floating over moving content: panels over wallpaper, and the header once the page scrolls under it;
   - phones cast their own shadow.
 - **Motion:**
   - things arrive by lifting and un-blurring, sections reveal as you scroll, and presses spring;
@@ -73,7 +73,7 @@ The inner pages (FAQ, changelog, guide, privacy) are for reading. They are dark 
 | --- | --- | --- |
 | Section headline | On the home page: short, ends with a period, can turn a phrase, at most one highlighted phrase. | "Every corner, covered." |
 | Page title | Inner pages use a plain label, with no period. | "FAQs", "Changelog" |
-| Lead | One bold sentence, dark rather than muted. | "Pick any model on Ollama Cloud and start typing." |
+| Lead | One bold sentence, dark rather than muted. Used under home headlines and at the top of reading pages. | "Pick any model on Ollama Cloud and start typing." |
 | Tile copy | A bold lead-in, then a muted line. | "**Never lose an answer.** A reply cut short continues…" |
 | Feature title | Two lines, no body text. | "Thinking / on demand" |
 | Caption | Small, faint, factual. | "iOS 15.1+ · Free · Sign in with ollama.com" |

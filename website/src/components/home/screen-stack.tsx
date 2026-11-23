@@ -4,7 +4,8 @@ import { SCREEN_ALT, SHOT_HEIGHT, SHOT_WIDTH, screenSrc, type ScreenName } from 
 import { cn } from "@/lib/utils";
 
 interface ScreenStackProps {
-  id?: string;
+  id: string;
+  labelledBy: string;
   screens: readonly ScreenName[];
   active: ScreenName;
   sizes: string;
@@ -13,11 +14,28 @@ interface ScreenStackProps {
 }
 
 // Every capture is mounted once and cross-faded, so switching never waits on the network.
-export function ScreenStack({ id, screens, active, sizes, className, isPriority = false }: ScreenStackProps): ReactNode {
+// It is the tab panel of the tabs that drive it; only the first capture is fetched eagerly.
+export function ScreenStack({
+  id,
+  labelledBy,
+  screens,
+  active,
+  sizes,
+  className,
+  isPriority = false,
+}: ScreenStackProps): ReactNode {
   return (
-    <div id={id} role="tabpanel" className={cn("relative", className)} style={{ aspectRatio: `${SHOT_WIDTH} / ${SHOT_HEIGHT}` }}>
+    <div
+      id={id}
+      role="tabpanel"
+      aria-labelledby={labelledBy}
+      tabIndex={0}
+      className={cn("relative rounded-3xl", className)}
+      style={{ aspectRatio: `${SHOT_WIDTH} / ${SHOT_HEIGHT}` }}
+    >
       {screens.map((screen, index) => {
         const isActive = screen === active;
+        const isEager = isPriority && index === 0;
         return (
           <Image
             key={screen}
@@ -26,8 +44,8 @@ export function ScreenStack({ id, screens, active, sizes, className, isPriority 
             width={SHOT_WIDTH}
             height={SHOT_HEIGHT}
             sizes={sizes}
-            preload={isPriority && index === 0}
-            loading={isPriority ? "eager" : "lazy"}
+            preload={isEager}
+            loading={isEager ? "eager" : "lazy"}
             draggable={false}
             aria-hidden={!isActive}
             className={cn(

@@ -1,4 +1,5 @@
-// Store facts were read from the App Store lookup API on 2026-11-23; update them with each release.
+// Store facts were read from the App Store lookup API on 2026-11-23. The version and its date live in
+// modules/changelog, whose newest entry is the current release.
 const VERCEL_HOST = process.env.VERCEL_PROJECT_PRODUCTION_URL;
 const GITHUB = "https://github.com/matteocelani/quock";
 // main lags the live release until release/0.2.1 is merged, so the legal docs are read from develop.
@@ -25,8 +26,6 @@ export const SITE = {
   author: "Matteo Celani",
   authorUrl: "https://github.com/matteocelani",
   authorXUrl: "https://x.com/0xMashu",
-  version: "0.2.1",
-  versionDate: "2026-11-06",
   releaseDate: "2026-07-23",
   minimumIos: "15.1",
   sizeMb: 37,
@@ -43,8 +42,16 @@ export const PATHS = {
   privacy: "/privacy/",
 } as const;
 
+// The short name of each inner page, shared by the header, footer, page titles and llms.txt.
+export const PAGE_LABELS = {
+  guide: "Guide",
+  faq: "FAQs",
+  changelog: "Changelog",
+  privacy: "Privacy",
+} as const;
+
 // Browser-chrome colours mirror the --background tokens in globals.css; metadata cannot read CSS.
-export const THEME_COLOR = { light: "#f7f9fd", dark: "#1d1d1f" } as const;
+export const THEME_COLOR = { light: "#f7fbff", dark: "#1d1d1f" } as const;
 
 // A build without a real domain must never be indexed, or its localhost canonicals would stick.
 export const IS_INDEXABLE = !SITE.url.startsWith("http://localhost");
