@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import Brain from "lucide-react-native/icons/brain";
 import Download from "lucide-react-native/icons/download";
+import Trash2 from "lucide-react-native/icons/trash-2";
 import Eye from "lucide-react-native/icons/eye";
 import X from "lucide-react-native/icons/x";
 import { type LucideIcon } from "lucide-react-native";
@@ -24,6 +25,7 @@ import { formatBytes } from "@/modules/chat/lib/formatBytes";
 import { useAvailableModels } from "@/modules/models/hooks/useAvailableModels";
 import { useListOnDeviceCatalog } from "@/modules/models/hooks/useOnDeviceModels";
 import { usePullOnDeviceModel } from "@/modules/models/hooks/usePullOnDeviceModel";
+import { useDeleteOnDeviceModel } from "@/modules/models/hooks/useDeleteOnDeviceModel";
 import {
   useOnDeviceDownloadsStore,
   type OnDeviceDownload,
@@ -74,6 +76,8 @@ interface ModelRowProps {
   isSelected: boolean;
   showDivider: boolean;
   onPress: () => void;
+  // Only for a model stored on this phone: frees its space.
+  onRemove?: () => void;
 }
 // Capabilities arrive from the list, not from a per-row query, so a row can never show a chip the filter disagrees with.
 function ModelRow({
@@ -82,6 +86,7 @@ function ModelRow({
   isSelected,
   showDivider,
   onPress,
+  onRemove,
 }: ModelRowProps): React.ReactElement {
   // All capability chips render with the same neutral tone — the iconography is enough to differentiate them.
   const chips = useMemo<ListRowChip[]>(
@@ -102,6 +107,17 @@ function ModelRow({
       }
       chips={chips}
       onPress={onPress}
+      trailing={
+        onRemove ? (
+          <IconButton
+            icon={Trash2}
+            onPress={onRemove}
+            tone="muted"
+            accessibilityLabel={`Remove ${formatModelName(model.name)} from this iPhone`}
+            testID={`model-remove-${model.name.replace(/:/g, "-")}`}
+          />
+        ) : undefined
+      }
       showDivider={showDivider}
       chipsBelowSubtitle
       subtitleNumberOfLines={componentLayout.modelPicker.descriptionMaxLines}
@@ -169,6 +185,8 @@ export function ModelPickerSheet({
   // App Review 4.2.3: a model is several hundred MB, so its size is stated and the download confirmed before it starts.
   const [pendingDownload, setPendingDownload] =
     useState<OnDeviceModelInfo | null>(null);
+  const { remove } = useDeleteOnDeviceModel();
+  const [pendingRemoval, setPendingRemoval] = useState<CloudModel | null>(null);
   const mode = useUIStore((s) => s.modelPickerMode);
   // "default" → writes the persisted user preference; "current" → pins the model to this chat (chats.model).
   const defaultModel = useSelectedModel();
@@ -190,6 +208,7 @@ export function ModelPickerSheet({
       setActiveFilters([]);
       setQuery("");
       setPendingDownload(null);
+      setPendingRemoval(null);
     }
   }, [visible]);
   const handleFilterTap = useCallback((key: CapabilityFilter): void => {
@@ -259,22 +278,41 @@ export function ModelPickerSheet({
       onClose={onClose}
       snapPoints={[MODEL_PICKER_SHEET_SNAP]}
       overlays={
-        <ConfirmDialog
-          visible={pendingDownload !== null}
-          title={`Download ${pendingDownload ? formatModelName(pendingDownload.model) : ""}?`}
-          message={
-            pendingDownload
-              ? `${formatBytes(pendingDownload.bytes)} will be downloaded from Ollama and stored on this iPhone. Wi-Fi is recommended.`
-              : undefined
-          }
-          confirmLabel="Download"
-          onConfirm={(): void => {
-            if (pendingDownload) pull(pendingDownload.model);
-            setPendingDownload(null);
-          }}
-          onCancel={(): void => setPendingDownload(null)}
-          testID="model-download-confirm"
-        />
+        <>
+          <ConfirmDialog
+            visible={pendingRemoval !== null}
+            title={`Remove ${pendingRemoval ? formatModelName(pendingRemoval.name) : ""}?`}
+            message={
+              pendingRemoval
+                ? `Frees ${formatBytes(pendingRemoval.bytes ?? 0)} on this iPhone. You can download it again at any time.`
+                : undefined
+            }
+            confirmLabel="Remove"
+            destructive
+            onConfirm={(): void => {
+              if (pendingRemoval) remove(pendingRemoval.name);
+              setPendingRemoval(null);
+            }}
+            onCancel={(): void => setPendingRemoval(null)}
+            testID="model-remove-confirm"
+          />
+          <ConfirmDialog
+            visible={pendingDownload !== null}
+            title={`Download ${pendingDownload ? formatModelName(pendingDownload.model) : ""}?`}
+            message={
+              pendingDownload
+                ? `${formatBytes(pendingDownload.bytes)} will be downloaded from Ollama and stored on this iPhone. Wi-Fi is recommended.`
+                : undefined
+            }
+            confirmLabel="Download"
+            onConfirm={(): void => {
+              if (pendingDownload) pull(pendingDownload.model);
+              setPendingDownload(null);
+            }}
+            onCancel={(): void => setPendingDownload(null)}
+            testID="model-download-confirm"
+          />
+        </>
       }
     >
       <SheetHeader
@@ -367,6 +405,11 @@ export function ModelPickerSheet({
                 isSelected={isSelected || isConfirming}
                 showDivider={index < filteredModels.length - 1}
                 onPress={(): void => handleSelect(m)}
+                onRemove={
+                  m.isOnDevice === true
+                    ? (): void => setPendingRemoval(m)
+                    : undefined
+                }
               />
             );
           })
