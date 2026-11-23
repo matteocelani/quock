@@ -37,6 +37,7 @@
     },
     "plugins": [
       "expo-router",
+      "./modules/on-device-llm/app.plugin.js",
       "expo-secure-store",
       "expo-sqlite",
       [
@@ -64,7 +65,7 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "18.0"
+            "deploymentTarget": "17.0"
           },
           "android": {
             "enableMinifyInReleaseBuilds": true,
