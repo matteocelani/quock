@@ -3,10 +3,14 @@ import type { ReactNode } from "react";
 import { ButtonLink } from "@/components/ui/button";
 import { Heading, Marker } from "@/components/ui/heading";
 import { SiteShell } from "@/components/layout/site-shell";
+import { PATHS } from "@/lib/site";
 
+// No canonical and no og:url: a missing page must not point search engines at the home page.
 export const metadata: Metadata = {
   title: "Page not found",
   robots: { index: false, follow: true },
+  alternates: { canonical: null },
+  openGraph: null,
 };
 
 // Lives outside the route groups, so it brings its own shell.
@@ -18,7 +22,7 @@ export default function NotFound(): ReactNode {
           Not <Marker>here.</Marker>
         </Heading>
         <p className="text-muted-foreground mt-6 text-lg font-bold">That page doesn&rsquo;t exist. The app does, though.</p>
-        <ButtonLink href="/" className="mt-9">
+        <ButtonLink href={PATHS.home} className="mt-9">
           Back home
         </ButtonLink>
       </div>

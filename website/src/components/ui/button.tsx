@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "@/lib/utils";
+import { cn, externalLinkProps } from "@/lib/utils";
 
 // Rounded rectangles, not pills: 16px radius, 60px tall at the default size.
 const buttonVariants = cva(
@@ -28,14 +28,12 @@ type ButtonVariants = VariantProps<typeof buttonVariants>;
 
 interface ButtonLinkProps extends ComponentProps<typeof Link>, ButtonVariants {}
 
-// External hrefs get a new tab and a safe rel; internal ones stay client-side navigations.
 export function ButtonLink({ className, variant, size, href, ...props }: ButtonLinkProps): ReactNode {
-  const isExternal = typeof href === "string" && /^https?:\/\//.test(href);
   return (
     <Link
       href={href}
       className={cn(buttonVariants({ variant, size }), className)}
-      {...(isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      {...(typeof href === "string" ? externalLinkProps(href) : {})}
       {...props}
     />
   );

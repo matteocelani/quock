@@ -2,7 +2,7 @@
   "name": "quock-website",
   "version": "0.1.0",
   "private": true,
-  "description": "Marketing site for Quock, the unofficial Ollama Cloud client for iPhone",
+  "description": "Marketing site for Quock, the independent iPhone app for Ollama Cloud",
   "license": "MIT",
   "packageManager": "pnpm@11.8.0",
   "scripts": {

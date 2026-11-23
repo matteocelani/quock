@@ -1,12 +1,17 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Heading, Marker } from "@/components/ui/heading";
-import { HeroStage } from "@/components/home/hero-stage";
 import { AppStoreButton, DownloadButton } from "@/components/global/download-button";
+import { HeroStage } from "@/components/home/hero/hero-stage";
+
+interface FactProps {
+  label: string;
+  value: string;
+}
 
 const step = (ms: number): CSSProperties => ({ "--delay": `${ms}ms` }) as CSSProperties;
 
-// Two-line facts beside the CTAs: a small label over the value that matters.
-function Fact({ label, value }: { label: string; value: string }): ReactNode {
+// A faint label over a bold value: the two facts a visitor needs before tapping Download.
+function Fact({ label, value }: FactProps): ReactNode {
   return (
     <div className="leading-tight">
       <p className="text-faint-foreground text-sm font-bold">{label}</p>

@@ -1,29 +1,22 @@
 "use client";
 
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { Eyebrow, Heading, Lead } from "@/components/ui/heading";
-import { ScreenStack } from "@/components/ui/screen-stack";
-import type { ShowcaseTab } from "@/modules/home/showcases";
+import { Caption, Eyebrow, Heading, Lead } from "@/components/ui/heading";
+import { ThinkIcon } from "@/components/ui/icons";
+import { ScreenStack } from "@/components/home/screen-stack";
+import { handleTabKeys } from "@/components/home/tab-keys";
+import type { Showcase } from "@/modules/home/content";
 import { cn } from "@/lib/utils";
-
-interface TabbedShowcaseProps {
-  id: string;
-  eyebrow: string;
-  title: ReactNode;
-  lead: string;
-  tabs: readonly ShowcaseTab[];
-  wallpaper?: CSSProperties;
-  footnote?: ReactNode;
-}
 
 const TAB_DURATION_MS = 6000;
 
-// Showcase pattern: the tabs advance on their own, and each bar fills while its tab plays.
-// The fill is a CSS animation; when it ends the next tab starts, so reduced motion means no autoplay.
-export function TabbedShowcase({ id, eyebrow, title, lead, tabs, wallpaper, footnote }: TabbedShowcaseProps): ReactNode {
+// The tabs advance on their own, but a CSS animation drives them: when the bar ends the next tab starts,
+// so reduced motion means no autoplay, and hover or keyboard focus pauses it (WCAG 2.2.2).
+export function TabbedShowcase({ id, eyebrow, title, lead, tabs, wallpaper, footnote }: Showcase): ReactNode {
   const [active, setActive] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const screens = [...new Set(tabs.map((tab) => tab.screen))];
+  const panelId = `${id}-screen`;
 
   return (
     <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-28 px-5 pt-32 sm:px-8 sm:pt-44">
@@ -36,12 +29,15 @@ export function TabbedShowcase({ id, eyebrow, title, lead, tabs, wallpaper, foot
       </div>
 
       <div
-        className="reveal relative isolate mx-auto mt-14 h-[28rem] max-w-[61rem] overflow-hidden rounded-[2rem] sm:h-[34rem]"
-        style={wallpaper}
+        className={cn(
+          "reveal sm:rounded-stage relative isolate mx-auto mt-14 h-[28rem] max-w-[61rem] overflow-hidden rounded-4xl sm:h-[34rem]",
+          wallpaper === "dusk" && "wallpaper-dusk",
+        )}
       >
         <div aria-hidden="true" className="wallpaper -z-10" />
         <div className="absolute inset-x-0 top-8 flex justify-center sm:top-12">
           <ScreenStack
+            id={panelId}
             screens={screens}
             active={tabs[active].screen}
             className="w-60 sm:w-[18.5rem]"
@@ -49,14 +45,23 @@ export function TabbedShowcase({ id, eyebrow, title, lead, tabs, wallpaper, foot
           />
         </div>
       </div>
-      {footnote && <div className="mt-4 flex justify-center">{footnote}</div>}
+      {footnote && (
+        <div className="mt-4 flex justify-center">
+          <Caption>
+            <ThinkIcon className="size-3.5" />
+            {footnote}
+          </Caption>
+        </div>
+      )}
 
       <div
         role="tablist"
         aria-label={eyebrow}
         className="mx-auto mt-8 grid max-w-[61rem] gap-6 sm:grid-cols-3 sm:gap-8"
-        onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => setIsPaused(false)}
+        onPointerEnter={(event) => event.pointerType === "mouse" && setIsPaused(true)}
+        onPointerLeave={(event) => event.pointerType === "mouse" && setIsPaused(false)}
+        onFocus={() => setIsPaused(true)}
+        onBlur={(event) => !event.currentTarget.contains(event.relatedTarget) && setIsPaused(false)}
       >
         {tabs.map((tab, index) => {
           const isActive = index === active;
@@ -66,7 +71,10 @@ export function TabbedShowcase({ id, eyebrow, title, lead, tabs, wallpaper, foot
               type="button"
               role="tab"
               aria-selected={isActive}
+              aria-controls={panelId}
+              tabIndex={isActive ? 0 : -1}
               onClick={() => setActive(index)}
+              onKeyDown={(event) => handleTabKeys(event, index, tabs.length, setActive)}
               className="group text-left"
             >
               <span
@@ -77,10 +85,10 @@ export function TabbedShowcase({ id, eyebrow, title, lead, tabs, wallpaper, foot
               >
                 {tab.icon}
               </span>
-              <p className="mt-3 text-[15px] leading-snug text-pretty">
+              <span className="mt-3 block text-[15px] leading-snug text-pretty">
                 <span className="font-bold">{tab.lead}</span>{" "}
                 <span className="text-muted-foreground">{tab.body}</span>
-              </p>
+              </span>
               <span className="bg-panel-strong mt-4 block h-0.5 overflow-hidden rounded-full">
                 {isActive && (
                   <span

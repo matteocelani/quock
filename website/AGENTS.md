@@ -9,7 +9,7 @@ The marketing site for Quock: a small, static Next.js project beside the app. It
 1. **Small, modular, easy to maintain.** This is the rule every other rule serves. The site is built like the app: one job per file, one home per value, nothing "for later". If a change makes the site harder to update, it is the wrong change. Prefer deleting to adding.
 2. **Brand neutrality, said positively.**
    - Describe Quock as an *independent, open-source* app **for** Ollama Cloud, never as "unofficial", and never as Ollama itself.
-   - The legal line (`SITE.disclaimer`) appears only in the footer, the FAQ "Who makes Quock?" and `llms.txt`, always in small type.
+   - The legal line (`SITE.disclaimer`) appears in exactly three places: the footer (small type), the FAQ answer "Who makes Quock?" and `llms.txt`. Never in a headline, the hero or a `<title>`.
    - The Ollama logo and mascot never appear. Captures go through `scripts/compose-assets.py`, which masks the ollama.com avatar.
 3. **No tracking, no weight.** There are no analytics, cookies, third-party scripts or webfonts. Type is the system font.
 4. **Facts come from a source.**
@@ -28,13 +28,15 @@ src/app/                 Routes only: metadata plus composition, never data. (ho
                          sitemap, robots, manifest, llms.txt, icons and OG sit beside them.
 src/modules/<feature>/   Content and schema for one feature, with no UI:
                          faq, changelog, guide, privacy, home.
-                         content.ts holds the copy, schema.ts the JSON-LD.
-src/components/ui/       Primitives with no site knowledge: button, heading, accordion, screen-stack, icons.
+                         content.ts(x) holds the copy (.tsx only when it carries rendered icons),
+                         schema.ts the JSON-LD; home/screens.ts the captures and model names.
+src/components/ui/       Primitives with no site knowledge: button, text-link, heading, accordion, icons.
 src/components/layout/   Page frame: site-shell, site-header, site-footer, page-intro.
 src/components/global/   App-wide pieces: logo, download buttons, json-ld.
-src/components/home/     One file per home section. A section with parts gets a folder (bento/).
-src/lib/                 Shared by 2+ features: site.ts (facts, URLs), screens.ts (captures, model names),
-                         metadata.ts (page metadata, breadcrumbs, WebSite schema), utils.ts.
+src/components/home/     One file per home section; a section with parts gets a folder (hero/, bento/).
+                         Helpers only home uses live here too (screen-stack, tab-keys).
+src/lib/                 Shared by 2+ features: site.ts (facts, URLs, PATHS, theme colours),
+                         metadata.ts (page metadata, share image, breadcrumbs, WebSite schema), utils.ts.
 scripts/                 compose-assets.py: builds the committed images from docs/ and assets/.
 ```
 
@@ -49,11 +51,11 @@ Placement rules, the same as the app:
 
 | Task | Touch only |
 | --- | --- |
-| New app release | `src/lib/site.ts` (version, date, size) and a new entry in `src/modules/changelog/content.ts` |
+| New app release | `src/lib/site.ts` (version, date, size) and a new entry at the top of `src/modules/changelog/content.ts` (its date becomes the page's "Updated") |
 | New or changed question | `src/modules/faq/content.ts`. The page, the FAQPage JSON-LD and llms.txt follow on their own. |
 | New screenshots | Replace `docs/screenshots/*.png`, then run `pnpm assets` |
 | New home section | One file in `components/home/`, built from a pattern in `design.md`, added to `(home)/page.tsx` |
-| New inner page | `modules/<slug>/content.ts` for the copy, a thin `app/(pages)/<slug>/page.tsx` with `pageMetadata()` and `PageIntro`, a row in `sitemap.ts` and a footer link |
+| New inner page | A path in `PATHS`, `modules/<slug>/content.ts` for the copy, a thin `app/(pages)/<slug>/page.tsx` with `pageMetadata()` and `PageIntro`, a row in `sitemap.ts` and a footer link |
 
 ## Commands (run inside `website/`)
 
@@ -61,7 +63,7 @@ Placement rules, the same as the app:
 | --- | --- |
 | `pnpm install` / `pnpm dev` | Install, then run the dev server on :3000 |
 | `pnpm lint` · `pnpm typecheck` · `pnpm build` | The gate (CI: `.github/workflows/website.yml`) |
-| `pnpm assets` | Rebuild device shots, icons and the OG card (needs macOS for the SF Pro font) |
+| `pnpm assets` | Rebuild device shots, icons and the share card `public/og.png`. Needs Python 3 with Pillow and, on macOS, Apple's SF Pro fonts in `/Library/Fonts` |
 
 `pnpm build` writes static HTML to `out/`, which any host can serve. Set `NEXT_PUBLIC_SITE_URL` when deploying outside Vercel. Without a real URL, the build marks itself `noindex` on purpose.
 

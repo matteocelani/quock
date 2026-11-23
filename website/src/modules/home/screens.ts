@@ -1,5 +1,13 @@
 export type ScreenName = "home" | "open_model" | "compose" | "chat" | "history" | "settings";
 
+// Size of the framed captures written by scripts/compose-assets.py.
+export const SHOT_WIDTH = 840;
+export const SHOT_HEIGHT = 1714;
+
+export function screenSrc(screen: ScreenName): string {
+  return `/screens/${screen}-${SHOT_WIDTH}.webp`;
+}
+
 // Alt text lives with the screen, so every place that shows a capture describes it the same way.
 export const SCREEN_ALT: Record<ScreenName, string> = {
   home: "Quock's home screen: a model picker at the top and a message field at the bottom",

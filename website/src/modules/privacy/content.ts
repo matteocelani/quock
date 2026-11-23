@@ -1,25 +1,28 @@
 import type { ComponentType, SVGProps } from "react";
 import { EyeOffIcon, GlobeIcon, KeyIcon, LockIcon, MemoryIcon, PhoneIcon } from "@/components/ui/icons";
 
-export const PRIVACY_UPDATED = "2026-11-23";
-
-export interface Principle {
+interface Principle {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   title: string;
   body: string;
 }
 
+export const PRIVACY_UPDATED = "2026-11-24";
+
+export const PRIVACY_LEAD =
+  "Quock is built so your conversations stay yours: they live on your iPhone and go only where you send them.";
+
 // A plain-language digest of docs/PRIVACY.md; the policy itself stays the controlling text.
 export const PRINCIPLES: readonly Principle[] = [
   {
     icon: PhoneIcon,
-    title: "There is no Quock server.",
-    body: "The author runs no backend that receives, stores or processes your data. Your conversations live in a local database on your iPhone.",
+    title: "Your chats live on your iPhone.",
+    body: "Conversations are kept in a local database on your phone. The author runs no backend that receives, stores or processes your data.",
   },
   {
     icon: GlobeIcon,
-    title: "Chats go to Ollama Cloud only.",
-    body: "Each message travels with the earlier turns of that chat, straight to Ollama Cloud over HTTPS. Ollama, Inc. handles it under its own privacy policy.",
+    title: "Messages go straight to Ollama Cloud.",
+    body: "Each message travels with the earlier turns of that chat, directly to Ollama Cloud over HTTPS. Ollama, Inc. handles it under its own privacy policy.",
   },
   {
     icon: KeyIcon,
@@ -33,8 +36,8 @@ export const PRINCIPLES: readonly Principle[] = [
   },
   {
     icon: EyeOffIcon,
-    title: "No tracking. Anywhere.",
-    body: "No analytics, no advertising identifiers, no crash reporters, no profiling. Besides Ollama Cloud, the app only checks for its own updates. This website sets no cookies and loads no trackers.",
+    title: "Private by default.",
+    body: "No analytics, no advertising identifiers, no crash reporters, no profiling. This website sets no cookies and loads no trackers.",
   },
   {
     icon: LockIcon,
@@ -42,3 +45,11 @@ export const PRINCIPLES: readonly Principle[] = [
     body: "Clear all chats from Settings whenever you like. Signing out or clearing chats keeps memory; revoking consent deletes it.",
   },
 ];
+
+export const PRIVACY_NOTE =
+  "This page is a summary. The full privacy policy is the controlling text, covering legal bases, retention and your rights under GDPR and similar laws.";
+
+export const PRIVACY_LINKS = {
+  ollama: "Ollama's privacy policy",
+  full: "Read the full policy",
+} as const;

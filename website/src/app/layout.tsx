@@ -1,13 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import "@/app/globals.css";
 import { JsonLd } from "@/components/global/json-ld";
-import { WEBSITE_JSON_LD } from "@/lib/metadata";
-import { IS_INDEXABLE, SITE } from "@/lib/site";
-import "./globals.css";
+import { SHARE_IMAGE, WEBSITE_JSON_LD } from "@/lib/metadata";
+import { IS_INDEXABLE, PATHS, SITE, THEME_COLOR } from "@/lib/site";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
-  title: { default: SITE.title, template: "%s · Quock" },
+  title: { default: SITE.title, template: `%s · ${SITE.name}` },
   description: SITE.description,
   applicationName: SITE.name,
   authors: [{ name: SITE.author, url: SITE.authorUrl }],
@@ -24,19 +24,21 @@ export const metadata: Metadata = {
     "Quock",
   ],
   category: "productivity",
-  alternates: { canonical: "/" },
+  alternates: { canonical: PATHS.home },
   openGraph: {
     type: "website",
     siteName: SITE.name,
     title: SITE.title,
     description: SITE.description,
-    url: "/",
+    url: PATHS.home,
     locale: "en_US",
+    images: [SHARE_IMAGE],
   },
   twitter: {
     card: "summary_large_image",
     title: SITE.title,
     description: SITE.description,
+    images: [SHARE_IMAGE],
   },
   robots: { index: IS_INDEXABLE, follow: IS_INDEXABLE },
   itunes: { appId: SITE.appStoreId },
@@ -44,7 +46,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f7f9fd",
+  themeColor: THEME_COLOR.light,
   colorScheme: "light",
 };
 

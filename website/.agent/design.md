@@ -18,7 +18,7 @@ Quock's promise is in its headline: *Open. Type. That's it.* The app removes eve
 
 4. **Native, not decorated.** The site borrows its feel from iOS itself: the system font, glass only where something floats over imagery, springy presses, rounded-rectangle buttons, and a light/dark split that sets the reading pages apart. We add nothing iOS wouldn't: no gradient text on body copy, no drop shadows on flat UI, no ornaments.
 
-5. **Positive and plain.** We say what Quock *is* ("independent, open source, your chats stay on your phone"), never what it isn't. Sentences are short and end with a period. The one legal line lives quietly in the footer and the FAQ.
+5. **Positive and plain.** We say what Quock *is* ("independent, open source, your chats stay on your phone"), never what it isn't. Privacy is the one place where an absence is the feature, so "no analytics" is fine there, but lead with what stays yours. Sentences are short and end with a period. The one legal line lives quietly in the footer and the FAQ.
 
 6. **Light enough to keep.** Every element has to justify its maintenance cost. The rules that follow from that:
    - no webfonts, no image CDN, no analytics;
@@ -61,6 +61,7 @@ The inner pages (FAQ, changelog, guide, privacy) are for reading. They are dark 
 - **Motion:**
   - things arrive by lifting and un-blurring, sections reveal as you scroll, and presses spring;
   - nothing moves without a reason, and `prefers-reduced-motion` stops all of it, including tab autoplay.
+- **Mock surfaces:** an opaque `surface` card with `shadow-card`, ink from the theme tokens, and iOS system colours (`system-red`, `system-yellow`, `system-green`) only where the real UI shows them, such as a PDF tag, a switch or window controls. Glass is for things floating over wallpaper, never over a card.
 - **Imagery:**
   - real captures in the real iPhone frame;
   - wallpapers drawn in CSS;
@@ -70,11 +71,13 @@ The inner pages (FAQ, changelog, guide, privacy) are for reading. They are dark 
 
 | Element | Rule | Example |
 | --- | --- | --- |
-| Headline | Short and ends with a period. It can turn a phrase. At most one highlighted phrase. | "Every corner, covered." |
+| Section headline | On the home page: short, ends with a period, can turn a phrase, at most one highlighted phrase. | "Every corner, covered." |
+| Page title | Inner pages use a plain label, with no period. | "FAQs", "Changelog" |
 | Lead | One bold sentence, dark rather than muted. | "Pick any model on Ollama Cloud and start typing." |
 | Tile copy | A bold lead-in, then a muted line. | "**Never lose an answer.** A reply cut short continues…" |
 | Feature title | Two lines, no body text. | "Thinking / on demand" |
 | Caption | Small, faint, factual. | "iOS 15.1+ · Free · Sign in with ollama.com" |
+| Aside | At most one playful line per page. | "Psst… it's interactive!" |
 
 "Ollama Cloud" is always what Quock connects to, never Quock itself. Model names are spelled exactly as the app shows them.
 

@@ -1,21 +1,27 @@
-export interface GuideStep {
+import { PATHS, SITE } from "@/lib/site";
+
+interface GuideItem {
   title: string;
   body: string;
 }
 
+export const GUIDE_PATH = PATHS.guide;
 export const GUIDE_TITLE = "How to use Ollama Cloud on iPhone";
-export const GUIDE_PATH = "/ollama-cloud-on-iphone/";
+export const GUIDE_HEADLINE = "Ollama Cloud on iPhone";
 export const GUIDE_UPDATED = "2026-11-23";
 
-// One source for the home page's "How it works" and the guide's HowTo JSON-LD, so they never disagree.
-export const GUIDE_STEPS: readonly GuideStep[] = [
+export const GUIDE_INTRO =
+  "Ollama Cloud runs the best open models, from Gemma and Qwen to GPT-OSS, DeepSeek and Kimi, on Ollama's servers. Quock puts them on your iPhone in about three minutes.";
+
+// One source for the home page's "How it works", this guide, its HowTo JSON-LD and llms.txt.
+export const GUIDE_STEPS: readonly GuideItem[] = [
   {
     title: "Get an ollama.com account.",
     body: "Ollama Cloud runs open models on Ollama's servers. Create your account at ollama.com, where Ollama also sets the plans and usage limits.",
   },
   {
     title: "Download Quock.",
-    body: "Quock is free on the App Store for any iPhone on iOS 15.1 or later.",
+    body: `Quock is free on the App Store for any iPhone on iOS ${SITE.minimumIos} or later.`,
   },
   {
     title: "Sign in once.",
@@ -27,12 +33,9 @@ export const GUIDE_STEPS: readonly GuideStep[] = [
   },
 ];
 
-export interface GuideTip {
-  title: string;
-  body: string;
-}
+export const GUIDE_TIPS_TITLE = "Make the most of it.";
 
-export const GUIDE_TIPS: readonly GuideTip[] = [
+export const GUIDE_TIPS: readonly GuideItem[] = [
   {
     title: "Let it think.",
     body: "Turn on thinking in the + menu of a chat. Models that reason show their work in a fold above the answer.",
@@ -58,3 +61,8 @@ export const GUIDE_TIPS: readonly GuideTip[] = [
     body: "Memory keeps a few facts you share, on your phone, so new chats start warm. Turn it off in Settings at any time.",
   },
 ];
+
+export const GUIDE_CHATS: GuideItem = {
+  title: "Where your chats live.",
+  body: "On your iPhone, in a local database, with no Quock server and no analytics. When you send a message, it goes straight to Ollama Cloud with the earlier turns of that chat.",
+};
