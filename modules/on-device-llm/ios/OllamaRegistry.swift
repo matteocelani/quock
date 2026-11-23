@@ -53,8 +53,13 @@ struct OllamaManifest: Decodable, Sendable {
   let config: OllamaLayer?
   let layers: [OllamaLayer]?
   let manifests: [Child]?
+  // sha256 of the manifest bytes: it changes whenever Ollama republishes the tag, so an installed copy can tell it is
+  // stale, and it pins exactly which files a model on disk came from.
+  var digest = ""
 
   var configDigest: String? { config?.digest }
+
+  private enum CodingKeys: String, CodingKey { case mediaType, config, layers, manifests }
 
   struct Child: Decodable, Sendable {
     let digest: String
@@ -69,6 +74,8 @@ enum OllamaRegistry {
     "application/vnd.ollama.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json"
   private static let tensorMediaType = "application/vnd.ollama.image.tensor"
   private static let jsonMediaType = "application/vnd.ollama.image.json"
+  // Kept beside the weights: the model's own terms differ by family and travel with the copy on the phone.
+  private static let licenseMediaType = "application/vnd.ollama.image.license"
   // The text model only reads these; the vision tower and video preprocessor are skipped to save the download.
   private static let neededJSON: Set<String> = ["config.json", "tokenizer.json", "tokenizer_config.json"]
   private static let skippedTensorPrefixes = ["model.visual.", "visual.", "vision_tower."]
@@ -97,6 +104,8 @@ enum OllamaRegistry {
         return !skippedTensorPrefixes.contains(where: name.hasPrefix)
       case jsonMediaType:
         return neededJSON.contains(layer.name ?? "")
+      case licenseMediaType:
+        return true
       default:
         return false
       }
@@ -113,6 +122,7 @@ enum OllamaRegistry {
     let (data, response) = try await URLSession.shared.data(from: url)
     let status = (response as? HTTPURLResponse)?.statusCode ?? 0
     guard status == 200 else { throw OllamaRegistryError.http(status, digest) }
+    guard sha256(of: data) == digest else { throw OllamaRegistryError.digestMismatch(digest) }
     return data
   }
 
@@ -122,29 +132,44 @@ enum OllamaRegistry {
     let (data, response) = try await URLSession.shared.data(for: request)
     let status = (response as? HTTPURLResponse)?.statusCode ?? 0
     guard status == 200 else { throw OllamaRegistryError.http(status, what) }
-    return try JSONDecoder().decode(OllamaManifest.self, from: data)
+    var manifest = try JSONDecoder().decode(OllamaManifest.self, from: data)
+    manifest.digest = sha256(of: data)
+    return manifest
   }
 
-  // Downloads one blob, checks it against its digest, and moves it to `destination`. The registry answers with a
-  // redirect to a signed CDN URL, which URLSession follows on its own.
-  static func download(_ layer: OllamaLayer, of ref: ModelReference, to destination: URL) async throws {
+  // Downloads one blob, checks it against its digest, and writes it to `destination`, returning the sha256 of what
+  // was written (a rewritten tensor no longer matches the registry digest, so it gets its own). The registry answers
+  // with a redirect to a signed CDN URL, which URLSession follows; `resumeData` continues an interrupted transfer.
+  static func download(
+    _ layer: OllamaLayer, of ref: ModelReference, to destination: URL, resumeData: Data? = nil
+  ) async throws -> String {
     let url = host.appending(path: "v2/\(ref.namespace)/\(ref.name)/blobs/\(layer.digest)")
-    let (temporary, response) = try await URLSession.shared.download(from: url)
+    let (temporary, response) =
+      if let resumeData {
+        try await URLSession.shared.download(resumeFrom: resumeData)
+      } else {
+        try await URLSession.shared.download(from: url)
+      }
     defer { try? FileManager.default.removeItem(at: temporary) }
     let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-    guard status == 200 else { throw OllamaRegistryError.http(status, layer.name ?? layer.digest) }
+    guard status == 200 || status == 206 else { throw OllamaRegistryError.http(status, layer.name ?? layer.digest) }
     guard try sha256(of: temporary) == layer.digest else {
       throw OllamaRegistryError.digestMismatch(layer.digest)
     }
     if layer.mediaType == tensorMediaType {
       try rewriteTensorHeader(from: temporary, to: destination)
-    } else {
-      try? FileManager.default.removeItem(at: destination)
-      try FileManager.default.moveItem(at: temporary, to: destination)
+      return try sha256(of: destination)
     }
+    try? FileManager.default.removeItem(at: destination)
+    try FileManager.default.moveItem(at: temporary, to: destination)
+    return layer.digest
   }
 
-  private static func sha256(of url: URL) throws -> String {
+  static func sha256(of data: Data) -> String {
+    "sha256:" + SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+  }
+
+  static func sha256(of url: URL) throws -> String {
     let handle = try FileHandle(forReadingFrom: url)
     defer { try? handle.close() }
     var hasher = SHA256()

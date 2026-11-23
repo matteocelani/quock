@@ -23,11 +23,13 @@ public class OnDeviceLLMModule: Module {
           Task { await jobs.cancelAll() }
         }
       }
-      if let index = ProcessInfo.processInfo.arguments.firstIndex(of: "-QuockLLMSelfTest") {
-        let args = ProcessInfo.processInfo.arguments
-        let model = args.count > index + 1 ? args[index + 1] : "qwen3.5:0.8b-mlx"
-        Task.detached(priority: .userInitiated) { await SpikeSelfTest.run(model: model) }
-      }
+      #if DEBUG || QUOCK_SELFTEST
+        if let index = ProcessInfo.processInfo.arguments.firstIndex(of: "-QuockLLMSelfTest") {
+          let args = ProcessInfo.processInfo.arguments
+          let model = args.count > index + 1 ? args[index + 1] : "qwen3.5:0.8b-mlx"
+          Task.detached(priority: .userInitiated) { await SpikeSelfTest.run(model: model) }
+        }
+      #endif
     }
 
     Function("isSupported") { () -> Bool in
@@ -48,12 +50,16 @@ public class OnDeviceLLMModule: Module {
       }
     }
 
-    AsyncFunction("catalog") { () -> [[String: Any]] in
-      try await OllamaCatalog.fetch().map(\.dictionary)
+    AsyncFunction("catalog") { (models: [String]) -> [[String: Any]] in
+      try await OllamaCatalog.fetch(models: models).map(\.dictionary)
     }
 
     AsyncFunction("pull") { [weak self] (model: String) -> [String: Any] in
       let ref = try ModelReference(model)
+      // Leaving the app mid-download keeps the transfer alive for the grace window iOS allows; past it, the next tap
+      // resumes from the files already verified.
+      let grace = await BackgroundGrace.begin(name: "quock.model-pull")
+      defer { Task { @MainActor in grace.end() } }
       let installed = try await LocalModelStore.pull(ref) { completed, total in
         self?.sendEvent("onPullProgress", ["model": ref.display, "completed": completed, "total": total])
       }
@@ -121,4 +127,23 @@ private final class EventCounter: @unchecked Sendable {
 
   var value: Int { lock.withLock { count } }
   func increment() { lock.withLock { count += 1 } }
+}
+
+// A background task iOS lets expire without being ended gets the app killed, so expiry ends it too; the pull itself
+// then fails on the dropped connection and resumes on the next tap.
+@MainActor
+private final class BackgroundGrace {
+  private var id: UIBackgroundTaskIdentifier = .invalid
+
+  static func begin(name: String) -> BackgroundGrace {
+    let grace = BackgroundGrace()
+    grace.id = UIApplication.shared.beginBackgroundTask(withName: name) { [weak grace] in grace?.end() }
+    return grace
+  }
+
+  func end() {
+    guard id != .invalid else { return }
+    UIApplication.shared.endBackgroundTask(id)
+    id = .invalid
+  }
 }

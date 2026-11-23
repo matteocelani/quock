@@ -1,9 +1,10 @@
+#if DEBUG || QUOCK_SELFTEST
 import Foundation
 import MLX
 import os
 
-// Spike-only harness: launched with `-QuockLLMSelfTest <model>`, it pulls, loads and runs the model with no UI and
-// logs to stderr, which `devicectl ... --console` streams back to the Mac. Removed before the feature ships.
+// Device harness: launched with `-QuockLLMSelfTest <model>`, it pulls, loads and runs the model with no UI and logs to
+// stderr, which `devicectl ... --console` streams back to the Mac. Compiled only into Debug or QUOCK_SELFTEST builds.
 enum SpikeSelfTest {
   static func log(_ message: String) {
     FileHandle.standardError.write(Data("[LLMSPIKE] \(message)\n".utf8))
@@ -13,6 +14,15 @@ enum SpikeSelfTest {
     do {
       log("start model=\(model) available=\(os_proc_available_memory() >> 20)MB")
       let ref = try ModelReference(model)
+      if LocalModelStore.installed(ref) != nil {
+        do {
+          try LocalModelStore.verifyFiles(of: ref)
+          log("installed copy verified")
+        } catch {
+          log("installed copy failed verification (\(error.localizedDescription)); removing and pulling again")
+          try LocalModelStore.remove(ref)
+        }
+      }
       let pullStart = Date()
       let decile = SpikeBox<Int>(-1)
       let installed = try await LocalModelStore.pull(ref) { completed, total in
@@ -72,3 +82,4 @@ private final class SpikeBox<T>: @unchecked Sendable {
 extension SpikeBox where T == String {
   func append(_ text: String) { lock.withLock { stored += text } }
 }
+#endif

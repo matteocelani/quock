@@ -5,10 +5,17 @@ struct InstalledModel: Codable, Sendable {
   let bytes: Int64
   let installedAt: Date
   let capabilities: [String]?
+  // Which manifest the files came from, and in which format: the registry digest tells a republished tag apart, and
+  // the format is what a second engine would route on instead of the tag name.
+  let manifestDigest: String?
+  let format: String?
 }
 
 enum LocalModelStore {
   private static let markerName = "quock-installed.json"
+  // sha256 of every file as written to disk, checked before the weights are first loaded in a session.
+  static let fileHashesName = "quock-files.json"
+  static let mlxFormat = "mlx"
   private static let concurrentDownloads = 4
   // A phone drops connections all the time (Wi-Fi handoff, sleep, a flaky CDN edge); one lost file must not end a pull.
   private static let downloadAttempts = 4
@@ -71,11 +78,15 @@ enum LocalModelStore {
 
     var jobs: [(OllamaLayer, URL)] = []
     var tensorIndex = 0
+    var licenseIndex = 0
     for layer in layers {
       let filename: String
       if layer.mediaType.hasSuffix(".tensor") {
         tensorIndex += 1
         filename = String(format: "model-%05d.safetensors", tensorIndex)
+      } else if layer.mediaType.hasSuffix(".license") {
+        licenseIndex += 1
+        filename = "LICENSE-\(licenseIndex).txt"
       } else {
         filename = layer.name ?? layer.digest
       }
@@ -108,8 +119,10 @@ enum LocalModelStore {
     }
 
     try patchConfiguration(in: directory)
+    try recordFileHashes(in: directory)
     let model = InstalledModel(
-      reference: ref.display, bytes: total, installedAt: Date(), capabilities: capabilities)
+      reference: ref.display, bytes: total, installedAt: Date(), capabilities: capabilities,
+      manifestDigest: manifest.digest, format: mlxFormat)
     try JSONEncoder().encode(model).write(to: directory.appending(path: markerName), options: .atomic)
     return model
   }
@@ -118,16 +131,47 @@ enum LocalModelStore {
     _ layer: OllamaLayer, of ref: ModelReference, to destination: URL
   ) async throws {
     var attempt = 0
+    var resumeData: Data?
     while true {
       try Task.checkCancellation()
       do {
-        try await OllamaRegistry.download(layer, of: ref, to: destination)
+        _ = try await OllamaRegistry.download(layer, of: ref, to: destination, resumeData: resumeData)
         return
       } catch {
         attempt += 1
         guard attempt < downloadAttempts, isTransient(error) else { throw error }
+        // A dropped connection hands back where it stopped; the next attempt continues from there with a Range request.
+        resumeData = (error as? URLError)?.downloadTaskResumeData
         try await Task.sleep(nanoseconds: retryBaseDelay << UInt64(attempt - 1))
       }
+    }
+  }
+
+  private static func modelFiles(in directory: URL) throws -> [URL] {
+    try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+      .filter { !$0.lastPathComponent.hasPrefix(".") && !$0.lastPathComponent.hasPrefix("quock-") }
+      .sorted { $0.lastPathComponent < $1.lastPathComponent }
+  }
+
+  private static func recordFileHashes(in directory: URL) throws {
+    var hashes: [String: String] = [:]
+    for file in try modelFiles(in: directory) {
+      hashes[file.lastPathComponent] = try OllamaRegistry.sha256(of: file)
+    }
+    try JSONEncoder().encode(hashes).write(to: directory.appending(path: fileHashesName), options: .atomic)
+  }
+
+  // Weights sit on disk for months; a file changed or truncated since it was verified must never reach the loader.
+  static func verifyFiles(of ref: ModelReference) throws {
+    let directory = directory(for: ref)
+    let data = try Data(contentsOf: directory.appending(path: fileHashesName))
+    let expected = try JSONDecoder().decode([String: String].self, from: data)
+    let present = try modelFiles(in: directory)
+    guard Set(present.map(\.lastPathComponent)) == Set(expected.keys) else {
+      throw LocalModelStoreError.corrupted(ref.display)
+    }
+    for file in present where try OllamaRegistry.sha256(of: file) != expected[file.lastPathComponent] {
+      throw LocalModelStoreError.corrupted(ref.display)
     }
   }
 
@@ -167,6 +211,16 @@ enum LocalModelStore {
       config["quantization"] = quantization
       try JSONSerialization.data(withJSONObject: config, options: [.prettyPrinted, .sortedKeys])
         .write(to: url, options: .atomic)
+    }
+  }
+}
+
+enum LocalModelStoreError: LocalizedError {
+  case corrupted(String)
+
+  var errorDescription: String? {
+    switch self {
+    case .corrupted(let ref): "The files of \(ref) are damaged. Remove the model and download it again."
     }
   }
 }

@@ -2,13 +2,16 @@ import Foundation
 import MLX
 import MLXLLM
 import MLXLMCommon
+import os
 
 enum LocalEngineError: LocalizedError {
   case notInstalled(String)
+  case insufficientMemory(String)
 
   var errorDescription: String? {
     switch self {
     case .notInstalled(let ref): "\(ref) is not downloaded on this device."
+    case .insufficientMemory(let ref): "There is not enough free memory to run \(ref) right now. Close other apps and try again."
     }
   }
 }
@@ -51,18 +54,32 @@ actor LocalEngine {
   static let shared = LocalEngine()
   // MLX keeps freed buffers for reuse; on a phone that pool competes with the weights themselves.
   private static let bufferCacheLimit = 32 << 20
+  // Caps the KV cache: a long chat would otherwise grow it until iOS kills the app. Older turns rotate out first.
+  private static let maxKVTokens = 8192
+  // Runtime, activations and KV cache beside the weights; loading without this headroom ends in a jetsam kill.
+  private static let loadHeadroomBytes: UInt64 = 512 << 20
 
   private var container: ModelContainer?
   private var loadedRef: ModelReference?
+  // Models whose files passed their hash check in this process; once is enough until the app restarts.
+  private var verified = Set<ModelReference>()
 
   func load(_ ref: ModelReference) async throws -> (ModelContainer, Double) {
     if let container, loadedRef == ref { return (container, 0) }
     container = nil
     loadedRef = nil
     Memory.clearCache()
-    guard LocalModelStore.installed(ref) != nil else { throw LocalEngineError.notInstalled(ref.display) }
+    guard let installed = LocalModelStore.installed(ref) else { throw LocalEngineError.notInstalled(ref.display) }
+    // Offering uses a fixed share of RAM; loading checks what is actually free now, which other apps can shrink.
+    guard UInt64(max(installed.bytes, 0)) + Self.loadHeadroomBytes <= UInt64(os_proc_available_memory()) else {
+      throw LocalEngineError.insufficientMemory(ref.display)
+    }
     Memory.cacheLimit = Self.bufferCacheLimit
     let start = Date()
+    if !verified.contains(ref) {
+      try LocalModelStore.verifyFiles(of: ref)
+      verified.insert(ref)
+    }
     let loaded = try await loadModelContainer(
       from: LocalModelStore.directory(for: ref), using: TransformersTokenizerLoader())
     container = loaded
@@ -98,7 +115,8 @@ actor LocalEngine {
     // Qwen's published sampling defaults for each mode.
     let isThinking = think ?? true
     let parameters = GenerateParameters(
-      maxTokens: maxTokens, temperature: isThinking ? 0.6 : 0.7, topP: isThinking ? 0.95 : 0.8)
+      maxTokens: maxTokens, maxKVSize: Self.maxKVTokens, temperature: isThinking ? 0.6 : 0.7,
+      topP: isThinking ? 0.95 : 0.8)
     let stream = try await container.generate(input: prepared, parameters: parameters)
 
     var info: GenerateCompletionInfo?
