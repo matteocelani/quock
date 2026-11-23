@@ -25,30 +25,17 @@ export function Heading({ as: Tag = "h2", size, className, ...props }: HeadingPr
   return <Tag className={cn(headingVariants({ size }), className)} {...props} />;
 }
 
-// The highlighter stroke behind one word of a headline.
+// A headline gets one accent and this is it, so the marker is a component, not a class to sprinkle.
 export function Marker({ className, ...props }: ComponentProps<"span">): ReactNode {
   return <span className={cn("marker", className)} {...props} />;
 }
 
-export function Eyebrow({ className, ...props }: ComponentProps<"p">): ReactNode {
-  return <p className={cn("text-xl font-bold tracking-[-0.01em] sm:text-2xl", className)} {...props} />;
-}
 
 // Section subhead: bold and dark, not muted, so it reads as part of the headline.
 export function Lead({ className, ...props }: ComponentProps<"p">): ReactNode {
   return (
     <p
       className={cn("text-lg leading-snug font-bold tracking-[-0.01em] text-pretty sm:text-[1.4375rem] sm:leading-[1.35]", className)}
-      {...props}
-    />
-  );
-}
-
-// Small bold caption under a CTA or a stage ("iOS 15.1 or later", "Psst… tap above").
-export function Caption({ className, ...props }: ComponentProps<"p">): ReactNode {
-  return (
-    <p
-      className={cn("text-faint-foreground inline-flex items-center gap-1.5 text-sm font-bold", className)}
       {...props}
     />
   );

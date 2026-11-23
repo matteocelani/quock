@@ -8,7 +8,6 @@ import {
   GUIDE_CHATS,
   GUIDE_HEADLINE,
   GUIDE_INTRO,
-  GUIDE_PATH,
   GUIDE_STEPS,
   GUIDE_TIPS,
   GUIDE_TIPS_TITLE,
@@ -17,19 +16,20 @@ import {
 } from "@/modules/guide/content";
 import { HOW_TO_JSON_LD } from "@/modules/guide/schema";
 import { pageMetadata } from "@/lib/metadata";
+import { PATHS } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata({
   title: GUIDE_TITLE,
   description:
     "Use Ollama Cloud models on your iPhone in four steps: get an ollama.com account, download Quock, sign in once, pick a model and type. Free, private, open source.",
-  path: GUIDE_PATH,
+  path: PATHS.guide,
 });
 
 export default function GuidePage(): ReactNode {
   return (
     <PageColumn>
       <JsonLd data={HOW_TO_JSON_LD} />
-      <PageIntro title={GUIDE_HEADLINE} updated={GUIDE_UPDATED} path={GUIDE_PATH} />
+      <PageIntro title={GUIDE_HEADLINE} updated={GUIDE_UPDATED} path={PATHS.guide} />
       <Lead>{GUIDE_INTRO}</Lead>
 
       <h2 className="sr-only">{GUIDE_TITLE}</h2>

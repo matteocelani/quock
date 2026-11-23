@@ -1,17 +1,17 @@
-import { PATHS, SITE } from "@/lib/site";
+import { SITE } from "@/lib/site";
 
 interface GuideItem {
   title: string;
   body: string;
 }
 
-export const GUIDE_PATH = PATHS.guide;
 export const GUIDE_TITLE = "How to use Ollama Cloud on iPhone";
 export const GUIDE_HEADLINE = "Ollama Cloud on iPhone";
 export const GUIDE_UPDATED = "2026-11-23";
+// How long setup takes; the intro says it and the HowTo JSON-LD declares it.
+export const GUIDE_MINUTES = 3;
 
-export const GUIDE_INTRO =
-  "Ollama Cloud runs the best open models, from Gemma and Qwen to GPT-OSS, DeepSeek and Kimi, on Ollama's servers. Quock puts them on your iPhone in about three minutes.";
+export const GUIDE_INTRO = `Quock brings the open models on Ollama Cloud, from Gemma and Qwen to GPT-OSS, DeepSeek and Kimi, to your iPhone in about ${GUIDE_MINUTES} minutes.`;
 
 // One source for the home page's "How it works", this guide, its HowTo JSON-LD and llms.txt.
 export const GUIDE_STEPS: readonly GuideItem[] = [
@@ -58,7 +58,7 @@ export const GUIDE_TIPS: readonly GuideItem[] = [
   },
   {
     title: "Let it remember you.",
-    body: "Memory keeps a few facts you share, on your phone, so new chats start warm. Turn it off in Settings at any time.",
+    body: "Memory keeps a few facts you share on your phone and sends them with your messages while it is on, so new chats start warm. Turn it off in Settings at any time.",
   },
 ];
 

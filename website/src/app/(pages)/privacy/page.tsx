@@ -7,10 +7,10 @@ import { TextLink } from "@/components/ui/text-link";
 import { PageColumn, PageIntro } from "@/components/layout/page-intro";
 import { PRINCIPLES, PRIVACY_LEAD, PRIVACY_LINKS, PRIVACY_NOTE, PRIVACY_UPDATED } from "@/modules/privacy/content";
 import { pageMetadata } from "@/lib/metadata";
-import { PATHS, SITE } from "@/lib/site";
+import { PAGE_LABELS, PATHS, SITE } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Privacy",
+  title: PAGE_LABELS.privacy,
   description:
     "How Quock handles your data: chats stored on your iPhone, messages sent straight to Ollama Cloud and signed with a per-device key, and no analytics.",
   path: PATHS.privacy,
@@ -19,7 +19,7 @@ export const metadata: Metadata = pageMetadata({
 export default function PrivacyPage(): ReactNode {
   return (
     <PageColumn>
-      <PageIntro title="Privacy" updated={PRIVACY_UPDATED} path={PATHS.privacy} />
+      <PageIntro title={PAGE_LABELS.privacy} updated={PRIVACY_UPDATED} path={PATHS.privacy} />
       <Lead>{PRIVACY_LEAD}</Lead>
       <ul className="mt-10 divide-y">
         {PRINCIPLES.map(({ icon: Icon, title, body }) => (

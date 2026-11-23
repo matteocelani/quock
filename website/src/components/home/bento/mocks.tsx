@@ -53,8 +53,8 @@ export function NotificationMock(): ReactNode {
   return (
     <div className="relative isolate h-44 w-full overflow-hidden">
       <div aria-hidden="true" className="wallpaper -z-10 opacity-80" />
-      <div className="glass text-foreground absolute inset-x-5 top-8 flex items-center gap-3 rounded-[1.4rem] p-3 sm:inset-x-7">
-        <AppIcon className="size-10 rounded-[0.6rem]" />
+      <div className="glass text-foreground absolute inset-x-5 top-8 flex items-center gap-3 rounded-3xl p-3 sm:inset-x-7">
+        <AppIcon className="size-10" />
         <div className="min-w-0 flex-1">
           <div className="flex justify-between text-[13px]">
             <span className="font-bold">Quock</span>

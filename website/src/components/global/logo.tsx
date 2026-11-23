@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { LATEST_RELEASE } from "@/modules/changelog/content";
 import { PATHS, SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +17,7 @@ export function AppIcon({ className }: LogoProps): ReactNode {
       alt=""
       width={72}
       height={72}
-      className={cn("size-9 rounded-[22%] shadow-[0_0_0_1px_var(--border)]", className)}
+      className={cn("rounded-icon ring-border size-9 ring-1", className)}
       preload
     />
   );
@@ -32,10 +33,10 @@ export function Wordmark({ className }: LogoProps): ReactNode {
       </Link>
       <Link
         href={PATHS.changelog}
-        aria-label={`v${SITE.version} changelog`}
+        aria-label={`v${LATEST_RELEASE.version} changelog`}
         className="text-faint-foreground hover:text-foreground -mt-4 rounded-md border px-1 py-px text-[11px] leading-tight font-bold transition-colors"
       >
-        v{SITE.version}
+        v{LATEST_RELEASE.version}
       </Link>
     </div>
   );

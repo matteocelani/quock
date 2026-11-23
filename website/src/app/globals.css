@@ -3,7 +3,7 @@
 /* Light home, dark inner pages. Quock's tint is a cool iOS blue-white. */
 :root,
 [data-theme="light"] {
-  --background: oklch(0.986 0.007 250);
+  --background: #f7fbff;
   --foreground: #1d1d1f;
   --panel: oklch(0.955 0.01 252);
   --panel-strong: oklch(0.925 0.014 252);
@@ -11,7 +11,7 @@
   --faint-foreground: rgb(29 29 31 / 0.42);
   --border: rgb(29 29 31 / 0.09);
   --primary: #1d1d1f;
-  --primary-foreground: oklch(0.986 0.007 250);
+  --primary-foreground: #f7fbff;
   --accent: #0060c0;
   --marker: oklch(0.87 0.07 248);
   --ring: #0060c0;
@@ -23,7 +23,9 @@
   --system-green: #34c759;
 }
 
-[data-theme="dark"] {
+/* Dark pages put the dark tokens on the root too, so overscroll and the header area match. */
+[data-theme="dark"],
+:root:has([data-theme="dark"]) {
   --background: #1d1d1f;
   --foreground: #f5f5f7;
   --panel: #2a2a2d;
@@ -61,6 +63,8 @@
 
   --radius-tile: 1.5rem;
   --radius-stage: 2.5rem;
+  /* App icons are squircles; 22% of the side matches the iOS mask closely enough at this size. */
+  --radius-icon: 22%;
 
   --shadow-raised:
     0 20px 25px -5px rgb(var(--shade) / 0.15), 0 8px 10px -6px rgb(var(--shade) / 0.15);
@@ -125,10 +129,8 @@
     background: var(--background);
   }
 
-  /* Overscroll and the area under the fixed header take the page's theme. */
   html:has([data-theme="dark"]) {
     color-scheme: dark;
-    background: #1d1d1f;
   }
 
   body {

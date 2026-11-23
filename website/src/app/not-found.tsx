@@ -5,12 +5,13 @@ import { Heading, Marker } from "@/components/ui/heading";
 import { SiteShell } from "@/components/layout/site-shell";
 import { PATHS } from "@/lib/site";
 
-// No canonical and no og:url: a missing page must not point search engines at the home page.
+// No canonical and no social card: a missing page must never preview or index as the home page.
 export const metadata: Metadata = {
   title: "Page not found",
   robots: { index: false, follow: true },
   alternates: { canonical: null },
   openGraph: null,
+  twitter: null,
 };
 
 // Lives outside the route groups, so it brings its own shell.

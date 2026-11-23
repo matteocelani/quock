@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Caption } from "@/components/ui/heading";
+import { Caption } from "@/components/home/typography";
 import { PhoneIcon } from "@/components/ui/icons";
 import { DownloadButton } from "@/components/global/download-button";
 import { SITE } from "@/lib/site";

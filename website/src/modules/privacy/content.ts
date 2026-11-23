@@ -37,7 +37,7 @@ export const PRINCIPLES: readonly Principle[] = [
   {
     icon: EyeOffIcon,
     title: "Private by default.",
-    body: "No analytics, no advertising identifiers, no crash reporters, no profiling. This website sets no cookies and loads no trackers.",
+    body: "No analytics, no advertising identifiers, no crash reporters, no profiling for ads or analytics. This website sets no cookies and loads no trackers.",
   },
   {
     icon: LockIcon,

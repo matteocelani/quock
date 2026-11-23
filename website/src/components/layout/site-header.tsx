@@ -1,13 +1,14 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ButtonLink } from "@/components/ui/button";
-import { ChatBubbleIcon, DownloadIcon, NotesIcon } from "@/components/ui/icons";
+import { ChatBubbleIcon, NotesIcon } from "@/components/ui/icons";
+import { DownloadButton } from "@/components/global/download-button";
 import { Wordmark } from "@/components/global/logo";
-import { PATHS, SITE } from "@/lib/site";
+import { PAGE_LABELS, PATHS } from "@/lib/site";
 
 const NAV = [
-  { href: PATHS.faq, label: "FAQs", icon: ChatBubbleIcon },
-  { href: PATHS.changelog, label: "Changelog", icon: NotesIcon },
+  { href: PATHS.faq, label: PAGE_LABELS.faq, icon: ChatBubbleIcon },
+  { href: PATHS.changelog, label: PAGE_LABELS.changelog, icon: NotesIcon },
 ] as const;
 
 export function SiteHeader(): ReactNode {
@@ -26,11 +27,8 @@ export function SiteHeader(): ReactNode {
               {label}
             </Link>
           ))}
-          <ButtonLink href={SITE.appStoreUrl} variant="secondary" size="md" className="ml-2 hidden md:inline-flex">
-            <DownloadIcon />
-            Download for iPhone
-          </ButtonLink>
-          <ButtonLink href={PATHS.faq} variant="secondary" size="icon" aria-label="FAQs" className="md:hidden">
+          <DownloadButton variant="secondary" size="md" className="ml-2 hidden md:inline-flex" />
+          <ButtonLink href={PATHS.faq} variant="secondary" size="icon" aria-label={PAGE_LABELS.faq} className="md:hidden">
             <ChatBubbleIcon />
           </ButtonLink>
         </nav>

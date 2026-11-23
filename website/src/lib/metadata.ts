@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import { PATHS, SITE } from "@/lib/site";
 import { absoluteUrl } from "@/lib/utils";
 
-interface PageMetadataInput {
+interface SocialInput {
   title: string;
   description: string;
   path: string;
 }
+
+// One separator for <title>, og:title and twitter:title, so they can never drift apart.
+export const TITLE_TEMPLATE = `%s · ${SITE.name}`;
 
 // The one share card (public/og.png, made by `pnpm assets`), used by every page.
 export const SHARE_IMAGE = {
@@ -16,25 +19,26 @@ export const SHARE_IMAGE = {
   alt: "Quock's home screen and a chat on iPhone, beside the headline Open. Type. That's it.",
 } as const;
 
-// Next merges openGraph and twitter shallowly, so a page that set only `url` would drop the
-// layout's title, description and image; every inner page builds its metadata here instead.
-export function pageMetadata({ title, description, path }: PageMetadataInput): Metadata {
-  const fullTitle = `${title} · ${SITE.name}`;
+// Next merges openGraph and twitter shallowly, so each page sends the whole set or loses the image.
+export function socialMetadata({ title, description, path }: SocialInput): Metadata {
   return {
-    title,
     description,
     alternates: { canonical: path },
     openGraph: {
       type: "website",
       siteName: SITE.name,
       locale: "en_US",
-      title: fullTitle,
+      title,
       description,
       url: path,
       images: [SHARE_IMAGE],
     },
-    twitter: { card: "summary_large_image", title: fullTitle, description, images: [SHARE_IMAGE] },
+    twitter: { card: "summary_large_image", title, description, images: [SHARE_IMAGE] },
   };
+}
+
+export function pageMetadata({ title, description, path }: SocialInput): Metadata {
+  return { title, ...socialMetadata({ title: TITLE_TEMPLATE.replace("%s", title), description, path }) };
 }
 
 // Search engines show Home > Page in place of the bare URL.

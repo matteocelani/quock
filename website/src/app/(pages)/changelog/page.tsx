@@ -4,13 +4,13 @@ import { Accordion, AccordionItem } from "@/components/ui/accordion";
 import { Heading } from "@/components/ui/heading";
 import { TextLink } from "@/components/ui/text-link";
 import { PageColumn, PageIntro } from "@/components/layout/page-intro";
-import { CHANGELOG_FOOTNOTE, CHANGELOG_UPDATED, MINOR_LINES, RELEASES } from "@/modules/changelog/content";
+import { CHANGELOG_FOOTNOTE, CHANGELOG_UPDATED, LATEST_RELEASE, RELEASE_LINES } from "@/modules/changelog/content";
 import { pageMetadata } from "@/lib/metadata";
-import { PATHS, SITE } from "@/lib/site";
+import { PAGE_LABELS, PATHS, SITE } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Changelog",
-  description: `What changed in each Quock release, up to version ${SITE.version}.`,
+  title: PAGE_LABELS.changelog,
+  description: `What changed in each Quock release, up to version ${LATEST_RELEASE.version}.`,
   path: PATHS.changelog,
 });
 
@@ -19,10 +19,9 @@ const DATE_FORMAT = new Intl.DateTimeFormat("en", { day: "numeric", month: "shor
 export default function ChangelogPage(): ReactNode {
   return (
     <PageColumn>
-      <PageIntro title="Changelog" updated={CHANGELOG_UPDATED} path={PATHS.changelog} />
+      <PageIntro title={PAGE_LABELS.changelog} updated={CHANGELOG_UPDATED} path={PATHS.changelog} />
       <div className="space-y-20">
-        {MINOR_LINES.map((line, lineIndex) => {
-          const releases = RELEASES.filter((release) => release.version.startsWith(`${line.minor}.`));
+        {RELEASE_LINES.map(({ releases, ...line }, lineIndex) => {
           return (
             <section key={line.minor} aria-labelledby={`minor-${line.minor}`}>
               <Heading as="h2" size="card" id={`minor-${line.minor}`} className="text-3xl sm:text-4xl">

@@ -1,14 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import type { ReactNode } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import "@/app/globals.css";
 import { JsonLd } from "@/components/global/json-ld";
-import { SHARE_IMAGE, WEBSITE_JSON_LD } from "@/lib/metadata";
+import { TITLE_TEMPLATE, WEBSITE_JSON_LD, socialMetadata } from "@/lib/metadata";
 import { IS_INDEXABLE, PATHS, SITE, THEME_COLOR } from "@/lib/site";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
-  title: { default: SITE.title, template: `%s · ${SITE.name}` },
-  description: SITE.description,
+  title: { default: SITE.title, template: TITLE_TEMPLATE },
+  ...socialMetadata({ title: SITE.title, description: SITE.description, path: PATHS.home }),
   applicationName: SITE.name,
   authors: [{ name: SITE.author, url: SITE.authorUrl }],
   creator: SITE.author,
@@ -24,22 +24,6 @@ export const metadata: Metadata = {
     "Quock",
   ],
   category: "productivity",
-  alternates: { canonical: PATHS.home },
-  openGraph: {
-    type: "website",
-    siteName: SITE.name,
-    title: SITE.title,
-    description: SITE.description,
-    url: PATHS.home,
-    locale: "en_US",
-    images: [SHARE_IMAGE],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: SITE.title,
-    description: SITE.description,
-    images: [SHARE_IMAGE],
-  },
   robots: { index: IS_INDEXABLE, follow: IS_INDEXABLE },
   itunes: { appId: SITE.appStoreId },
   formatDetection: { telephone: false },
@@ -51,7 +35,7 @@ export const viewport: Viewport = {
 };
 
 // Header, footer and theme live in the route-group layouts: (home) is light, (pages) is dark.
-export default function RootLayout({ children }: Readonly<{ children: ReactNode }>): ReactNode {
+export default function RootLayout({ children }: PropsWithChildren): ReactNode {
   return (
     <html lang="en">
       <body className="min-h-dvh">

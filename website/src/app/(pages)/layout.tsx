@@ -1,5 +1,5 @@
 import type { Viewport } from "next";
-import type { ReactNode } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { SiteShell } from "@/components/layout/site-shell";
 import { THEME_COLOR } from "@/lib/site";
 
@@ -9,6 +9,6 @@ export const viewport: Viewport = {
   colorScheme: "dark",
 };
 
-export default function PagesLayout({ children }: Readonly<{ children: ReactNode }>): ReactNode {
+export default function PagesLayout({ children }: PropsWithChildren): ReactNode {
   return <SiteShell theme="dark">{children}</SiteShell>;
 }

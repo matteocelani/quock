@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { SiteShell } from "@/components/layout/site-shell";
 
-export default function HomeLayout({ children }: Readonly<{ children: ReactNode }>): ReactNode {
+export default function HomeLayout({ children }: PropsWithChildren): ReactNode {
   return <SiteShell theme="light">{children}</SiteShell>;
 }
