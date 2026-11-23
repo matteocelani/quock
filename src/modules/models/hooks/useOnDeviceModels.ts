@@ -1,5 +1,5 @@
-// The two lists behind the picker's on-device section: what is already on this phone, read from disk, and what Ollama
-// offers in its MLX category that this phone can hold, read from ollama.com through the native catalogue.
+// The two lists behind the picker's on-device section: what is already on this phone, read from disk, and the curated
+// Ollama MLX builds this phone can hold, verified against the registry through the native catalogue.
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import {
@@ -9,7 +9,10 @@ import {
   type OnDeviceModelInfo,
 } from "@/lib/onDevice/onDeviceLLM";
 import { queryKeys } from "@/lib/hooks/queryKeys";
-import { ON_DEVICE_CATALOG_STALE_TIME_MS } from "@/modules/models/constants";
+import {
+  ON_DEVICE_CATALOG,
+  ON_DEVICE_CATALOG_STALE_TIME_MS,
+} from "@/modules/models/constants";
 
 export function useListInstalledOnDeviceModels(): UseQueryResult<
   OnDeviceModelInfo[],
@@ -25,13 +28,13 @@ export function useListInstalledOnDeviceModels(): UseQueryResult<
   });
 }
 
-// Fetched only while the picker is open: it walks ollama.com's MLX category, one request per model and tag.
+// Fetched only while the picker is open: a few registry requests per curated model.
 export function useListOnDeviceCatalog(
   isEnabled: boolean,
 ): UseQueryResult<OnDeviceModelInfo[], Error> {
   return useQuery<OnDeviceModelInfo[], Error>({
     queryKey: queryKeys.onDeviceCatalog(),
-    queryFn: fetchOnDeviceCatalog,
+    queryFn: () => fetchOnDeviceCatalog(ON_DEVICE_CATALOG),
     enabled: isEnabled && isOnDeviceSupported(),
     staleTime: ON_DEVICE_CATALOG_STALE_TIME_MS,
   });

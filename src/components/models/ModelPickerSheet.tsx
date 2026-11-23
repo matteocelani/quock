@@ -33,6 +33,7 @@ import {
   type OnDeviceModelInfo,
 } from "@/lib/onDevice/onDeviceLLM";
 import { Section } from "@/components/ui/Section";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useListModelCapabilities } from "@/modules/models/hooks/useModelCapabilities";
 import { useChatModel } from "@/modules/models/hooks/useChatModel";
 import { useSelectedModel } from "@/modules/models/hooks/useSelectedModel";
@@ -165,6 +166,9 @@ export function ModelPickerSheet({
   const catalogQuery = useListOnDeviceCatalog(isOnDeviceEnabled);
   const downloads = useOnDeviceDownloadsStore((s) => s.downloads);
   const { pull } = usePullOnDeviceModel();
+  // App Review 4.2.3: a model is several hundred MB, so its size is stated and the download confirmed before it starts.
+  const [pendingDownload, setPendingDownload] =
+    useState<OnDeviceModelInfo | null>(null);
   const mode = useUIStore((s) => s.modelPickerMode);
   // "default" → writes the persisted user preference; "current" → pins the model to this chat (chats.model).
   const defaultModel = useSelectedModel();
@@ -185,6 +189,7 @@ export function ModelPickerSheet({
       setConfirmingName(null);
       setActiveFilters([]);
       setQuery("");
+      setPendingDownload(null);
     }
   }, [visible]);
   const handleFilterTap = useCallback((key: CapabilityFilter): void => {
@@ -253,6 +258,24 @@ export function ModelPickerSheet({
       visible={visible}
       onClose={onClose}
       snapPoints={[MODEL_PICKER_SHEET_SNAP]}
+      overlays={
+        <ConfirmDialog
+          visible={pendingDownload !== null}
+          title={`Download ${pendingDownload ? formatModelName(pendingDownload.model) : ""}?`}
+          message={
+            pendingDownload
+              ? `${formatBytes(pendingDownload.bytes)} will be downloaded from Ollama and stored on this iPhone. Wi-Fi is recommended.`
+              : undefined
+          }
+          confirmLabel="Download"
+          onConfirm={(): void => {
+            if (pendingDownload) pull(pendingDownload.model);
+            setPendingDownload(null);
+          }}
+          onCancel={(): void => setPendingDownload(null)}
+          testID="model-download-confirm"
+        />
+      }
     >
       <SheetHeader
         title={title}
@@ -359,7 +382,12 @@ export function ModelPickerSheet({
                 onPress={(): void => {
                   const current = downloads.get(entry.model);
                   if (current && !current.hasFailed) return;
-                  pull(entry.model);
+                  // A resume after a failure was already confirmed once; only a fresh download asks.
+                  if (current?.hasFailed) {
+                    pull(entry.model);
+                    return;
+                  }
+                  setPendingDownload(entry);
                 }}
               />
             ))}

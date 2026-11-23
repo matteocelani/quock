@@ -42,7 +42,7 @@ interface Subscription {
 interface OnDeviceLLMModule {
   isSupported: () => boolean;
   listInstalled: () => OnDeviceModelInfo[];
-  catalog: () => Promise<OnDeviceModelInfo[]>;
+  catalog: (models: readonly string[]) => Promise<OnDeviceModelInfo[]>;
   pull: (model: string) => Promise<{ model: string; bytes: number }>;
   remove: (model: string) => Promise<void>;
   generate: (
@@ -81,8 +81,11 @@ export function listInstalledOnDeviceModels(): OnDeviceModelInfo[] {
   return native?.listInstalled() ?? [];
 }
 
-export async function fetchOnDeviceCatalog(): Promise<OnDeviceModelInfo[]> {
-  return native ? native.catalog() : [];
+// Checks a curated list of Ollama tags against the registry and keeps the ones this phone can hold and run.
+export async function fetchOnDeviceCatalog(
+  models: readonly string[],
+): Promise<OnDeviceModelInfo[]> {
+  return native ? native.catalog(models) : [];
 }
 
 export async function pullOnDeviceModel(
