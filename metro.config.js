@@ -1,7 +1,10 @@
+const path = require("node:path");
 const { getDefaultConfig } = require("expo/metro-config");
 const { withNativeWind } = require("nativewind/metro");
 
 const config = getDefaultConfig(__dirname);
+
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 // SVGR: import `.svg` as React components via react-native-svg-transformer (Lucide covers most icons; this is for brand glyphs Lucide does not ship). The transformer is applied BEFORE `withNativeWind` so the Babel chain composes correctly.
 const { transformer, resolver } = config;
@@ -13,6 +16,11 @@ config.resolver = {
   ...resolver,
   assetExts: resolver.assetExts.filter((ext) => ext !== "svg"),
   sourceExts: [...resolver.sourceExts, "svg"],
+  // The marketing site in website/ is a separate Next.js project with its own React; Metro must never crawl it.
+  blockList: [
+    ...resolver.blockList,
+    new RegExp(`^${escapeRegExp(path.join(__dirname, "website"))}[\\\\/]`),
+  ],
 };
 
 module.exports = withNativeWind(config, { input: "./global.css" });
