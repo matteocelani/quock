@@ -111,3 +111,6 @@ export const MEMORY_MAX_SAVES_PER_TURN = 2;
 // A digit run or an unbroken token this long reads as a card number or a key, so the fact is refused, not saved.
 export const MEMORY_SECRET_MIN_DIGITS = 12;
 export const MEMORY_SECRET_MIN_TOKEN_CHARS = 32;
+// Reply cap for a model running on the phone: long enough for a full answer, short enough that a runaway generation
+// cannot hold the GPU (and the battery) for minutes.
+export const ON_DEVICE_MAX_TOKENS = 2048;

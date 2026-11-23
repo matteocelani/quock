@@ -23,6 +23,8 @@ import {
   sendChatMessage,
   type WireChatMessage,
 } from "@/modules/chat/api/chat";
+import { sendOnDeviceChatMessage } from "@/modules/chat/api/onDeviceChat";
+import { isOnDeviceModelName } from "@/lib/onDevice/onDeviceLLM";
 import { notifyAnswerReady } from "@/lib/notifications/answerNotification";
 import {
   holdBackgroundAssertion,
@@ -387,14 +389,23 @@ export async function runStream(
     while (true) {
       const pendingToolCalls: WireToolCall[] = [];
       roundRawStart = buffers.rawContent.length;
-      const events: AsyncGenerator<ChatEventUnion> = sendChatMessage(client, {
-        chatId,
-        messages: turnMessages,
-        model: modelName,
-        think,
-        tools,
-        signal: controller.signal,
-      });
+      const events: AsyncGenerator<ChatEventUnion> = isOnDeviceModelName(
+        modelName,
+      )
+        ? sendOnDeviceChatMessage({
+            messages: turnMessages,
+            model: modelName,
+            think,
+            signal: controller.signal,
+          })
+        : sendChatMessage(client, {
+            chatId,
+            messages: turnMessages,
+            model: modelName,
+            think,
+            tools,
+            signal: controller.signal,
+          });
       for await (const event of events) {
         // An event arriving once the user is back proves the socket outlived the trip, so the next failure is a real
         // one. Only while active: iOS keeps delivering for a few seconds after backgrounding, before it suspends.
