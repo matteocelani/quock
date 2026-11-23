@@ -235,6 +235,9 @@ enum OllamaRegistry {
   static func quantization(ofTensorsIn directory: URL) throws -> [String: Any]? {
     let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
       .filter { $0.pathExtension == "safetensors" }
+    // Each blob carries its own format; a build can mix them (an 8-bit layer inside a 4-bit body), so the most common
+    // one becomes the default and every tensor that differs gets its own per-layer entry.
+    var byModule: [String: [String: AnyHashable]] = [:]
     for file in files {
       let handle = try FileHandle(forReadingFrom: file)
       defer { try? handle.close() }
@@ -243,7 +246,8 @@ enum OllamaRegistry {
       guard length < 64 << 20, let data = try handle.read(upToCount: Int(length)),
         let header = try JSONSerialization.jsonObject(with: data) as? [String: Any],
         let metadata = header["__metadata__"] as? [String: String],
-        let mode = metadata["quant_type"], let group = metadata["group_size"].flatMap(Int.init)
+        let mode = metadata["quant_type"], let group = metadata["group_size"].flatMap(Int.init),
+        let weightKey = header.keys.first(where: { $0.hasSuffix(".weight") })
       else { continue }
       let bits: Int
       switch mode {
@@ -251,8 +255,18 @@ enum OllamaRegistry {
       case "mxfp4", "nvfp4": bits = 4
       default: bits = Int(metadata["bits"] ?? "") ?? 4
       }
-      return ["group_size": group, "bits": bits, "mode": mode == "affine" || mode.hasPrefix("q") ? "affine" : mode]
+      let entry: [String: AnyHashable] = [
+        "group_size": group, "bits": bits, "mode": mode == "affine" || mode.hasPrefix("q") ? "affine" : mode,
+      ]
+      byModule[HeadQuantizer.modulePath(forCheckpointKey: String(weightKey.dropLast(".weight".count)))] = entry
     }
-    return nil
+    var counts: [[String: AnyHashable]: Int] = [:]
+    for entry in byModule.values { counts[entry, default: 0] += 1 }
+    guard let common = counts.max(by: { $0.value < $1.value })?.key else { return nil }
+    var result: [String: Any] = common
+    for (module, entry) in byModule where entry != common {
+      result[module] = entry
+    }
+    return result
   }
 }
