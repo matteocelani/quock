@@ -1,5 +1,6 @@
 import Foundation
 import MLX
+import MLXLMCommon
 import XCTest
 
 @testable import OnDeviceLLMCore
@@ -163,14 +164,6 @@ final class HeadQuantizerTests: XCTestCase {
     XCTAssertNil(try HeadQuantizer.quantizeEmbedding(in: dir, bits: 8, groupSize: 128), "a second pass is a no-op")
   }
 
-  func testInstalledBytesShrinksOnlyTheEmbedding() {
-    let layers = [
-      OllamaLayer(mediaType: "t", digest: "a", size: 1600, name: "model.language_model.embed_tokens.weight"),
-      OllamaLayer(mediaType: "t", digest: "b", size: 1000, name: "model.language_model.layers.0.mlp.up_proj.weight"),
-    ]
-    // 8 bits per weight plus a float16 scale and bias per 128 weights: 8.25 / 16 of the BF16 size.
-    XCTAssertEqual(HeadQuantizer.installedBytes(of: layers, bits: 8, groupSize: 128), 825 + 1000)
-  }
 
   func testModulePathMapsHuggingFaceLayout() {
     XCTAssertEqual(
@@ -246,5 +239,72 @@ final class AppMemoryTests: XCTestCase {
   func testLoadNeedsTheWeightsPlusOneGigabyteOfHeadroom() {
     XCTAssertEqual(AppMemory.neededToLoad(bytes: 100), 100 + (1 << 30))
     XCTAssertEqual(AppMemory.neededToLoad(bytes: -5), 1 << 30, "a corrupt negative size must not underflow")
+  }
+}
+
+final class InstallOptimizerTests: XCTestCase {
+  private let layers = [
+    OllamaLayer(mediaType: "t", digest: "a", size: 1600, name: "model.language_model.embed_tokens.weight"),
+    OllamaLayer(mediaType: "t", digest: "b", size: 1600, name: "model.language_model.layers.0.mlp.up_proj.weight"),
+    OllamaLayer(mediaType: "t", digest: "c", size: 160, name: "model.language_model.layers.0.input_layernorm.weight"),
+    OllamaLayer(mediaType: "j", digest: "d", size: 10, name: "config.json"),
+  ]
+
+  func testFullPrecisionBuildShrinksHeadAndLinearLayers() {
+    // Head: 8 bits + a float16 scale and bias per 128 = 8.25/16 of BF16. Body: 6 bits + per-64 overhead = 6.5/16.
+    XCTAssertEqual(InstallOptimizer.estimatedBytes(of: layers, isFullPrecision: true), 825 + 650 + 160 + 10)
+  }
+
+  func testQuantizedBuildShrinksOnlyTheHead() {
+    XCTAssertEqual(InstallOptimizer.estimatedBytes(of: layers, isFullPrecision: false), 825 + 1600 + 160 + 10)
+  }
+
+  func testFileTypeDecidesFullPrecision() {
+    XCTAssertTrue(InstallOptimizer.isFullPrecision(fileType: ""))
+    XCTAssertTrue(InstallOptimizer.isFullPrecision(fileType: nil))
+    XCTAssertTrue(InstallOptimizer.isFullPrecision(fileType: "BF16"))
+    XCTAssertFalse(InstallOptimizer.isFullPrecision(fileType: "mxfp8"))
+    XCTAssertFalse(InstallOptimizer.isFullPrecision(fileType: "Q4_K_M"))
+  }
+
+  func testLinearWeightsExcludeNormsEmbeddingsAndRecurrenceParameters() {
+    XCTAssertTrue(BodyQuantizer.isLinearWeight("model.language_model.layers.0.linear_attn.in_proj_qkv.weight"))
+    XCTAssertFalse(BodyQuantizer.isLinearWeight("model.language_model.layers.0.input_layernorm.weight"))
+    XCTAssertFalse(BodyQuantizer.isLinearWeight("model.language_model.embed_tokens.weight"))
+    XCTAssertFalse(BodyQuantizer.isLinearWeight("model.language_model.layers.0.linear_attn.conv1d.weight"))
+    XCTAssertFalse(BodyQuantizer.isLinearWeight("model.language_model.layers.0.linear_attn.A_log"))
+  }
+}
+
+// A word-level stand-in: "<|im_start|>assistant" encodes to [1, 2], which is all the boundary search needs.
+private struct StubTokenizer: MLXLMCommon.Tokenizer {
+  func encode(text: String, addSpecialTokens: Bool) -> [Int] {
+    text == "<|im_start|>assistant" ? [1, 2] : []
+  }
+  func decode(tokenIds: [Int], skipSpecialTokens: Bool) -> String { "" }
+  func convertTokenToId(_ token: String) -> Int? { nil }
+  func convertIdToToken(_ id: Int) -> String? { nil }
+  var bosToken: String? { nil }
+  var eosToken: String? { nil }
+  var unknownToken: String? { nil }
+  func applyChatTemplate(
+    messages: [[String: any Sendable]], tools: [[String: any Sendable]]?, additionalContext: [String: any Sendable]?
+  ) throws -> [Int] { [] }
+}
+
+final class PrefixReuseBoundaryTests: XCTestCase {
+  func testBoundaryFollowsTheLastAssistantMarker() {
+    // history ... <|im_start|> assistant (answer) ... <|im_start|> assistant \n
+    let tokens = [9, 1, 2, 7, 7, 1, 2, 5]
+    XCTAssertEqual(LocalEngine.reuseBoundary(of: tokens, tokenizer: StubTokenizer()), 7)
+  }
+
+  func testAtLeastOneTokenIsLeftForTheGenerator() {
+    XCTAssertEqual(LocalEngine.reuseBoundary(of: [9, 1, 2], tokenizer: StubTokenizer()), 2)
+  }
+
+  func testWithoutAMarkerTheWholePromptButTheLastTokenIsKept() {
+    XCTAssertEqual(LocalEngine.reuseBoundary(of: [4, 5, 6, 7], tokenizer: StubTokenizer()), 3)
+    XCTAssertEqual(LocalEngine.reuseBoundary(of: [], tokenizer: StubTokenizer()), 0)
   }
 }

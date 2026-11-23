@@ -72,6 +72,8 @@ struct SpeedResult {
 }
 
 func measureSpeed(_ ref: ModelReference, tokens: Int, runs: Int) async throws -> SpeedResult {
+  // QUOCK_PRODUCTION_SAMPLER measures the app's own temperature / top-p path instead of greedy decoding.
+  let temperature: Float? = ProcessInfo.processInfo.environment["QUOCK_PRODUCTION_SAMPLER"] == nil ? 0 : nil
   var decode: [Double] = []
   var prefill: [Double] = []
   var peak = 0
@@ -83,7 +85,7 @@ func measureSpeed(_ ref: ModelReference, tokens: Int, runs: Int) async throws ->
     for prompt in benchPrompts {
       let stats = try await LocalEngine.shared.generate(
         ref, turns: [LocalTurn(role: "user", content: prompt)], think: false, maxTokens: tokens,
-        temperatureOverride: 0
+        temperatureOverride: temperature
       ) { _ in }
       if stats.generateSeconds > 0 { decode.append(Double(stats.generatedTokens) / stats.generateSeconds) }
       if stats.promptSeconds > 0 { prefill.append(Double(stats.promptTokens) / stats.promptSeconds) }
@@ -106,7 +108,12 @@ struct QualityResult {
 func measureQuality(
   reference ref: ModelReference, candidate: ModelReference, tokens: Int, temperature: Float, promptCount: Int
 ) async throws -> QualityResult {
-  let reference = try await loadModelContainer(from: LocalModelStore.directory(for: ref), using: TransformersTokenizerLoader())
+  // The reference can live in its own store (QUOCK_LLM_REFERENCE_DIR): an unoptimized build shares its name with the
+  // optimized one the app installs.
+  let referenceDirectory = ProcessInfo.processInfo.environment["QUOCK_LLM_REFERENCE_DIR"].map {
+    URL(fileURLWithPath: $0, isDirectory: true).appending(path: "\(ref.namespace)/\(ref.name)/\(ref.tag)")
+  } ?? LocalModelStore.directory(for: ref)
+  let reference = try await loadModelContainer(from: referenceDirectory, using: TransformersTokenizerLoader())
   let other = try await loadModelContainer(from: LocalModelStore.directory(for: candidate), using: TransformersTokenizerLoader())
   var kls: [Double] = []
   var agree = 0
@@ -269,7 +276,7 @@ func run() async throws {
       plan: .init(bits: bits, groupSize: group, sensitive: sensitive, sensitiveBits: sensitiveBits))
     if ProcessInfo.processInfo.environment["QUOCK_LLM_KEEP_HEAD"] == nil {
       _ = try HeadQuantizer.quantizeEmbedding(
-        in: target, bits: LocalModelStore.headBits, groupSize: LocalModelStore.headGroupSize)
+        in: target, bits: InstallOptimizer.headBits, groupSize: InstallOptimizer.headGroupSize)
     }
     try LocalModelStore.recordFileHashes(in: target)
     let marker = target.appending(path: "quock-installed.json")
@@ -277,6 +284,113 @@ func run() async throws {
     installed["reference"] = variant.display
     try JSONSerialization.data(withJSONObject: installed).write(to: marker, options: .atomic)
     emit("body \(variant.display): \(outcome.tensors) tensors \(outcome.bytesBefore >> 20) MB -> \(outcome.bytesAfter >> 20) MB sensitive=\(sensitive)")
+
+  case "chat":
+    // chat <model> [turns]: a multi-turn conversation replayed the way the app sends it (whole history each turn),
+    // greedy. Prints per-turn prefill/reuse/TTFT and the start of every answer, so a run with
+    // QUOCK_LLM_NO_PREFIX_REUSE can be compared token for token.
+    let userTurns = [
+      "Ciao! Mi consigli un libro di fantascienza?", "Perché proprio quello? Dimmi di più sulla trama.",
+      "E l'autore ha scritto altro?", "Riassumi in una frase tutto quello che mi hai detto finora.",
+      "Ora dimmi tre film simili.", "Quale dei tre guarderesti stasera e perché?",
+    ]
+    let turns = min(userTurns.count, args.first.flatMap(Int.init) ?? userTurns.count)
+    var history: [LocalTurn] = []
+    for (index, message) in userTurns.prefix(turns).enumerated() {
+      history.append(LocalTurn(role: "user", content: message))
+      let answer = Collector()
+      let stats = try await LocalEngine.shared.generate(
+        ref, turns: history, think: false, maxTokens: 96, temperatureOverride: 0
+      ) { event in
+        if case .content(let text) = event { answer.append(text) }
+      }
+      history.append(LocalTurn(role: "assistant", content: answer.value))
+      emit(String(
+        format: "TURN %d prompt=%d prefilled=%d reused=%d ttft=%.3fs tok/s=%.0f", index + 1, stats.promptTokens,
+        stats.prefilledTokens, stats.reusedTokens, stats.firstTokenSeconds,
+        stats.generateSeconds > 0 ? Double(stats.generatedTokens) / stats.generateSeconds : 0))
+      emit("ANSWER \(index + 1): \(answer.value.prefix(160).replacingOccurrences(of: "\n", with: " "))")
+    }
+
+  case "reusecheck":
+    // reusecheck <model>: for each turn of a fixed conversation, scores the same token sequence three ways: cold (one
+    // prefill of everything), as the engine reuses it (previous turn's prefix, cache copied, then the rest), and a
+    // control split at the middle of the prompt with no reuse. Chunked prefill is not bit-exact on the GPU, so the
+    // gate is relative: reuse may not drift from cold more than the control does (x1.25, floor 1e-3).
+    let conversation: [(String, String)] = [
+      ("Ciao! Mi consigli un libro di fantascienza?", "Ti consiglio Dune di Frank Herbert: un classico su politica, ecologia e religione su un pianeta desertico."),
+      ("Perché proprio quello?", "Perché costruisce un mondo coerente e profondo, con personaggi memorabili e temi ancora attuali."),
+      ("E l'autore ha scritto altro?", "Sì, cinque seguiti di Dune e romanzi come Il cervello verde e La macchina dei sogni."),
+      ("Riassumi tutto in una frase.", "Dune è un classico profondo e Herbert ha scritto molto altro nello stesso universo."),
+      ("Ora dimmi tre film simili.", ""),
+    ]
+    let container = try await loadModelContainer(from: LocalModelStore.directory(for: ref), using: TransformersTokenizerLoader())
+    let parameters = GenerateParameters(maxKVSize: 8192)
+    var reuseKL: [Double] = []
+    var controlKL: [Double] = []
+    var agree = 0
+    var positions = 0
+    var previousBoundary = 0
+    for turn in 0 ..< conversation.count {
+      var chat: [Chat.Message] = []
+      for (index, pair) in conversation.prefix(turn + 1).enumerated() {
+        chat.append(.user(pair.0))
+        if index < turn { chat.append(.assistant(pair.1)) }
+      }
+      let reusePoint = previousBoundary
+      let result: ([Double], [Double], Int, Int, Int) = try await container.perform { context in
+        let prompt = try await context.processor.prepare(
+          input: UserInput(chat: chat, additionalContext: ["enable_thinking": false])
+        ).text.tokens.flattened().asArray(Int.self)
+        // 32 greedy tokens of continuation, so the comparison covers generation, not just the last prompt position.
+        var sequence = prompt
+        let greedyCache = try context.model.newCache(parameters: parameters)
+        var logits = context.model(MLXArray(sequence)[.newAxis], cache: greedyCache)
+        for _ in 0 ..< 32 {
+          let next = argMax(logits[0, -1], axis: -1).item(Int.self)
+          sequence.append(next)
+          logits = context.model(MLXArray([next])[.newAxis], cache: greedyCache)
+        }
+        let scored = (prompt.count - 1) ..< (sequence.count - 1)
+        func logProbs(splitAt split: Int) throws -> MLXArray {
+          let cache = try context.model.newCache(parameters: parameters)
+          var position = 0
+          while position < split {
+            let end = min(split, position + 512)
+            _ = context.model(MLXArray(Array(sequence[position ..< end]))[.newAxis], cache: cache)
+            eval(cache.flatMap(\.state))
+            position = end
+          }
+          let restored = cache.map { $0.copy() }
+          let all = context.model(MLXArray(Array(sequence[split...]))[.newAxis], cache: restored)
+          let scaled = all[0, (scored.lowerBound - split) ..< (scored.upperBound - split)].asType(.float32) / 0.7
+          return scaled - logSumExp(scaled, axis: -1, keepDims: true)
+        }
+        let cold = try logProbs(splitAt: 0)
+        let reused = try logProbs(splitAt: reusePoint)
+        let control = try logProbs(splitAt: prompt.count / 2)
+        let klReuse = (exp(cold) * (cold - reused)).sum(axis: -1)
+        let klControl = (exp(cold) * (cold - control)).sum(axis: -1)
+        let same = (argMax(cold, axis: -1) .== argMax(reused, axis: -1)).asType(.int32)
+        eval(klReuse, klControl, same)
+        return (
+          klReuse.asArray(Float.self).map(Double.init), klControl.asArray(Float.self).map(Double.init),
+          Int(same.sum().item(Int32.self)), scored.count, LocalEngine.reuseBoundary(of: prompt, tokenizer: context.tokenizer)
+        )
+      }
+      reuseKL.append(contentsOf: result.0)
+      controlKL.append(contentsOf: result.1)
+      agree += result.2
+      positions += result.3
+      previousBoundary = result.4
+    }
+    let meanReuse = reuseKL.reduce(0, +) / Double(max(reuseKL.count, 1))
+    let meanControl = controlKL.reduce(0, +) / Double(max(controlKL.count, 1))
+    let limit = max(1e-3, meanControl * 1.25)
+    emit(String(format: "REUSE meanKL=%.2e control=%.2e limit=%.2e p99=%.2e top1=%.4f positions=%d %@", meanReuse,
+      meanControl, limit, percentile(reuseKL, 0.99), Double(agree) / Double(max(positions, 1)), positions,
+      meanReuse <= limit ? "PASS" : "FAIL"))
+    if meanReuse > limit { exit(1) }
 
   case "headbench":
     // Here the "model" argument is unused; vocab and hidden come next.
