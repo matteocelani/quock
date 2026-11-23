@@ -47,6 +47,8 @@ enum SpikeSelfTest {
     } catch {
       log("FAILED: \(error.localizedDescription) | \(error)")
     }
+    // Ends the process so `devicectl --console` returns; only ever reached under the self-test launch argument.
+    exit(0)
   }
 }
 

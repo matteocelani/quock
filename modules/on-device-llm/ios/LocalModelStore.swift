@@ -10,6 +10,9 @@ struct InstalledModel: Codable, Sendable {
 enum LocalModelStore {
   private static let markerName = "quock-installed.json"
   private static let concurrentDownloads = 4
+  // A phone drops connections all the time (Wi-Fi handoff, sleep, a flaky CDN edge); one lost file must not end a pull.
+  private static let downloadAttempts = 4
+  private static let retryBaseDelay: UInt64 = 1_000_000_000
 
   static var root: URL {
     let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -90,8 +93,7 @@ enum LocalModelStore {
       func enqueue() {
         guard let (layer, destination) = iterator.next() else { return }
         group.addTask {
-          try Task.checkCancellation()
-          try await OllamaRegistry.download(layer, of: ref, to: destination)
+          try await downloadWithRetry(layer, of: ref, to: destination)
           let done = destination.deletingLastPathComponent()
             .appending(path: ".\(destination.lastPathComponent).\(layer.digest.suffix(12))")
           FileManager.default.createFile(atPath: done.path, contents: nil)
@@ -110,6 +112,34 @@ enum LocalModelStore {
       reference: ref.display, bytes: total, installedAt: Date(), capabilities: capabilities)
     try JSONEncoder().encode(model).write(to: directory.appending(path: markerName), options: .atomic)
     return model
+  }
+
+  private static func downloadWithRetry(
+    _ layer: OllamaLayer, of ref: ModelReference, to destination: URL
+  ) async throws {
+    var attempt = 0
+    while true {
+      try Task.checkCancellation()
+      do {
+        try await OllamaRegistry.download(layer, of: ref, to: destination)
+        return
+      } catch {
+        attempt += 1
+        guard attempt < downloadAttempts, isTransient(error) else { throw error }
+        try await Task.sleep(nanoseconds: retryBaseDelay << UInt64(attempt - 1))
+      }
+    }
+  }
+
+  private static func isTransient(_ error: Error) -> Bool {
+    if let urlError = error as? URLError {
+      return [.networkConnectionLost, .timedOut, .notConnectedToInternet, .cannotConnectToHost, .dnsLookupFailed]
+        .contains(urlError.code)
+    }
+    if case OllamaRegistryError.http(let status, _) = error { return status >= 500 || status == 429 }
+    // A corrupted transfer fails its checksum; fetching it again is the fix.
+    if case OllamaRegistryError.digestMismatch = error { return true }
+    return false
   }
 
   private struct ConfigBlob: Decodable { let capabilities: [String]? }
