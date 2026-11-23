@@ -9,7 +9,7 @@ export function FeatureGrid(): ReactNode {
       <h2 id="features-title" className="sr-only">
         Features
       </h2>
-      <ul className="mx-auto grid max-w-[61rem] grid-cols-2 gap-x-4 gap-y-14 lg:grid-cols-4">
+      <ul className="mx-auto grid max-w-content grid-cols-2 gap-x-4 gap-y-14 lg:grid-cols-4">
         {FEATURES.map(({ icon: Icon, title }) => (
           <li key={title.join(" ")} className="reveal flex flex-col items-center text-center">
             <Icon className="size-14 sm:size-16" strokeWidth={1.4} />

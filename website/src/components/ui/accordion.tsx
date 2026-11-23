@@ -19,10 +19,10 @@ export function AccordionItem({ title, aside, children, className, ...props }: A
           <span className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-current" />
           <span className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 rounded-full bg-current transition-transform duration-300 ease-spring group-open:scale-y-0" />
         </span>
-        <span className="flex-1 text-lg font-bold tracking-[-0.01em] sm:text-2xl">{title}</span>
+        <span className="flex-1 text-lg font-bold tracking-title sm:text-2xl">{title}</span>
         {aside}
       </summary>
-      <div className="text-muted-foreground pt-1 pb-6 pl-8 text-[17px] leading-relaxed text-pretty">{children}</div>
+      <div className="text-muted-foreground pt-1 pb-6 pl-8 text-body leading-relaxed text-pretty">{children}</div>
     </details>
   );
 }

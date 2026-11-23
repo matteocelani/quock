@@ -11,7 +11,7 @@ import {
   PhoneIcon,
 } from "@/components/ui/icons";
 import { ScreenStack } from "@/components/home/screen-stack";
-import { handleTabKeys } from "@/components/home/tab-keys";
+import { handleRovingKeys } from "@/components/home/roving-keys";
 import { Caption } from "@/components/home/typography";
 import { LATEST_RELEASE } from "@/modules/changelog/content";
 import { MODELS, type ScreenName } from "@/modules/home/screens";
@@ -118,15 +118,17 @@ export function HeroStage(): ReactNode {
             Choose a model
           </p>
           <ul role="radiogroup" aria-labelledby="hero-models">
-            {MODELS.map((item) => {
+            {MODELS.map((item, index) => {
               const isSelected = item.name === model;
               return (
-                <li key={item.name}>
+                <li key={item.name} role="none">
                   <button
                     type="button"
                     role="radio"
                     aria-checked={isSelected}
+                    tabIndex={isSelected ? 0 : -1}
                     onClick={() => pickModel(item.name)}
+                    onKeyDown={(event) => handleRovingKeys(event, index, MODELS.length, (next) => pickModel(MODELS[next].name))}
                     className="hover:bg-foreground/5 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors"
                   >
                     <span
@@ -189,7 +191,7 @@ export function HeroStage(): ReactNode {
                 aria-controls={PANEL_ID}
                 tabIndex={isActive ? 0 : -1}
                 onClick={() => setScreen(tabScreen)}
-                onKeyDown={(event) => handleTabKeys(event, index, TABS.length, (next) => setScreen(TABS[next].screen))}
+                onKeyDown={(event) => handleRovingKeys(event, index, TABS.length, (next) => setScreen(TABS[next].screen))}
                 className={cn(
                   "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors duration-200 sm:px-3.5 sm:text-sm",
                   isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",

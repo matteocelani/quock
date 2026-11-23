@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Heading } from "@/components/ui/heading";
 import { ArrowIcon } from "@/components/ui/icons";
+import { StepBadge } from "@/components/ui/step-badge";
 import { TextLink } from "@/components/ui/text-link";
 import { Eyebrow } from "@/components/home/typography";
 import { GUIDE_STEPS, GUIDE_TITLE } from "@/modules/guide/content";
@@ -16,19 +17,17 @@ export function HowItWorks(): ReactNode {
           Ready in minutes.
         </Heading>
       </div>
-      <ol className="mx-auto mt-14 grid max-w-[61rem] gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <ol className="mx-auto mt-14 grid max-w-content gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {GUIDE_STEPS.map((step, index) => (
           <li key={step.title} className="reveal bg-panel rounded-tile p-6">
-            <span className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-xl text-base font-bold">
-              {index + 1}
-            </span>
-            <h3 className="mt-5 text-lg leading-snug font-bold tracking-[-0.01em]">{step.title}</h3>
+            <StepBadge step={index + 1} />
+            <h3 className="mt-5 text-lg leading-snug font-bold tracking-title">{step.title}</h3>
             <p className="text-muted-foreground mt-1.5 text-[15px] leading-relaxed text-pretty">{step.body}</p>
           </li>
         ))}
       </ol>
       <p className="mt-8 text-center">
-        <TextLink href={PATHS.guide} className="inline-flex items-center gap-1.5 text-[17px]">
+        <TextLink href={PATHS.guide} className="inline-flex items-center gap-1.5 text-body">
           {GUIDE_TITLE}
           <ArrowIcon className="size-4.5" />
         </TextLink>

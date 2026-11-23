@@ -1,4 +1,4 @@
-import { GUIDE_MINUTES, GUIDE_STEPS, GUIDE_TITLE } from "@/modules/guide/content";
+import { GUIDE_MINUTES, GUIDE_STEPS, GUIDE_TITLE, stepAnchor } from "@/modules/guide/content";
 import { PATHS, SITE } from "@/lib/site";
 import { absoluteUrl } from "@/lib/utils";
 
@@ -15,6 +15,6 @@ export const HOW_TO_JSON_LD = {
     position: index + 1,
     name: step.title,
     text: step.body,
-    url: absoluteUrl(`${PATHS.guide}#step-${index + 1}`),
+    url: absoluteUrl(`${PATHS.guide}#${stepAnchor(index)}`),
   })),
 };

@@ -46,13 +46,13 @@ The inner pages (FAQ, changelog, guide, privacy) are for reading. They are dark 
 
 - **Type:**
   - one family, the system font, with weight 700 for headings and labels. Mock UI uses 600 like iOS does, and model names use the system monospace, as the app shows them;
-  - a steep scale: a 96px hero, 70px sections, 30px feature titles, and 17px body;
+  - a steep scale: a 96px hero, 70px sections, 36px subsections, 30px feature titles, 24px cards and list items, and a 17px body (`text-body`);
   - tight tracking on large sizes.
 - **Colour:**
   - tint, ink, panel, muted and faint, plus a marker colour and a link accent;
   - light tokens on the home page, dark tokens on the inner pages;
   - colour never carries meaning on its own.
-- **Shape:** buttons are 16px-radius rectangles 60px tall, tiles are 24px, stages are 40px at every size, and app icons use the squircle token. Pills are for the segmented control, small tags, and iOS controls that are pills in the app (switches, a Continue button).
+- **Shape:** buttons are 16px-radius rectangles, 60px tall by default (52px in the header, 44px icon-only), tiles are 24px, stages are 40px at every size, and app icons use the squircle token. Pills are for the segmented control, small tags, and iOS controls that are pills in the app (switches, a Continue button).
 - **Depth:**
   - flat by default;
   - one raised shadow on the primary button;
@@ -60,7 +60,8 @@ The inner pages (FAQ, changelog, guide, privacy) are for reading. They are dark 
   - phones cast their own shadow.
 - **Motion:**
   - things arrive by lifting and un-blurring, sections reveal as you scroll, and presses spring;
-  - nothing moves without a reason, and `prefers-reduced-motion` stops all of it, including tab autoplay.
+  - nothing loops: wallpapers are still, the thinking word sweeps twice (under 5s), and tab autoplay stops at the first tap or key;
+  - `prefers-reduced-motion` stops all of it, including tab autoplay.
 - **Mock surfaces:** an opaque `surface` card with `shadow-card`, ink from the theme tokens, and iOS system colours (`system-red`, `system-yellow`, `system-green`) only where the real UI shows them, such as a PDF tag, a switch or window controls. Glass is for things floating over wallpaper, never over a card.
 - **Imagery:**
   - real captures in the real iPhone frame;

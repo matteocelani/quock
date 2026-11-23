@@ -13,7 +13,7 @@ const buttonVariants = cva(
         secondary: "bg-panel text-foreground hover:bg-panel-strong",
       },
       size: {
-        md: "h-13 rounded-2xl px-5 text-[17px] [&_svg]:size-5",
+        md: "h-13 rounded-2xl px-5 text-body [&_svg]:size-5",
         lg: "h-15 rounded-2xl px-6 text-lg [&_svg]:size-5.5",
         icon: "size-11 rounded-xl [&_svg]:size-5",
       },

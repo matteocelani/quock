@@ -21,7 +21,7 @@ export function SiteHeader(): ReactNode {
             <Link
               key={href}
               href={href}
-              className="hover:bg-panel hidden items-center gap-2 rounded-xl px-3.5 py-2.5 text-[17px] font-bold transition-colors md:inline-flex"
+              className="hover:bg-panel hidden items-center gap-2 rounded-xl px-3.5 py-2.5 text-body font-bold transition-colors md:inline-flex"
             >
               <Icon className="size-5" />
               {label}

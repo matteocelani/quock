@@ -11,6 +11,11 @@ export const GUIDE_UPDATED = "2026-11-23";
 // How long setup takes; the intro says it and the HowTo JSON-LD declares it.
 export const GUIDE_MINUTES = 3;
 
+// The page's step ids and the HowTo step URLs share this, so the links can never break.
+export function stepAnchor(index: number): string {
+  return `step-${index + 1}`;
+}
+
 export const GUIDE_INTRO = `Quock brings the open models on Ollama Cloud, from Gemma and Qwen to GPT-OSS, DeepSeek and Kimi, to your iPhone in about ${GUIDE_MINUTES} minutes.`;
 
 // One source for the home page's "How it works", this guide, its HowTo JSON-LD and llms.txt.
@@ -64,5 +69,5 @@ export const GUIDE_TIPS: readonly GuideItem[] = [
 
 export const GUIDE_CHATS: GuideItem = {
   title: "Where your chats live.",
-  body: "On your iPhone, in a local database, with no Quock server and no analytics. When you send a message, it goes straight to Ollama Cloud with the earlier turns of that chat.",
+  body: "On your iPhone, in a local database, with no Quock server and no analytics. When you send a message, it goes straight to Ollama Cloud with the earlier turns of that chat and, while memory is on, the facts Quock remembers about you.",
 };

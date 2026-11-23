@@ -1,8 +1,8 @@
 import type { KeyboardEvent } from "react";
 
-// Arrows, Home and End move between tabs (WAI-ARIA tabs). Both axes work, because the
-// showcase tabs stack vertically on phones and sit in a row on wider screens.
-export function handleTabKeys(
+// Arrows, Home and End move through a group with one Tab stop (WAI-ARIA tabs and radio groups).
+// Both axes work, because the showcase tabs stack on phones and sit in a row on wider screens.
+export function handleRovingKeys(
   event: KeyboardEvent<HTMLButtonElement>,
   index: number,
   count: number,
@@ -22,6 +22,7 @@ export function handleTabKeys(
   if (target === undefined) return;
   event.preventDefault();
   select(target);
-  const tabs = event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
-  tabs?.[target]?.focus();
+  const role = event.currentTarget.getAttribute("role");
+  const group = event.currentTarget.closest('[role="tablist"], [role="radiogroup"]');
+  group?.querySelectorAll<HTMLButtonElement>(`[role="${role}"]`)[target]?.focus();
 }

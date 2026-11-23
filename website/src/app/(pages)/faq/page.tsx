@@ -31,7 +31,7 @@ export default function FaqPage(): ReactNode {
       </Accordion>
       <div className="mt-14">
         <h2 className="text-lg font-bold">{FAQ_MORE.title}</h2>
-        <p className="text-muted-foreground mt-1.5 text-[17px] leading-relaxed">
+        <p className="text-muted-foreground mt-1.5 text-body leading-relaxed">
           {FAQ_MORE.body} <TextLink href={SITE.issuesUrl}>{FAQ_MORE.linkLabel}</TextLink>
         </p>
       </div>
