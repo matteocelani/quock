@@ -31,7 +31,8 @@ struct ModelReference: Sendable, Hashable {
     let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     let parts = trimmed.split(separator: ":", maxSplits: 1).map(String.init)
     guard let path = parts.first, !path.isEmpty else { throw OllamaRegistryError.badReference(raw) }
-    let segments = path.split(separator: "/").map(String.init)
+    // Empty segments are kept so "a//b" is rejected instead of silently read as "a/b".
+    let segments = path.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
     guard segments.count <= 2, segments.allSatisfy({ !$0.isEmpty }) else {
       throw OllamaRegistryError.badReference(raw)
     }

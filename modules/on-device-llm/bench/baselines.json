@@ -1,0 +1,4 @@
+{
+  "qwen3.5:0.8b-mlx": { "decodeTokPerSec": 347.7, "peakMemoryMB": 951, "meanKL": 0.0211, "top1": 0.947 },
+  "qwen3.5:2b-mlx": { "decodeTokPerSec": 189.3, "peakMemoryMB": 2063, "meanKL": 0.0137, "top1": 0.962 }
+}

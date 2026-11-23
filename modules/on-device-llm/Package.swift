@@ -1,18 +1,14 @@
 // swift-tools-version: 6.2
-// macOS benchmark host for the on-device engine: it compiles the module's own engine sources, so a measurement on the
-// Mac exercises the same code the app ships. Not part of the app build (CocoaPods only reads ios/).
+// macOS host for the on-device engine: a library built from the module's own engine sources, the benchmark that
+// measures it, and the unit tests that guard it. Not part of the app build (CocoaPods only reads ios/*.podspec).
 import PackageDescription
 
-let engineSources = [
-  "ios/AppMemory.swift",
-  "ios/BodyQuantizer.swift",
-  "ios/ForegroundGate.swift",
-  "ios/HeadQuantizer.swift",
-  "ios/LocalEngine.swift",
-  "ios/LocalModelStore.swift",
-  "ios/OllamaCatalog.swift",
-  "ios/OllamaRegistry.swift",
-  "ios/TokenizerBridge.swift",
+let mlx: [Target.Dependency] = [
+  .product(name: "MLX", package: "mlx-swift"),
+  .product(name: "MLXNN", package: "mlx-swift"),
+  .product(name: "MLXLLM", package: "mlx-swift-lm"),
+  .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
+  .product(name: "Tokenizers", package: "swift-transformers"),
 ]
 
 let package = Package(
@@ -24,18 +20,26 @@ let package = Package(
     .package(url: "https://github.com/huggingface/swift-transformers", exact: "1.4.0"),
   ],
   targets: [
+    .target(
+      name: "OnDeviceLLMCore",
+      dependencies: mlx,
+      path: "ios",
+      exclude: ["OnDeviceLLMModule.swift", "SpikeSelfTest.swift", "OnDeviceLLM.podspec"],
+      // The bench reaches the engine's internal API in Release too, so it measures the code the app ships.
+      swiftSettings: [.swiftLanguageMode(.v5), .unsafeFlags(["-enable-testing"])]
+    ),
     .executableTarget(
       name: "quock-llm-bench",
-      dependencies: [
-        .product(name: "MLX", package: "mlx-swift"),
-        .product(name: "MLXNN", package: "mlx-swift"),
-        .product(name: "MLXLLM", package: "mlx-swift-lm"),
-        .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
-        .product(name: "Tokenizers", package: "swift-transformers"),
-      ],
-      path: ".",
-      sources: engineSources + ["bench/main.swift"],
+      dependencies: ["OnDeviceLLMCore"] + mlx,
+      path: "bench",
+      exclude: ["baselines.json", "results.jsonl"],
       swiftSettings: [.swiftLanguageMode(.v5)]
-    )
+    ),
+    .testTarget(
+      name: "OnDeviceLLMTests",
+      dependencies: ["OnDeviceLLMCore"] + mlx,
+      path: "tests",
+      swiftSettings: [.swiftLanguageMode(.v5)]
+    ),
   ]
 )

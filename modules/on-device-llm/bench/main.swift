@@ -1,4 +1,5 @@
 import Foundation
+@testable import OnDeviceLLMCore
 import MLX
 import MLXLLM
 import MLXLMCommon
@@ -60,6 +61,134 @@ func timeIt(_ iterations: Int, _ body: () -> MLXArray) -> Double {
   return Date().timeIntervalSince(start) / Double(iterations)
 }
 
+
+struct SpeedResult {
+  let decodeMedian: Double
+  let decodeMin: Double
+  let decodeMax: Double
+  let prefillMedian: Double
+  let peakMemoryMB: Int
+  let samples: Int
+}
+
+func measureSpeed(_ ref: ModelReference, tokens: Int, runs: Int) async throws -> SpeedResult {
+  var decode: [Double] = []
+  var prefill: [Double] = []
+  var peak = 0
+  // One warm-up so Metal kernel compilation is not charged to the first measured prompt.
+  _ = try await LocalEngine.shared.generate(
+    ref, turns: [LocalTurn(role: "user", content: "Hi")], think: false, maxTokens: 8, temperatureOverride: 0
+  ) { _ in }
+  for _ in 0 ..< runs {
+    for prompt in benchPrompts {
+      let stats = try await LocalEngine.shared.generate(
+        ref, turns: [LocalTurn(role: "user", content: prompt)], think: false, maxTokens: tokens,
+        temperatureOverride: 0
+      ) { _ in }
+      if stats.generateSeconds > 0 { decode.append(Double(stats.generatedTokens) / stats.generateSeconds) }
+      if stats.promptSeconds > 0 { prefill.append(Double(stats.promptTokens) / stats.promptSeconds) }
+      peak = max(peak, stats.peakMemoryBytes)
+    }
+  }
+  return SpeedResult(
+    decodeMedian: median(decode), decodeMin: decode.min() ?? 0, decodeMax: decode.max() ?? 0,
+    prefillMedian: median(prefill), peakMemoryMB: peak >> 20, samples: decode.count)
+}
+
+struct QualityResult {
+  let meanKL: Double
+  let p99KL: Double
+  let maxKL: Double
+  let top1: Double
+  let positions: Int
+}
+
+func measureQuality(
+  reference ref: ModelReference, candidate: ModelReference, tokens: Int, temperature: Float, promptCount: Int
+) async throws -> QualityResult {
+  let reference = try await loadModelContainer(from: LocalModelStore.directory(for: ref), using: TransformersTokenizerLoader())
+  let other = try await loadModelContainer(from: LocalModelStore.directory(for: candidate), using: TransformersTokenizerLoader())
+  var kls: [Double] = []
+  var agree = 0
+  var positions = 0
+  for prompt in qualityPrompts.prefix(promptCount) {
+    // The reference writes its own greedy continuation; both models are then scored on that exact sequence.
+    let sequence: [Int] = try await reference.perform { context in
+      let input = try await context.processor.prepare(
+        input: UserInput(chat: [.user(prompt)], additionalContext: ["enable_thinking": false]))
+      var ids = input.text.tokens.flattened().asArray(Int.self)
+      let cache = try context.model.newCache(parameters: nil)
+      var logits = context.model(MLXArray(ids)[.newAxis], cache: cache)
+      for _ in 0 ..< tokens {
+        let next = argMax(logits[0, -1], axis: -1).item(Int.self)
+        ids.append(next)
+        logits = context.model(MLXArray([next])[.newAxis], cache: cache)
+      }
+      return ids
+    }
+    let promptLength = sequence.count - tokens
+    func logProbs(_ container: ModelContainer) async throws -> MLXArray {
+      try await container.perform { context in
+        let cache = try context.model.newCache(parameters: nil)
+        let logits = context.model(MLXArray(sequence)[.newAxis], cache: cache)[0, (promptLength - 1) ..< (sequence.count - 1)]
+          .asType(.float32) / temperature
+        let result = logits - logSumExp(logits, axis: -1, keepDims: true)
+        eval(result)
+        return result
+      }
+    }
+    let p = try await logProbs(reference)
+    let q = try await logProbs(other)
+    let kl = (exp(p) * (p - q)).sum(axis: -1)
+    let same = (argMax(p, axis: -1) .== argMax(q, axis: -1)).asType(.int32)
+    eval(kl, same)
+    kls.append(contentsOf: kl.asArray(Float.self).map(Double.init))
+    agree += Int(same.sum().item(Int32.self))
+    positions += tokens
+  }
+  return QualityResult(
+    meanKL: kls.reduce(0, +) / Double(max(kls.count, 1)), p99KL: percentile(kls, 0.99), maxKL: kls.max() ?? 0,
+    top1: Double(agree) / Double(max(positions, 1)), positions: positions)
+}
+
+struct FunctionalCheck {
+  let name: String
+  let prompt: String
+  let think: Bool
+  let expectAny: [String]
+}
+
+// Greedy answers a model of this family gets right today; a regression shows up as a missing keyword.
+let functionalChecks = [
+  FunctionalCheck(name: "fact-it", prompt: "Qual è la capitale dell'Australia? Rispondi con una sola parola.", think: false, expectAny: ["Canberra"]),
+  FunctionalCheck(name: "fact-en", prompt: "What is the chemical symbol for gold? Answer with the symbol only.", think: false, expectAny: ["Au"]),
+  FunctionalCheck(name: "translate", prompt: "Traduci in inglese: 'Il gatto dorme sul divano.'", think: false, expectAny: ["cat"]),
+  FunctionalCheck(name: "arithmetic-think", prompt: "Quanto fa 17 * 23? Rispondi solo con il numero.", think: true, expectAny: ["391"]),
+  FunctionalCheck(name: "count", prompt: "Elenca i numeri da 1 a 5 separati da virgole.", think: false, expectAny: ["1, 2, 3, 4, 5", "1,2,3,4,5"]),
+]
+
+func runFunctional(_ ref: ModelReference) async throws -> [String: Bool] {
+  var outcome: [String: Bool] = [:]
+  for check in functionalChecks {
+    let answer = Collector()
+    let reasoning = Collector()
+    let stats = try await LocalEngine.shared.generate(
+      ref, turns: [LocalTurn(role: "user", content: check.prompt)], think: check.think, maxTokens: 1024,
+      temperatureOverride: 0
+    ) { event in
+      switch event {
+      case .content(let text): answer.append(text)
+      case .thinking(let text): reasoning.append(text)
+      }
+    }
+    let passed = check.expectAny.contains { answer.value.contains($0) }
+      && (!check.think || !reasoning.value.isEmpty) && stats.generatedTokens <= 1024
+    outcome[check.name] = passed
+    if !passed { emit("FUNCTIONAL FAIL \(check.name): \(answer.value.prefix(200))") }
+  }
+  return outcome
+}
+
 func emit(_ line: String) { FileHandle.standardOutput.write(Data((line + "\n").utf8)) }
 
 func median(_ values: [Double]) -> Double {
@@ -96,29 +225,11 @@ func run() async throws {
   case "speed":
     let tokens = args.first.flatMap(Int.init) ?? 256
     let runs = args.dropFirst().first.flatMap(Int.init) ?? 3
-    var decode: [Double] = []
-    var prefill: [Double] = []
-    var peak = 0
-    // One warm-up so Metal kernel compilation is not charged to the first measured prompt.
-    _ = try await LocalEngine.shared.generate(
-      ref, turns: [LocalTurn(role: "user", content: "Hi")], think: false, maxTokens: 8, temperatureOverride: 0
-    ) { _ in }
-    for _ in 0 ..< runs {
-      for prompt in benchPrompts {
-        let stats = try await LocalEngine.shared.generate(
-          ref, turns: [LocalTurn(role: "user", content: prompt)], think: false, maxTokens: tokens,
-          temperatureOverride: 0
-        ) { _ in }
-        if stats.generateSeconds > 0 { decode.append(Double(stats.generatedTokens) / stats.generateSeconds) }
-        if stats.promptSeconds > 0 { prefill.append(Double(stats.promptTokens) / stats.promptSeconds) }
-        peak = max(peak, stats.peakMemoryBytes)
-      }
-    }
+    let speed = try await measureSpeed(ref, tokens: tokens, runs: runs)
     let result: [String: Any] = [
-      "model": ref.display, "samples": decode.count,
-      "decodeTokPerSecMedian": median(decode), "decodeTokPerSecMin": decode.min() ?? 0,
-      "decodeTokPerSecMax": decode.max() ?? 0, "prefillTokPerSecMedian": median(prefill),
-      "peakMemoryMB": peak >> 20,
+      "model": ref.display, "samples": speed.samples, "decodeTokPerSecMedian": speed.decodeMedian,
+      "decodeTokPerSecMin": speed.decodeMin, "decodeTokPerSecMax": speed.decodeMax,
+      "prefillTokPerSecMedian": speed.prefillMedian, "peakMemoryMB": speed.peakMemoryMB,
     ]
     let json = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
     emit("RESULT " + String(decoding: json, as: UTF8.self))
@@ -213,54 +324,65 @@ func run() async throws {
     let tokens = args.dropFirst().first.flatMap(Int.init) ?? 128
     let temperature = args.dropFirst(2).first.flatMap(Float.init) ?? 0.7
     let promptCount = args.dropFirst(3).first.flatMap(Int.init) ?? qualityPrompts.count
-    let reference = try await loadModelContainer(from: LocalModelStore.directory(for: ref), using: TransformersTokenizerLoader())
-    let other = try await loadModelContainer(from: LocalModelStore.directory(for: candidate), using: TransformersTokenizerLoader())
-    var kls: [Double] = []
-    var agree = 0
-    var positions = 0
-    for prompt in qualityPrompts.prefix(promptCount) {
-      // The reference writes its own greedy continuation; both models are then scored on that exact sequence.
-      let sequence: [Int] = try await reference.perform { context in
-        let input = try await context.processor.prepare(
-          input: UserInput(chat: [.user(prompt)], additionalContext: ["enable_thinking": false]))
-        var ids = input.text.tokens.flattened().asArray(Int.self)
-        let cache = try context.model.newCache(parameters: nil)
-        var logits = context.model(MLXArray(ids)[.newAxis], cache: cache)
-        for _ in 0 ..< tokens {
-          let next = argMax(logits[0, -1], axis: -1).item(Int.self)
-          ids.append(next)
-          logits = context.model(MLXArray([next])[.newAxis], cache: cache)
-        }
-        return ids
-      }
-      let promptLength = sequence.count - tokens
-      func logProbs(_ container: ModelContainer) async throws -> MLXArray {
-        try await container.perform { context in
-          let cache = try context.model.newCache(parameters: nil)
-          let logits = context.model(MLXArray(sequence)[.newAxis], cache: cache)[0, (promptLength - 1) ..< (sequence.count - 1)]
-            .asType(.float32) / temperature
-          let result = logits - logSumExp(logits, axis: -1, keepDims: true)
-          eval(result)
-          return result
-        }
-      }
-      let p = try await logProbs(reference)
-      let q = try await logProbs(other)
-      let kl = (exp(p) * (p - q)).sum(axis: -1)
-      let same = (argMax(p, axis: -1) .== argMax(q, axis: -1)).asType(.int32)
-      eval(kl, same)
-      kls.append(contentsOf: kl.asArray(Float.self).map(Double.init))
-      agree += Int(same.sum().item(Int32.self))
-      positions += tokens
-    }
-    let mean = kls.reduce(0, +) / Double(max(kls.count, 1))
+    let quality = try await measureQuality(
+      reference: ref, candidate: candidate, tokens: tokens, temperature: temperature, promptCount: promptCount)
     let result: [String: Any] = [
       "reference": ref.display, "candidate": candidate.display, "temperature": temperature,
-      "positions": positions, "meanKL": mean, "p99KL": percentile(kls, 0.99), "maxKL": kls.max() ?? 0,
-      "top1Agreement": Double(agree) / Double(max(positions, 1)),
+      "positions": quality.positions, "meanKL": quality.meanKL, "p99KL": quality.p99KL, "maxKL": quality.maxKL,
+      "top1Agreement": quality.top1,
     ]
     let json = try JSONSerialization.data(withJSONObject: result, options: [.sortedKeys])
     emit("QUALITY " + String(decoding: json, as: UTF8.self))
+
+  case "suite":
+    // suite <model> [reference]: functional answers, speed vs the stored baseline, quality vs the reference.
+    // Appends one line to bench/results.jsonl and exits non-zero on any regression.
+    let baselinesURL = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
+    let benchDirectory = URL(fileURLWithPath: ProcessInfo.processInfo.environment["QUOCK_BENCH_DIR"] ?? baselinesURL.path)
+    let baselines = (try? JSONSerialization.jsonObject(with: Data(contentsOf: benchDirectory.appending(path: "baselines.json")))
+      as? [String: [String: Double]]) ?? [:]
+    let baseline = baselines[ref.display] ?? [:]
+    var failures: [String] = []
+    let functional = try await runFunctional(ref)
+    for (name, passed) in functional where !passed { failures.append("functional:\(name)") }
+    let speed = try await measureSpeed(ref, tokens: 128, runs: 2)
+    if let minimum = baseline["decodeTokPerSec"], speed.decodeMedian < minimum * 0.95 {
+      failures.append(String(format: "speed %.0f < 95%% of %.0f", speed.decodeMedian, minimum))
+    }
+    if let maximum = baseline["peakMemoryMB"], Double(speed.peakMemoryMB) > maximum * 1.05 {
+      failures.append("memory \(speed.peakMemoryMB) MB > 105% of \(Int(maximum))")
+    }
+    var record: [String: Any] = [
+      "date": ISO8601DateFormatter().string(from: Date()),
+      "commit": ProcessInfo.processInfo.environment["QUOCK_COMMIT"] ?? "unknown",
+      "model": ref.display, "functional": functional, "decodeTokPerSec": speed.decodeMedian,
+      "prefillTokPerSec": speed.prefillMedian, "peakMemoryMB": speed.peakMemoryMB,
+    ]
+    if let referenceName = args.first {
+      let quality = try await measureQuality(
+        reference: try ModelReference(referenceName), candidate: ref, tokens: 128, temperature: 0.7, promptCount: 12)
+      record["reference"] = referenceName
+      record["meanKL"] = quality.meanKL
+      record["p99KL"] = quality.p99KL
+      record["top1"] = quality.top1
+      if let maximum = baseline["meanKL"], quality.meanKL > maximum * 1.25 + 0.0005 {
+        failures.append(String(format: "meanKL %.4f > baseline %.4f", quality.meanKL, maximum))
+      }
+      if let minimum = baseline["top1"], quality.top1 < minimum - 0.01 {
+        failures.append(String(format: "top1 %.3f < baseline %.3f", quality.top1, minimum))
+      }
+    }
+    record["failures"] = failures
+    record["passed"] = failures.isEmpty
+    let line = try JSONSerialization.data(withJSONObject: record, options: [.sortedKeys])
+    let results = benchDirectory.appending(path: "results.jsonl")
+    if !FileManager.default.fileExists(atPath: results.path) { FileManager.default.createFile(atPath: results.path, contents: nil) }
+    let handle = try FileHandle(forWritingTo: results)
+    try handle.seekToEnd()
+    try handle.write(contentsOf: line + Data("\n".utf8))
+    try handle.close()
+    emit("SUITE " + String(decoding: line, as: UTF8.self))
+    if !failures.isEmpty { exit(1) }
 
   default:
     emit("unknown command \(command)")
