@@ -16,6 +16,9 @@ export interface OnDeviceStats {
   loadSeconds: number;
   peakMemoryBytes: number;
   events: number;
+  // "complete", or why the reply was cut short to keep the app alive: it left the foreground (iOS forbids GPU work in
+  // the background) or free memory ran low.
+  stopReason: "complete" | "inactive" | "lowMemory";
 }
 
 export interface OnDeviceTurn {

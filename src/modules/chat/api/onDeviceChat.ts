@@ -49,6 +49,7 @@ export async function* sendOnDeviceChatMessage(
   const queue: ChatEventUnion[] = [];
   let received = 0;
   let expected: number | null = null;
+  let isCutShort = false;
   let failure: unknown = null;
   let wake: (() => void) | null = null;
   const notify = (): void => {
@@ -77,11 +78,14 @@ export async function* sendOnDeviceChatMessage(
     requestId,
     opts.model,
     toOnDeviceTurns(opts.messages),
-    opts.think,
+    // Off unless the user turned thinking on: a phone-sized model left to its template default reasoned for 1,500
+    // tokens (35 s on an iPhone 16 Pro Max) over 17 × 23 without reaching an answer.
+    opts.think === true,
     ON_DEVICE_MAX_TOKENS,
   ).then(
     (stats) => {
       expected = stats.events;
+      isCutShort = stats.stopReason !== "complete";
       notify();
     },
     (err: unknown) => {
@@ -108,7 +112,9 @@ export async function* sendOnDeviceChatMessage(
         wake = resolve;
       });
     }
-    if (opts.signal?.aborted) throw abortError();
+    // A reply stopped because the app left the foreground or memory ran low keeps what it wrote and ends interrupted,
+    // so it can be continued, exactly like one the user stopped.
+    if (opts.signal?.aborted || isCutShort) throw abortError();
   } finally {
     opts.signal?.removeEventListener("abort", onAbort);
     subscription.remove();
