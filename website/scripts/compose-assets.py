@@ -1,12 +1,5 @@
-"""Build the site's image assets from the repo's own screenshots, frame, icon and logo.
-
-Run from website/:  pnpm assets   (Python 3 + Pillow; the share card uses Apple's SF Pro fonts)
-Outputs are committed, so a deploy never needs Python. Re-run after the screenshots change.
-
-The header avatar orb in the app shows the signed-in user's ollama.com profile picture,
-which by default is Ollama's mascot. AGENTS.md non-negotiable #1 keeps that mascot off
-every Quock surface, so the avatar is replaced with a neutral glyph before export.
-"""
+"""Builds the site's committed images (device shots, icons, share card) from the repo's own captures.
+Run `pnpm assets` from website/; the ollama.com avatar is masked because it defaults to Ollama's mascot."""
 
 import sys
 from pathlib import Path

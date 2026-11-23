@@ -22,7 +22,7 @@ export const PRINCIPLES: readonly Principle[] = [
   {
     icon: GlobeIcon,
     title: "Messages go straight to Ollama Cloud.",
-    body: "Each message travels with the earlier turns of that chat, directly to Ollama Cloud over HTTPS. Ollama, Inc. handles it under its own privacy policy.",
+    body: "Each message travels with the earlier turns of that chat and, while memory is on, the facts Quock remembers about you, directly to Ollama Cloud over HTTPS. Ollama, Inc. handles it under its own privacy policy.",
   },
   {
     icon: KeyIcon,

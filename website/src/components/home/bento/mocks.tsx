@@ -77,7 +77,7 @@ export function MemoryMock(): ReactNode {
           className="bg-surface text-foreground shadow-card flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-semibold"
           style={{ marginLeft: `${index * 12}px` }}
         >
-          <SparkIcon className="text-accent size-4" />
+          <SparkIcon className="text-faint-foreground size-4" />
           {fact}
         </li>
       ))}
@@ -85,13 +85,13 @@ export function MemoryMock(): ReactNode {
   );
 }
 
-// The recipient table of docs/PRIVACY.md section 4, drawn as a small system window.
+// The phone itself, then the three recipients of docs/PRIVACY.md section 4, drawn as a small system window.
 export function DataFlowMock(): ReactNode {
   const rows = [
     { where: "Your iPhone", what: "Chats, memory, settings", when: "Always" },
     { where: "Ollama Cloud", what: "The chat you send, with memory while it is on", when: "On send" },
+    { where: "Apple", what: "The telemetry iOS collects for every app", when: "Per your settings" },
     { where: "Quock's author", what: "Nothing", when: "Never" },
-    { where: "Analytics", what: "None", when: "Never" },
   ];
   return (
     <div className="bg-surface text-foreground shadow-card mx-6 mt-6 w-full overflow-hidden rounded-t-xl sm:mx-7">
@@ -111,7 +111,7 @@ export function DataFlowMock(): ReactNode {
         </thead>
         <tbody>
           {rows.map((row, index) => (
-            <tr key={row.where} className={cn(index % 2 === 1 && "bg-foreground/[0.025]", index > 1 && "text-faint-foreground")}>
+            <tr key={row.where} className={cn(index % 2 === 1 && "bg-foreground/[0.025]", index > 2 && "text-faint-foreground")}>
               <td className="px-4 py-2 font-semibold">{row.where}</td>
               <td className="px-4 py-2">{row.what}</td>
               <td className="hidden px-4 py-2 sm:table-cell">{row.when}</td>
@@ -172,7 +172,7 @@ export function MenuMock(): ReactNode {
         </ul>
         <ul className="text-faint-foreground mt-4 flex gap-3 border-t pt-3">
           {replyActions.map(({ label, icon: Icon }) => (
-            <li key={label} className={cn(label.startsWith("Fork") && "text-accent")}>
+            <li key={label}>
               <Icon className="size-4" />
             </li>
           ))}

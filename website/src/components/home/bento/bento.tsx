@@ -21,7 +21,7 @@ interface CellProps {
 function Cell({ lead, body, className, children }: CellProps): ReactNode {
   return (
     <div className={cn("reveal bg-panel rounded-tile relative flex flex-col overflow-hidden", className)}>
-      <p className="relative z-10 p-6 pb-0 text-[17px] leading-snug font-bold text-pretty sm:p-7 sm:pb-0">
+      <p className="relative z-10 p-6 pb-0 text-body leading-snug font-bold text-pretty sm:p-7 sm:pb-0">
         {lead} <span className="text-muted-foreground">{body}</span>
       </p>
       <div aria-hidden="true" className="relative flex flex-1 items-end">
@@ -70,7 +70,7 @@ export function Bento(): ReactNode {
       <Heading id="bento-title" className="reveal text-center">
         {TITLE}
       </Heading>
-      <div className="mx-auto mt-14 grid max-w-[61rem] gap-3 sm:grid-cols-2">
+      <div className="mx-auto mt-14 grid max-w-content gap-3 sm:grid-cols-2">
         {CELLS.map((cell) => (
           <Cell key={cell.lead} lead={cell.lead} body={cell.body} className={"isWide" in cell ? "sm:col-span-2" : undefined}>
             {cell.mock}

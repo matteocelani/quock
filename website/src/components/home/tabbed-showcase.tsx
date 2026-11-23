@@ -4,16 +4,15 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import { Heading, Lead } from "@/components/ui/heading";
 import { ThinkIcon } from "@/components/ui/icons";
 import { ScreenStack } from "@/components/home/screen-stack";
-import { handleTabKeys } from "@/components/home/tab-keys";
+import { handleRovingKeys } from "@/components/home/roving-keys";
 import { Caption, Eyebrow } from "@/components/home/typography";
 import type { Showcase } from "@/modules/home/content";
 import { cn } from "@/lib/utils";
 
 const TAB_DURATION_MS = 6000;
 
-// The tabs play by themselves, driven by a CSS animation: when a bar ends the next tab starts, so
-// reduced motion means no autoplay. Hover or focus pauses it, and any tap, click or key stops it for
-// good, which also covers touch browsers that never focus a tapped button (WCAG 2.2.2).
+// Autoplay rides a CSS animation, so reduced motion turns it off; hovering or focusing the section pauses
+// it, and any tap, click or key stops it for good, which covers touch browsers too (WCAG 2.2.2).
 export function TabbedShowcase({ id, eyebrow, title, lead, tabs, wallpaper, footnote }: Showcase): ReactNode {
   const [active, setActive] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
@@ -30,7 +29,15 @@ export function TabbedShowcase({ id, eyebrow, title, lead, tabs, wallpaper, foot
   };
 
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className="scroll-mt-28 px-5 pt-32 sm:px-8 sm:pt-44">
+    <section
+      id={id}
+      aria-labelledby={`${id}-title`}
+      className="scroll-mt-28 px-5 pt-32 sm:px-8 sm:pt-44"
+      onPointerEnter={(event) => event.pointerType === "mouse" && setIsHovered(true)}
+      onPointerLeave={(event) => event.pointerType === "mouse" && setIsHovered(false)}
+      onFocus={() => setIsFocused(true)}
+      onBlur={(event) => !event.currentTarget.contains(event.relatedTarget) && setIsFocused(false)}
+    >
       <div className="reveal mx-auto max-w-3xl text-center">
         <Eyebrow>{eyebrow}</Eyebrow>
         <Heading id={`${id}-title`} className="mt-2">
@@ -41,7 +48,7 @@ export function TabbedShowcase({ id, eyebrow, title, lead, tabs, wallpaper, foot
 
       <div
         className={cn(
-          "reveal rounded-stage relative isolate mx-auto mt-14 h-[28rem] max-w-[61rem] overflow-hidden sm:h-[34rem]",
+          "reveal rounded-stage relative isolate mx-auto mt-14 h-[28rem] max-w-content overflow-hidden sm:h-[34rem]",
           wallpaper === "dusk" && "wallpaper-dusk",
         )}
       >
@@ -69,11 +76,7 @@ export function TabbedShowcase({ id, eyebrow, title, lead, tabs, wallpaper, foot
       <div
         role="tablist"
         aria-label={eyebrow}
-        className="mx-auto mt-8 grid max-w-[61rem] gap-6 sm:grid-cols-3 sm:gap-8"
-        onPointerEnter={(event) => event.pointerType === "mouse" && setIsHovered(true)}
-        onPointerLeave={(event) => event.pointerType === "mouse" && setIsHovered(false)}
-        onFocus={() => setIsFocused(true)}
-        onBlur={(event) => !event.currentTarget.contains(event.relatedTarget) && setIsFocused(false)}
+        className="mx-auto mt-8 grid max-w-content gap-6 sm:grid-cols-3 sm:gap-8"
       >
         {tabs.map((tab, index) => {
           const isActive = index === active;
@@ -87,7 +90,7 @@ export function TabbedShowcase({ id, eyebrow, title, lead, tabs, wallpaper, foot
               aria-controls={panelId}
               tabIndex={isActive ? 0 : -1}
               onClick={() => choose(index)}
-              onKeyDown={(event) => handleTabKeys(event, index, tabs.length, choose)}
+              onKeyDown={(event) => handleRovingKeys(event, index, tabs.length, choose)}
               className="group text-left"
             >
               <span

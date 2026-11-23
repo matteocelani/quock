@@ -32,12 +32,12 @@ src/modules/<feature>/   Content and schema for one feature, with no UI:
                          schema.ts the JSON-LD; home/screens.ts the captures and model names.
                          The newest changelog entry is the live version: nothing else repeats it.
 src/components/ui/       Primitives with no site knowledge: button, text-link, heading (Heading, Marker, Lead),
-                         accordion, icons.
+                         accordion, step-badge, icons.
 src/components/layout/   Page frame: site-shell, site-header, site-footer, page-intro.
 src/components/global/   App-wide pieces: logo, download buttons, json-ld.
 src/components/home/     One file per home section; a section with parts gets a folder (hero/, bento/).
-                         Pieces only home uses live here too (screen-stack, tab-keys, typography).
-src/components/faq/      Pieces only the FAQ page uses (privacy-tag).
+                         Pieces only home uses live here too (screen-stack, roving-keys, typography).
+src/components/<page>/   UI for one inner page, so its route stays thin: changelog/, guide/, privacy/, faq/.
 src/lib/                 Shared by 2+ features: site.ts (facts, URLs, PATHS, PAGE_LABELS, theme colours),
                          metadata.ts (title template, social metadata, share image, breadcrumbs, WebSite
                          schema), utils.ts.
@@ -53,18 +53,18 @@ Placement rules, the same as the app:
   - Design tokens live in `globals.css` and are used through semantic classes. Never a hex at the use site.
   - Facts, URLs, paths and page labels live in `site.ts`.
   - Copy that feeds more than one surface (a page and its JSON-LD, llms.txt, another page) lives in its module.
-  - Copy that only one component shows is a constant at the top of that file, the same placement rule as everything else.
+  - Copy that only one component shows stays in that component's file, the same placement rule as everything else.
 - **Files stay under about 300 lines.** Split only on a clean seam.
 
 ## Everyday updates
 
 | Task | Touch only |
 | --- | --- |
-| New app release | A new entry at the top of `src/modules/changelog/content.ts`: it becomes the version everywhere and the changelog's "Updated" date. Update `sizeMb` in `src/lib/site.ts` if the store size changed. |
+| New app release | A new entry at the top of `RELEASES` in `src/modules/changelog/content.ts`: it becomes the version everywhere and the changelog's "Updated" date, and a new minor line appears on its own (add a sentence to `LINE_SUMMARIES` if you want one). Update `sizeMb` in `src/lib/site.ts` if the store size changed. |
 | New or changed question | `src/modules/faq/content.ts`. The page, the FAQPage JSON-LD and llms.txt follow on their own. |
 | New screenshots | Replace `docs/screenshots/*.png`, then run `pnpm assets` |
 | New home section | One file in `components/home/`, built from a pattern in `design.md`, added to `(home)/page.tsx` |
-| New inner page | A path in `PATHS` and a label in `PAGE_LABELS` (llms.txt lists it on its own), `modules/<slug>/content.ts` for the copy, a thin `app/(pages)/<slug>/page.tsx` with `pageMetadata()` and `PageIntro`, a row in `sitemap.ts` and a footer link |
+| New inner page | A path in `PATHS` and a label in `PAGE_LABELS` (llms.txt lists it on its own), `modules/<slug>/content.ts` for the copy, its UI in `components/<slug>/`, a thin `app/(pages)/<slug>/page.tsx` with `pageMetadata()` and `PageIntro`, a row in `sitemap.ts` and a footer link |
 
 ## Commands (run inside `website/`)
 

@@ -5,24 +5,13 @@ interface Release {
   changes: readonly string[];
 }
 
-interface MinorLine {
-  minor: string;
-  summary: string;
-}
-
-// One sentence per minor line; the page groups each line's patches under it.
-const MINOR_LINES: readonly MinorLine[] = [
-  {
-    minor: "0.2",
-    summary:
-      "An iOS 27 design system, PDF reading with on-device OCR, excerpt actions, and answers that survive the background, with memory, pins and forks.",
-  },
-  {
-    minor: "0.1",
-    summary:
-      "The first line: sign in with ollama.com, chat with every cloud model, select and copy replies, and keep every chat on your phone.",
-  },
-];
+// One sentence per minor line. A new minor shows up on its own; its summary is optional.
+const LINE_SUMMARIES: Readonly<Record<string, string>> = {
+  "0.2":
+    "An iOS 27 design system, PDF reading with on-device OCR, excerpt actions, and answers that survive the background, with memory, pins and forks.",
+  "0.1":
+    "The first line: sign in with ollama.com, chat with every cloud model, select and copy replies, and keep every chat on your phone.",
+};
 
 // Written for people, from the GitHub release notes and the release branch history.
 const RELEASES: readonly Release[] = [
@@ -95,10 +84,13 @@ const RELEASES: readonly Release[] = [
 export const LATEST_RELEASE = RELEASES[0];
 export const CHANGELOG_UPDATED = LATEST_RELEASE.date;
 
-// Each minor line with its patches, newest first, ready for the page to render.
-export const RELEASE_LINES = MINOR_LINES.map((line) => ({
-  ...line,
-  releases: RELEASES.filter((release) => release.version.startsWith(`${line.minor}.`)),
+const minorOf = (version: string): string => version.split(".").slice(0, 2).join(".");
+
+// Releases grouped by minor line, newest first, derived from RELEASES so no release can go missing.
+export const RELEASE_LINES = [...new Set(RELEASES.map((release) => minorOf(release.version)))].map((minor) => ({
+  minor,
+  summary: LINE_SUMMARIES[minor] as string | undefined,
+  releases: RELEASES.filter((release) => minorOf(release.version) === minor),
 }));
 
 export const CHANGELOG_FOOTNOTE = {
