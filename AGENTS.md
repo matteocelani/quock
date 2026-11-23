@@ -90,6 +90,7 @@ src/
   modules/<feature>/      Feature business logic: hooks/, stores/, api/, lib/, context/, types.ts, constants.ts.
   components/             UI only — ui/ (primitives), <feature>/ (feature UI), layout/, global/.
   lib/                    Infra shared by 2+ modules: api/, db/, design/, contexts/, theme/, stores/, hooks/, constants/, types/.
+website/                  The marketing site: a separate static Next.js project with its own lockfile and rules (website/AGENTS.md).
 ```
 
 Features today: `chat`, `auth`, `models`, `settings`.
