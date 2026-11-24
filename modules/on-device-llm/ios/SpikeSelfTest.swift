@@ -31,7 +31,7 @@ enum SpikeSelfTest {
           log("pull \(completed >> 20)/\(total >> 20) MB")
         }
       }
-      log("installed on disk \(installed.bytes >> 20) MB resident \((installed.residentBytes ?? installed.bytes) >> 20) MB in \(String(format: "%.1f", Date().timeIntervalSince(pullStart)))s available=\(AppMemory.available >> 20)MB footprint=\(AppMemory.footprint >> 20)MB")
+      log("installed on disk \(installed.bytes >> 20) MB resident \((installed.residentBytes ?? installed.bytes) >> 20) MB in \(String(format: "%.1f", Date().timeIntervalSince(pullStart)))s available=\(AppMemory.available >> 20)MB footprint=\(AppMemory.footprint >> 20)MB mlxActive=\(Memory.activeMemory >> 20)MB mlxCache=\(Memory.cacheMemory >> 20)MB")
 
       // Launched from the Mac, the app may still be inactive; generation refuses until it is in the foreground.
       for _ in 0 ..< 120 where !ForegroundGate.shared.isActive {
