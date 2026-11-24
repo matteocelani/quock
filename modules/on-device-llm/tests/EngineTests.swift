@@ -432,3 +432,25 @@ extension InstallOptimizerTests {
     XCTAssertEqual(InstallOptimizer.estimatedBytes(of: layers, isFullPrecision: false), 1000)
   }
 }
+
+final class PullProgressTests: XCTestCase {
+  private final class Reports: @unchecked Sendable {
+    var values: [Int64] = []
+  }
+
+  func testProgressIsByteLevelMonotonicAndCompletesExactly() {
+    let reports = Reports()
+    let big = OllamaLayer(mediaType: "application/vnd.ollama.image.tensor", digest: "sha256:big", size: 1000, name: nil)
+    let small = OllamaLayer(mediaType: "application/vnd.ollama.image.tensor", digest: "sha256:small", size: 10, name: nil)
+    let progress = PullProgress(total: 1010) { completed, _ in reports.values.append(completed) }
+    progress.received(400, of: big)
+    // A lost connection restarts the file from zero: nothing new counts until it passes 400 again.
+    progress.received(100, of: big)
+    progress.finished(small)
+    progress.received(1500, of: big)
+    progress.finished(big)
+    XCTAssertEqual(reports.values.first, 400)
+    XCTAssertEqual(reports.values.last, 1010)
+    XCTAssertEqual(reports.values, reports.values.sorted())
+  }
+}

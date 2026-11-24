@@ -82,7 +82,7 @@ enum LocalModelStore {
     try? excluded.setResourceValues(values)
 
     let total = layers.reduce(Int64(0)) { $0 + $1.size }
-    let counter = ByteCounter()
+    let counter = PullProgress(total: total, report: progress)
     progress(0, total)
 
     var jobs: [(OllamaLayer, URL)] = []
@@ -102,7 +102,7 @@ enum LocalModelStore {
       let destination = directory.appending(path: filename)
       let done = directory.appending(path: ".\(filename).\(layer.digest.suffix(12))")
       if FileManager.default.fileExists(atPath: done.path) {
-        progress(await counter.add(layer.size), total)
+        counter.finished(layer)
       } else {
         jobs.append((layer, destination))
       }
@@ -119,16 +119,16 @@ enum LocalModelStore {
       func enqueue() {
         guard let (layer, destination) = iterator.next() else { return }
         group.addTask {
-          try await downloadWithRetry(layer, of: ref, to: destination)
+          try await downloadWithRetry(layer, of: ref, to: destination) { counter.received($0, of: layer) }
           let done = destination.deletingLastPathComponent()
             .appending(path: ".\(destination.lastPathComponent).\(layer.digest.suffix(12))")
           FileManager.default.createFile(atPath: done.path, contents: nil)
+          counter.finished(layer)
           return layer.size
         }
       }
       for _ in 0 ..< concurrentDownloads { enqueue() }
-      while let size = try await group.next() {
-        progress(await counter.add(size), total)
+      while try await group.next() != nil {
         enqueue()
       }
     }
@@ -159,14 +159,16 @@ enum LocalModelStore {
   }
 
   private static func downloadWithRetry(
-    _ layer: OllamaLayer, of ref: ModelReference, to destination: URL
+    _ layer: OllamaLayer, of ref: ModelReference, to destination: URL,
+    onWritten: @escaping @Sendable (Int64) -> Void
   ) async throws {
     var attempt = 0
     var resumeData: Data?
     while true {
       try Task.checkCancellation()
       do {
-        _ = try await OllamaRegistry.download(layer, of: ref, to: destination, resumeData: resumeData)
+        _ = try await OllamaRegistry.download(
+          layer, of: ref, to: destination, resumeData: resumeData, onWritten: onWritten)
         return
       } catch {
         attempt += 1
@@ -285,11 +287,44 @@ enum LocalModelStoreError: LocalizedError {
   }
 }
 
-private actor ByteCounter {
-  private var value: Int64 = 0
+// Bytes received across the concurrent downloads, reported as they arrive rather than per finished file: Gemma 4
+// carries one 4.5 GB file, which would otherwise hold the bar still for minutes. A file restarted from zero after a
+// lost connection counts nothing new until it passes where it had got to, so the total never runs backwards.
+final class PullProgress: @unchecked Sendable {
+  private let lock = NSLock()
+  private let total: Int64
+  private let report: @Sendable (Int64, Int64) -> Void
+  private var perLayer: [String: Int64] = [:]
+  private var completed: Int64 = 0
+  private var lastReport = Date.distantPast
+  // The UI needs a few updates a second, not one per network buffer.
+  private static let interval: TimeInterval = 0.2
 
-  func add(_ bytes: Int64) -> Int64 {
-    value += bytes
-    return value
+  init(total: Int64, report: @escaping @Sendable (Int64, Int64) -> Void) {
+    self.total = total
+    self.report = report
+  }
+
+  func received(_ written: Int64, of layer: OllamaLayer) {
+    update(layer, to: min(written, layer.size), force: false)
+  }
+
+  func finished(_ layer: OllamaLayer) {
+    update(layer, to: layer.size, force: true)
+  }
+
+  private func update(_ layer: OllamaLayer, to bytes: Int64, force: Bool) {
+    lock.lock()
+    let previous = perLayer[layer.digest] ?? 0
+    if bytes > previous {
+      perLayer[layer.digest] = bytes
+      completed += bytes - previous
+    }
+    let now = Date()
+    let due = force || now.timeIntervalSince(lastReport) >= Self.interval
+    if due { lastReport = now }
+    let value = completed
+    lock.unlock()
+    if due { report(value, total) }
   }
 }

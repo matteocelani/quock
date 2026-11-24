@@ -228,7 +228,9 @@ func run() async throws {
     let start = Date()
     let installed = try await LocalModelStore.pull(ref) { completed, total in
       let decile = total > 0 ? Int(completed * 10 / total) : 0
-      if decile != lastDecile {
+      if ProcessInfo.processInfo.environment["QUOCK_BENCH_PROGRESS_ALL"] != nil {
+        emit("progress \(completed) / \(total)")
+      } else if decile != lastDecile {
         lastDecile = decile
         emit("pull \(completed >> 20)/\(total >> 20) MB")
       }

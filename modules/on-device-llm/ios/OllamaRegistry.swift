@@ -149,14 +149,16 @@ enum OllamaRegistry {
   // was written (a rewritten tensor no longer matches the registry digest, so it gets its own). The registry answers
   // with a redirect to a signed CDN URL, which URLSession follows; `resumeData` continues an interrupted transfer.
   static func download(
-    _ layer: OllamaLayer, of ref: ModelReference, to destination: URL, resumeData: Data? = nil
+    _ layer: OllamaLayer, of ref: ModelReference, to destination: URL, resumeData: Data? = nil,
+    onWritten: (@Sendable (Int64) -> Void)? = nil
   ) async throws -> String {
     let url = host.appending(path: "v2/\(ref.namespace)/\(ref.name)/blobs/\(layer.digest)")
+    let delegate = onWritten.map(DownloadProgressDelegate.init)
     let (temporary, response) =
       if let resumeData {
-        try await URLSession.shared.download(resumeFrom: resumeData)
+        try await URLSession.shared.download(resumeFrom: resumeData, delegate: delegate)
       } else {
-        try await URLSession.shared.download(from: url)
+        try await URLSession.shared.download(from: url, delegate: delegate)
       }
     defer { try? FileManager.default.removeItem(at: temporary) }
     let status = (response as? HTTPURLResponse)?.statusCode ?? 0
@@ -276,5 +278,26 @@ enum OllamaRegistry {
       result[module] = entry
     }
     return result
+  }
+}
+
+// Reports the bytes a download has received so far. The async download API never calls the download delegate's
+// didWriteData, so the task itself is observed from the moment the session creates it.
+private final class DownloadProgressDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+  private let onWritten: @Sendable (Int64) -> Void
+  private var observation: NSKeyValueObservation?
+
+  init(_ onWritten: @escaping @Sendable (Int64) -> Void) {
+    self.onWritten = onWritten
+  }
+
+  func urlSession(_ session: URLSession, didCreateTask task: URLSessionTask) {
+    observation = task.observe(\.countOfBytesReceived, options: [.new]) { [onWritten] task, _ in
+      onWritten(task.countOfBytesReceived)
+    }
+  }
+
+  deinit {
+    observation?.invalidate()
   }
 }
