@@ -8,6 +8,9 @@ interface FaqItem {
 
 export const FAQ_UPDATED = "2026-11-23";
 
+export const FAQ_DESCRIPTION =
+  "Answers about Quock, the independent iPhone app for Ollama Cloud: what you need, which models work, where chats are stored, and how sign-in works.";
+
 // Plain text on purpose: the same strings feed the page, the FAQPage JSON-LD and llms.txt.
 export const FAQ: readonly FaqItem[] = [
   {

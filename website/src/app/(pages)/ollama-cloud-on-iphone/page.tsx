@@ -5,15 +5,22 @@ import { DownloadButton } from "@/components/global/download-button";
 import { JsonLd } from "@/components/global/json-ld";
 import { GuideSteps, GuideTips } from "@/components/guide/guide-lists";
 import { PageColumn, PageIntro } from "@/components/layout/page-intro";
-import { GUIDE_CHATS, GUIDE_HEADLINE, GUIDE_INTRO, GUIDE_TIPS_TITLE, GUIDE_TITLE, GUIDE_UPDATED } from "@/modules/guide/content";
+import {
+  GUIDE_CHATS,
+  GUIDE_DESCRIPTION,
+  GUIDE_HEADLINE,
+  GUIDE_INTRO,
+  GUIDE_TIPS_TITLE,
+  GUIDE_TITLE,
+  GUIDE_UPDATED,
+} from "@/modules/guide/content";
 import { HOW_TO_JSON_LD } from "@/modules/guide/schema";
 import { pageMetadata } from "@/lib/metadata";
 import { PATHS } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata({
   title: GUIDE_TITLE,
-  description:
-    "Use Ollama Cloud models on your iPhone in four steps: get an ollama.com account, download Quock, sign in once, pick a model and type. Free, private, open source.",
+  description: GUIDE_DESCRIPTION,
   path: PATHS.guide,
 });
 

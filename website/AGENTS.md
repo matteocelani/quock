@@ -28,7 +28,7 @@ src/app/                 Routes compose: metadata, the page frame and components
                          own no content; a sentence of glue around a link is fine. (home) is light, (pages) is dark;
                          sitemap, robots, manifest, llms.txt and the icons sit beside them.
 src/modules/<feature>/   Content and schema for one feature, with no UI:
-                         faq, changelog, guide, privacy, home, llms.
+                         faq, changelog, guide, privacy, home, llms, and site (the 404 and footer copy).
                          content.ts(x) holds the copy (.tsx only when it carries rendered elements),
                          schema.ts the JSON-LD; home/screens.ts the captures and model names.
                          The newest changelog entry is the live version: nothing else repeats it.

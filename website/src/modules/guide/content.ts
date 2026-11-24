@@ -71,3 +71,11 @@ export const GUIDE_CHATS: GuideItem = {
   title: "Where your chats live.",
   body: "On your iPhone, in a local database, with no Quock server and no analytics. When you send a message, it goes straight to Ollama Cloud with the earlier turns of that chat and, while memory is on, the facts Quock remembers about you.",
 };
+
+const STEP_SUMMARY = GUIDE_STEPS.map((step) => {
+  const title = step.title.replace(/\.$/, "");
+  return title.charAt(0).toLowerCase() + title.slice(1);
+}).join(", ");
+
+// Built from the steps, so adding or renaming one keeps the search snippet true.
+export const GUIDE_DESCRIPTION = `Use Ollama Cloud models on your iPhone in ${GUIDE_STEPS.length} steps: ${STEP_SUMMARY}.`;

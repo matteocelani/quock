@@ -45,7 +45,7 @@ export function TabbedShowcase({ id, eyebrow, title, shimmerWord, lead, tabs, wa
 
       <div
         className={cn(
-          "reveal rounded-stage relative isolate mx-auto mt-14 h-[28rem] max-w-content overflow-hidden sm:h-[34rem]",
+          "reveal rounded-stage relative isolate mx-auto mt-14 h-112 max-w-content overflow-hidden sm:h-136",
           wallpaper === "dusk" && "wallpaper-dusk",
         )}
       >
@@ -56,7 +56,8 @@ export function TabbedShowcase({ id, eyebrow, title, shimmerWord, lead, tabs, wa
             labelledBy={tabId(active)}
             screens={screens}
             active={tabs[active].screen}
-            className="w-60 sm:w-[18.5rem]"
+            className="w-60 sm:w-74"
+            // Mirrors w-60 / w-74 at 16px per rem.
             sizes="(min-width: 640px) 296px, 240px"
           />
         </div>

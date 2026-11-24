@@ -14,6 +14,7 @@ import { ScreenStack } from "@/components/home/screen-stack";
 import { handleRovingKeys } from "@/components/home/roving-keys";
 import { Caption } from "@/components/home/typography";
 import { LATEST_RELEASE } from "@/modules/changelog/content";
+import { HERO } from "@/modules/home/content";
 import { MODELS, type ScreenName } from "@/modules/home/screens";
 import { SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
@@ -64,7 +65,7 @@ function Switch({ isOn, label, onToggle }: SwitchProps): ReactNode {
       onClick={onToggle}
       className={cn(
         "relative h-6 w-10 shrink-0 rounded-full transition-colors duration-300",
-        isOn ? "bg-system-green" : "bg-foreground/45",
+        isOn ? "bg-system-green" : "bg-foreground/60",
       )}
     >
       <span
@@ -97,7 +98,7 @@ export function HeroStage(): ReactNode {
   return (
     <div className="relative mx-auto max-w-stage px-4 sm:px-8">
       <div className="relative">
-        <div className="rounded-stage relative isolate h-[30rem] overflow-hidden sm:h-[36rem] lg:h-[38rem]">
+        <div className="rounded-stage relative isolate h-120 overflow-hidden sm:h-144 lg:h-152">
           <div aria-hidden="true" className="wallpaper -z-10" />
           <div className="absolute inset-x-0 top-6 flex justify-center sm:top-10">
             <ScreenStack
@@ -105,7 +106,8 @@ export function HeroStage(): ReactNode {
               labelledBy={tabId(activeIndex)}
               screens={SCREENS}
               active={screen}
-              className="w-[15.5rem] sm:w-[19rem] lg:w-[20.5rem]"
+              className="w-62 sm:w-76 lg:w-82"
+              // Mirrors w-62 / w-76 / w-82 at 16px per rem.
               sizes="(min-width: 1024px) 328px, (min-width: 640px) 304px, 248px"
               isPriority
             />
@@ -134,7 +136,7 @@ export function HeroStage(): ReactNode {
                     <span
                       className={cn(
                         "flex size-5 shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors",
-                        isSelected ? "border-primary bg-primary text-primary-foreground" : "border-foreground/45",
+                        isSelected ? "border-primary bg-primary text-primary-foreground" : "border-foreground/60",
                       )}
                     >
                       {isSelected && <CheckIcon className="size-3" strokeWidth={3} />}
@@ -205,7 +207,7 @@ export function HeroStage(): ReactNode {
         </div>
         <Caption>
           <CursorIcon className="size-3.5" />
-          Psst… it&rsquo;s interactive!
+          {HERO.aside}
         </Caption>
       </div>
     </div>

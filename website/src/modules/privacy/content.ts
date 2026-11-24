@@ -9,6 +9,9 @@ interface Principle {
 
 export const PRIVACY_UPDATED = "2026-11-24";
 
+export const PRIVACY_DESCRIPTION =
+  "How Quock handles your data: chats stored on your iPhone, messages sent straight to Ollama Cloud and signed with a per-device key, and no analytics.";
+
 export const PRIVACY_LEAD =
   "Quock is built so your conversations stay yours: they live on your iPhone and go only where you send them.";
 
@@ -49,7 +52,12 @@ export const PRINCIPLES: readonly Principle[] = [
 export const PRIVACY_NOTE =
   "This page is a summary. The full privacy policy is the controlling text, covering legal bases, retention and your rights under GDPR and similar laws. For the server side, read";
 
-export const PRIVACY_LINKS = {
-  ollama: "Ollama's privacy policy",
-  full: "Read the full policy",
-} as const;
+export const PRIVACY_LINK = "Ollama's privacy policy";
+
+// The phone itself, then the recipients of docs/PRIVACY.md section 4; the home page draws it as a table.
+export const DATA_FLOW = [
+  { where: "Your iPhone", what: "Chats, memory, settings", when: "Always" },
+  { where: "Ollama Cloud", what: "The chat you send, with memory while it is on", when: "On send" },
+  { where: "Apple", what: "The telemetry iOS collects for every app", when: "Per your settings" },
+  { where: "Quock's author", what: "Nothing", when: "Never" },
+] as const;
