@@ -47,3 +47,4 @@ expo-env.d.ts
 # macOS benchmark host for the on-device engine (SwiftPM build products)
 /modules/on-device-llm/.build/
 /modules/on-device-llm/.swiftpm/
+*.profraw

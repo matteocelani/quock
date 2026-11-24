@@ -3,6 +3,7 @@ import Foundation
 import MLX
 import MLXLLM
 import MLXLMCommon
+import MLXNN
 
 // quock-llm-bench: measures the on-device engine on a Mac with the exact sources the app ships.
 //   pull  <model>                          download an Ollama MLX build into QUOCK_LLM_MODELS_DIR
@@ -391,6 +392,26 @@ func run() async throws {
       meanControl, limit, percentile(reuseKL, 0.99), Double(agree) / Double(max(positions, 1)), positions,
       meanReuse <= limit ? "PASS" : "FAIL"))
     if meanReuse > limit { exit(1) }
+
+  case "samplerbench":
+    // samplerbench <vocab>: what each step of MLX's top-p sampler costs on one row of logits.
+    let vocab = Int(ref.name) ?? 248_320
+    let logits = (MLXRandom.normal([1, vocab]) * 3).asType(.float32)
+    eval(logits)
+    let iterations = 300
+    let logprobs = logSoftmax(logits)
+    eval(logprobs)
+    let sorted = argSort(logprobs, axis: -1)
+    eval(sorted)
+    func report(_ name: String, _ seconds: Double) { emit(String(format: "%-28@ %.3f ms", name as NSString, seconds * 1000)) }
+    report("logSoftmax", timeIt(iterations) { logSoftmax(logits) })
+    report("argSort full vocab", timeIt(iterations) { argSort(logprobs, axis: -1) })
+    report("takeAlong + exp + cumsum", timeIt(iterations) { cumsum(exp(takeAlong(logprobs, sorted, axis: -1)), axis: -1) })
+    report("categorical full vocab", timeIt(iterations) { categorical(logprobs * (1 / 0.7)) })
+    report("argPartition top 2048", timeIt(iterations) { argPartition(-logprobs, kth: 2047, axis: -1)[0..., ..<2048] })
+    report("argMax (greedy)", timeIt(iterations) { argMax(logits, axis: -1) })
+    let sampler = TopPSampler(temperature: 0.7, topP: 0.8)
+    report("TopPSampler end to end", timeIt(iterations) { sampler.sample(logits: logits) })
 
   case "headbench":
     // Here the "model" argument is unused; vocab and hidden come next.

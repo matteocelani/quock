@@ -56,3 +56,17 @@ Head GEMV alone (248320 × 1024): BF16 1.198 ms, q8 0.718, q6 0.548, q4 0.430; i
   quality only 5–10% better (0.8b 4-bit 0.227 → 0.207; 2b 4-bit 0.140 → 0.125; 2b 5-bit 0.031 → 0.030) while decode
   fell 30–45% (0.8b 4-bit 414 → 226 tok/s; 2b 5-bit 238 → 162). These small models' low-bit error is not
   outlier-driven, and the per-layer float32 transform costs more than it saves.
+
+## Prompt-prefix reuse across turns (shipped)
+
+6-turn chat, qwen3.5:0.8b, greedy (`bench chat`): prefill at turn 6 is 124 tokens instead of 551, time to first
+token 0.027 s instead of 0.150 s on the Mac. Chunked prefill is not bit-exact on the GPU, so `bench reusecheck`
+compares reuse against a no-reuse control split on the same sequences: 0.8b mean KL 1.27e-3 (control 1.69e-3),
+2b 7.2e-4 (control 1.24e-3) — reuse adds no error beyond the noise every chunked prefill already has.
+
+## Production sampler (deferred)
+
+Temperature + top-p costs 11.5% of decode on 0.8b (397 → 351 tok/s) and 7.2% on 2b (225 → 209) on the Mac,
+measured ABAB. Per step (`bench samplerbench`, above a ~0.19 ms sync floor): full-vocabulary argSort ~0.15 ms,
+categorical ~0.12 ms, logSoftmax ~0.05 ms. An exact sort-free sampler needs a custom Metal kernel (estimated 1–1.5
+weeks) for an estimated 2–4% on the iPhone, where decode is bandwidth-bound; deferred behind larger wins.
