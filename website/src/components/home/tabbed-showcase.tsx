@@ -13,7 +13,12 @@ const TAB_DURATION_MS = 6000;
 
 // Autoplay rides a CSS animation, so reduced motion turns it off. Hover pauses it; a tap, click, key or focus
 // in the section stops it for good (WCAG 2.2.2). Click, not pointerdown, so a scroll swipe does not stop it.
-export function TabbedShowcase({ id, eyebrow, title, shimmerWord, lead, tabs, wallpaper, footnote }: Showcase): ReactNode {
+interface TabbedShowcaseProps extends Showcase {
+  // A second showcase in a row takes the warmer wallpaper, so the two do not read as one.
+  isAlternate?: boolean;
+}
+
+export function TabbedShowcase({ id, eyebrow, title, shimmerWord, lead, tabs, footnote, isAlternate }: TabbedShowcaseProps): ReactNode {
   const [active, setActive] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
@@ -46,7 +51,7 @@ export function TabbedShowcase({ id, eyebrow, title, shimmerWord, lead, tabs, wa
       <div
         className={cn(
           "reveal rounded-stage relative isolate mx-auto mt-14 h-112 max-w-content overflow-hidden sm:h-136",
-          wallpaper === "dusk" && "wallpaper-dusk",
+          isAlternate && "wallpaper-dusk",
         )}
       >
         <div aria-hidden="true" className="wallpaper -z-10" />

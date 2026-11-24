@@ -49,7 +49,7 @@ export function ScreenStack({
             draggable={false}
             aria-hidden={!isActive}
             className={cn(
-              "absolute inset-0 h-full w-full drop-shadow-2xl transition-[opacity,transform,filter] duration-500 ease-glide select-none",
+              "absolute inset-0 h-full w-full drop-shadow-2xl transition-[opacity,scale,translate,filter] duration-500 ease-glide select-none",
               isActive ? "scale-100 opacity-100 blur-none" : "scale-98 opacity-0 blur-sm",
             )}
           />

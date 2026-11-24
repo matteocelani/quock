@@ -47,9 +47,9 @@ export function NotificationMock(): ReactNode {
         <div className="min-w-0 flex-1">
           <div className="flex justify-between text-mock">
             <span className="font-bold">{SITE.name}</span>
-            <span className="text-faint-foreground">{MOCK_COPY.notificationTime}</span>
+            <span className="text-faint-foreground font-semibold">{MOCK_COPY.notificationTime}</span>
           </div>
-          <p className="text-mock">{MOCK_COPY.notification}</p>
+          <p className="text-mock font-semibold">{MOCK_COPY.notification}</p>
         </div>
       </div>
     </div>
@@ -66,7 +66,7 @@ export function MemoryMock(): ReactNode {
           <SparkIcon className="text-muted-foreground size-5" />
           <div>
             <p className="text-ui font-semibold">{MOCK_COPY.memoryLabel}</p>
-            <p className="text-muted-foreground text-mock">{MOCK_COPY.memoryNote}</p>
+            <p className="text-muted-foreground text-mock font-semibold">{MOCK_COPY.memoryNote}</p>
           </div>
         </div>
         <span className="bg-system-green relative h-6 w-10 shrink-0 rounded-full">

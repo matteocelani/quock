@@ -56,7 +56,10 @@ export const PAGE_LABELS = {
   privacy: "Privacy",
 } as const;
 
-// Browser-chrome colours mirror the --background tokens in globals.css; metadata cannot read CSS.
+// Links that leave the site, labelled the same in the footer and llms.txt.
+export const LINK_LABELS = { terms: "Terms", source: "Source code", policy: "Privacy policy" } as const;
+
+// Browser-chrome colours mirror the --background tokens in globals.css; next.config.ts checks they match.
 export const THEME_COLOR = { light: "#f7fbff", dark: "#1d1d1f" } as const;
 
 // A build without a real domain must never be indexed, or its localhost canonicals would stick.

@@ -5,7 +5,7 @@ import { cn, externalLinkProps } from "@/lib/utils";
 
 // Rounded rectangles, not pills: the shape iOS uses for prominent buttons, 60px tall by default.
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2.5 font-bold whitespace-nowrap transition-[transform,background-color,box-shadow,color] duration-200 ease-spring select-none active:scale-97 [&_svg]:shrink-0",
+  "inline-flex shrink-0 items-center justify-center gap-2.5 font-bold whitespace-nowrap transition-[scale,translate,background-color,box-shadow,color] duration-200 ease-spring select-none active:scale-97 [&_svg]:shrink-0",
   {
     variants: {
       variant: {

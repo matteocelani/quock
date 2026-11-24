@@ -1,6 +1,6 @@
 export type ScreenName = "home" | "open_model" | "compose" | "chat" | "history" | "settings";
 
-// Size of the framed captures written by scripts/compose-assets.py.
+// Size of the framed captures. compose-assets.py reads the width and stops if the height no longer matches.
 export const SHOT_WIDTH = 840;
 export const SHOT_HEIGHT = 1714;
 

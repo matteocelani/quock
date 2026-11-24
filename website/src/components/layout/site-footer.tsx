@@ -3,7 +3,7 @@ import type { ComponentType, ReactNode, SVGProps } from "react";
 import { ButtonLink } from "@/components/ui/button";
 import { DownloadIcon, GithubIcon, ShieldIcon, XIcon } from "@/components/ui/icons";
 import { LEGAL_NOTE } from "@/modules/site/content";
-import { PAGE_LABELS, PATHS, SITE } from "@/lib/site";
+import { LINK_LABELS, PAGE_LABELS, PATHS, SITE } from "@/lib/site";
 import { externalLinkProps } from "@/lib/utils";
 
 interface IconLink {
@@ -24,8 +24,8 @@ const TEXT_LINKS = [
   { href: PATHS.faq, label: PAGE_LABELS.faq },
   { href: PATHS.changelog, label: PAGE_LABELS.changelog },
   { href: PATHS.privacy, label: PAGE_LABELS.privacy },
-  { href: SITE.termsUrl, label: "Terms" },
-  { href: SITE.githubUrl, label: "Source" },
+  { href: SITE.termsUrl, label: LINK_LABELS.terms },
+  { href: SITE.githubUrl, label: LINK_LABELS.source },
 ] as const;
 
 // Static export: the year is the build's, so a deploy keeps it current.

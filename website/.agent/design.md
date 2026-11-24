@@ -46,8 +46,8 @@ The inner pages (FAQ, changelog, guide, privacy) are for reading. They are dark 
 
 - **Type:**
   - one family, the system font, with weight 700 for headings and labels. Mock UI follows iOS: bold for labels, semibold for secondary text, and model names in the system monospace, as the app shows them;
-  - a steep scale: a 96px hero, 70px sections, 36px subsections, 30px feature titles, a 23px lead, 24px list items and eyebrows, a 17px body (`text-body`), 15px UI copy and captions (`text-ui`), 13px mock UI (`text-mock`), 11px chips (`text-chip`) and 10px tags (`text-tag`);
-  - on phones the large steps shrink to Tailwind's own sizes (leads and items to 18px, eyebrows and the header wordmark to 20px), set once in the components that own them;
+  - a steep scale: a 96px hero, 70px sections, 36px subsections, 30px feature titles, a 23px lead, 24px list items and eyebrows, a 17px body (`text-body`), 15px UI copy and captions (`text-ui`), 13px small copy (`text-mock`: mock UI, the footer's legal line, compact controls on phones), 11px chips (`text-chip`) and 10px tags (`text-tag`), and a 20px header wordmark;
+  - on phones the large steps shrink: the hero to 44px (`text-display-sm`) and sections to 40px (`text-section-sm`); leads and items to 18px and eyebrows to 20px, Tailwind's own sizes. Each is set once, in the component that owns it;
   - tight tracking on large sizes.
 - **Colour:**
   - tint, ink, panel, muted and faint, plus a marker colour and a link accent;

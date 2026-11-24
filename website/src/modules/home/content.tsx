@@ -34,7 +34,6 @@ export interface Showcase {
   shimmerWord?: string;
   lead: string;
   tabs: readonly ShowcaseTab[];
-  wallpaper: "sky" | "dusk";
   footnote?: string;
 }
 
@@ -44,7 +43,6 @@ export const SHOWCASES: readonly Showcase[] = [
     eyebrow: "Open models",
     title: "Every model. One tap.",
     lead: "Pick any model on Ollama Cloud and start typing.",
-    wallpaper: "sky",
     tabs: [
       {
         icon: <SearchIcon />,
@@ -60,8 +58,8 @@ export const SHOWCASES: readonly Showcase[] = [
       },
       {
         icon: <NotesIcon />,
-        lead: "Make it yours.",
-        body: "Pick a default model, a theme, and whether Quock gives haptic feedback.",
+        lead: "Your default.",
+        body: "Choose in Settings the model every new chat starts with.",
         screen: "settings",
       },
     ],
@@ -72,7 +70,6 @@ export const SHOWCASES: readonly Showcase[] = [
     title: "Watch it",
     shimmerWord: "think.",
     lead: "Follow the reasoning as it streams, right above the answer.",
-    wallpaper: "dusk",
     footnote: "Thinking needs a thinking-capable model.",
     tabs: [
       {
@@ -82,16 +79,16 @@ export const SHOWCASES: readonly Showcase[] = [
         screen: "chat",
       },
       {
-        icon: <GlobeIcon />,
-        lead: "Fresh from the web.",
-        body: "Let the model search mid-answer. Web search and thinking are per-chat toggles.",
+        icon: <HandIcon />,
+        lead: "Think on demand.",
+        body: "Turn thinking on per chat from the attach sheet, and off for a quick answer.",
         screen: "compose",
       },
       {
-        icon: <PinIcon />,
-        lead: "Pick up later.",
-        body: "Every chat stays on your phone, searchable, with pins for the ones you keep.",
-        screen: "history",
+        icon: <ModelsIcon />,
+        lead: "Know who thinks.",
+        body: "The picker badges every model that can reason before it answers.",
+        screen: "open_model",
       },
     ],
   },
@@ -117,7 +114,6 @@ interface BentoCell {
   mock: BentoMock;
   lead: string;
   body: string;
-  isWide?: boolean;
 }
 
 export const BENTO_TITLE = "Every corner, covered.";
@@ -127,7 +123,6 @@ export const BENTO_CELLS: readonly BentoCell[] = [
     mock: "attach",
     lead: "Attach anything.",
     body: "Photos, screenshots and PDFs. Quock reads a document's text, or runs OCR on your phone when there is none.",
-    isWide: true,
   },
   {
     mock: "notification",
@@ -143,7 +138,6 @@ export const BENTO_CELLS: readonly BentoCell[] = [
     mock: "dataFlow",
     lead: "Private by design.",
     body: "Your history lives on your iPhone, and your messages go only to Ollama Cloud.",
-    isWide: true,
   },
   { mock: "continue", lead: "Never lose an answer.", body: "A reply cut short continues where it stopped, without paying twice." },
   {
@@ -178,19 +172,6 @@ export const APP_FEATURES: readonly string[] = [
   "Answers that keep streaming for a while in the background",
   "Chats stored on the iPhone, no analytics",
 ];
-
-// The search phrases people use for this app; the keywords meta tag and the JSON-LD both read them.
-export const SEO_KEYWORDS = [
-  "Ollama Cloud client",
-  "Ollama Cloud iPhone app",
-  "how to use Ollama Cloud on iPhone",
-  "iPhone LLM client",
-  "LLM chat app",
-  "open models",
-  "AI chat iPhone",
-  "private AI chat",
-  "Quock",
-] as const;
 
 // Sample content inside the bento mocks: what each mock shows, kept beside the tiles that hold them.
 export const MOCK_COPY = {

@@ -14,8 +14,8 @@ export default function HomePage(): ReactNode {
     <>
       <JsonLd data={APP_JSON_LD} />
       <Hero />
-      {SHOWCASES.map((showcase) => (
-        <TabbedShowcase key={showcase.id} {...showcase} />
+      {SHOWCASES.map((showcase, index) => (
+        <TabbedShowcase key={showcase.id} {...showcase} isAlternate={index % 2 === 1} />
       ))}
       <Bento />
       <HowItWorks />
