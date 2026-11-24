@@ -14,6 +14,7 @@ interface ScreenStackProps {
 
 // Every capture is mounted once and cross-faded, so switching never waits on the network.
 // It is the tab panel of the tabs that drive it; only the first capture is fetched eagerly.
+// The shadow sits on the panel: Safari paints an image blank when blur() and drop-shadow() share its filter.
 export function ScreenStack({
   id,
   labelledBy,
@@ -28,7 +29,7 @@ export function ScreenStack({
       role="tabpanel"
       aria-labelledby={labelledBy}
       tabIndex={0}
-      className={cn("relative rounded-3xl", className)}
+      className={cn("relative rounded-3xl drop-shadow-2xl", className)}
       style={{ aspectRatio: `${SHOT_WIDTH} / ${SHOT_HEIGHT}` }}
     >
       {screens.map((screen, index) => {
@@ -46,7 +47,7 @@ export function ScreenStack({
             draggable={false}
             aria-hidden={!isActive}
             className={cn(
-              "absolute inset-0 h-full w-full drop-shadow-2xl transition-[opacity,scale,translate,filter] duration-500 ease-glide select-none",
+              "absolute inset-0 h-full w-full transition-[opacity,scale,translate,filter] duration-500 ease-glide select-none",
               isActive ? "scale-100 opacity-100 blur-[0px]" : "scale-98 opacity-0 blur-sm",
             )}
           />
