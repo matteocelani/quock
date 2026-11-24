@@ -28,31 +28,33 @@ export function ScreenStack({
       role="tabpanel"
       aria-labelledby={labelledBy}
       tabIndex={0}
-      // The shadow sits here: Safari paints an image blank when blur() and drop-shadow() share its filter.
-      className={cn("relative rounded-3xl drop-shadow-2xl", className)}
+      className={cn("relative rounded-3xl", className)}
       style={{ aspectRatio: `${SHOT_WIDTH} / ${SHOT_HEIGHT}` }}
     >
-      {screens.map((screen, index) => {
-        const isActive = screen === active;
-        const isEager = isPriority && index === 0;
-        return (
-          <Image
-            key={screen}
-            src={screenSrc(screen)}
-            alt={isActive ? SCREEN_ALT[screen] : ""}
-            width={SHOT_WIDTH}
-            height={SHOT_HEIGHT}
-            preload={isEager}
-            loading={isEager ? "eager" : "lazy"}
-            draggable={false}
-            aria-hidden={!isActive}
-            className={cn(
-              "absolute inset-0 h-full w-full transition-[opacity,scale,translate,filter] duration-500 ease-glide select-none",
-              isActive ? "scale-100 opacity-100 blur-[0px]" : "scale-98 opacity-0 blur-sm",
-            )}
-          />
-        );
-      })}
+      {/* Safari paints an image blank when blur() and drop-shadow() share its filter; the focus ring stays flat. */}
+      <div className="absolute inset-0 drop-shadow-2xl">
+        {screens.map((screen, index) => {
+          const isActive = screen === active;
+          const isEager = isPriority && index === 0;
+          return (
+            <Image
+              key={screen}
+              src={screenSrc(screen)}
+              alt={isActive ? SCREEN_ALT[screen] : ""}
+              width={SHOT_WIDTH}
+              height={SHOT_HEIGHT}
+              preload={isEager}
+              loading={isEager ? "eager" : "lazy"}
+              draggable={false}
+              aria-hidden={!isActive}
+              className={cn(
+                "absolute inset-0 h-full w-full transition-[opacity,scale,translate,filter] duration-500 ease-glide select-none",
+                isActive ? "scale-100 opacity-100 blur-[0px]" : "scale-98 opacity-0 blur-sm",
+              )}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 }
