@@ -126,11 +126,15 @@ export const BENTO_CELLS: readonly BentoCell[] = [
     body: "Photos, screenshots and PDFs. Quock reads a document's text, or runs OCR on your phone when there is none.",
     isWide: true,
   },
-  { mock: "notification", lead: "Finishes in the background.", body: "Leave mid-answer. Quock can tell you when it is ready." },
+  {
+    mock: "notification",
+    lead: "Keeps going in the background.",
+    body: "Leave mid-answer and it keeps streaming for a while; Quock can tell you when it is ready.",
+  },
   {
     mock: "memory",
     lead: "Remembers what matters.",
-    body: "A few facts you share, stored on your phone and sent with your messages while memory is on.",
+    body: "A few facts you share, stored on your phone and sent with your messages while memory is on. One switch in Settings.",
   },
   {
     mock: "dataFlow",
@@ -168,7 +172,7 @@ export const APP_FEATURES: readonly string[] = [
   ...FEATURES.map((feature) => feature.title.join(" ")),
   "Images and screenshots for vision models",
   "Memory stored on the iPhone, sent with your messages only while it is on",
-  "Answers that finish in the background",
+  "Answers that keep streaming for a while in the background",
   "Chats stored on the iPhone, no analytics",
 ];
 
@@ -190,7 +194,9 @@ export const MOCK_COPY = {
   pdfName: "lease-agreement.pdf",
   pdfNote: "Text read on this iPhone",
   notification: "Your answer is ready.",
-  memoryFacts: ["Goes by Sam", "Prefers short answers", "Is learning Japanese"],
+  memorySection: "Chat",
+  memoryLabel: "Memory",
+  memoryNote: "A few facts, kept on this iPhone",
   dataFlowTitle: "Where your data goes",
   continueDone: "The quickest route is the coastal road, then the ferry from Anacortes. Leave before nine and you",
   continuePending: " will avoid the queue at",

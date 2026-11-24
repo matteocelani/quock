@@ -8,7 +8,7 @@ import { absoluteUrl } from "@/lib/utils";
 
 export const dynamic = "force-static";
 
-// Each page's lastmod is the same "Updated" date the page shows.
+// Each page's lastmod is the date its content last changed: the "Updated" date, or the latest release for home.
 const ROUTES = [
   { path: PATHS.home, updated: CHANGELOG_UPDATED, priority: 1, changeFrequency: "weekly" },
   { path: PATHS.guide, updated: GUIDE_UPDATED, priority: 0.9, changeFrequency: "monthly" },

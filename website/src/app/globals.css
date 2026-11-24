@@ -44,6 +44,7 @@
 }
 
 @theme inline {
+  --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-panel: var(--panel);
   --color-panel-strong: var(--panel-strong);
@@ -77,6 +78,9 @@
   --tracking-title: -0.01em;
   --tracking-wordmark: -0.06em;
   --leading-wordmark: 0.82;
+  --leading-display: 1.02;
+  --leading-section: 1.05;
+  --leading-lead: 1.35;
   --container-reading: 40rem;
   --container-content: 61rem;
   --container-hero: 62rem;
@@ -131,7 +135,6 @@
     background-position: -200% 0;
   }
 }
-
 
 @layer base {
   * {
@@ -240,7 +243,7 @@
 
   .progress-run {
     transform-origin: left;
-    animation: progress var(--duration, 6s) linear forwards;
+    animation: progress var(--duration) linear forwards;
   }
 
   .header-glass {

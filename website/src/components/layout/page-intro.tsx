@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Heading } from "@/components/ui/heading";
 import { NotesIcon } from "@/components/ui/icons";
 import { JsonLd } from "@/components/global/json-ld";
@@ -24,7 +24,7 @@ export function PageIntro({ title, updated, path }: PageIntroProps): ReactNode {
       <Heading as="h1" size="display" className="enter">
         {title}
       </Heading>
-      <p className="text-faint-foreground enter mt-3 flex items-center gap-1.5 text-sm font-bold" style={{ animationDelay: "120ms" }}>
+      <p className="text-faint-foreground enter mt-3 flex items-center gap-1.5 text-sm font-bold" style={{ "--delay": "120ms" } as CSSProperties}>
         <NotesIcon className="size-4" />
         Updated <time dateTime={updated}>{MONTH.format(new Date(updated))}</time>
       </p>
@@ -34,5 +34,5 @@ export function PageIntro({ title, updated, path }: PageIntroProps): ReactNode {
 
 // One narrow column keeps reading pages at a comfortable line length.
 export function PageColumn({ children }: PageColumnProps): ReactNode {
-  return <div className="mx-auto max-w-reading px-5 sm:px-0">{children}</div>;
+  return <div className="max-w-reading mx-auto px-5 md:px-0">{children}</div>;
 }

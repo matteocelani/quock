@@ -13,7 +13,8 @@ const LINE_SUMMARIES: Readonly<Record<string, string>> = {
     "The first line: sign in with ollama.com, chat with every cloud model, select and copy replies, and keep every chat on your phone.",
 };
 
-// Written for people, from the GitHub release notes and the release branch history.
+// Written for people, from the GitHub release notes and the release branch history. 0.2.1 has no GitHub
+// release yet (main moves on approval), but the App Store lookup API shows it live since 2026-11-06.
 const RELEASES: readonly Release[] = [
   {
     version: "0.2.1",
