@@ -47,9 +47,9 @@ export function Hero(): ReactNode {
     <section className="pt-28 sm:pt-44">
       <div className="mx-auto max-w-hero px-5 sm:px-8">
         <Heading as="h1" size="display" className="enter" style={step(60)}>
-          Open. Type.
+          {HERO.headline[0]}
           <br />
-          <Marker>That&rsquo;s it.</Marker>
+          <Marker>{HERO.headline[1]}</Marker>
         </Heading>
         <div className="enter mt-9 flex flex-wrap items-center gap-x-4 gap-y-6 sm:mt-11" style={step(220)}>
           <DownloadButton />

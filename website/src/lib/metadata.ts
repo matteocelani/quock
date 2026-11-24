@@ -16,7 +16,7 @@ export const SHARE_IMAGE = {
   url: "/og.png",
   width: 1200,
   height: 630,
-  alt: "Quock's home screen and a chat on iPhone, beside the headline Open. Type. That's it.",
+  alt: "Quock's home screen and a chat on an iPhone, beside the app's headline.",
 } as const;
 
 // Next merges openGraph and twitter shallowly, so each page sends the whole set or loses the image.

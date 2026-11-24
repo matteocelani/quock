@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 import { DownloadIcon, GithubIcon, ShieldIcon, XIcon } from "@/components/ui/icons";
+import { LEGAL_NOTE } from "@/modules/site/content";
 import { PAGE_LABELS, PATHS, SITE } from "@/lib/site";
 import { externalLinkProps } from "@/lib/utils";
 
@@ -58,15 +59,14 @@ export function SiteFooter(): ReactNode {
           ))}
         </nav>
         <p className="text-faint-foreground max-w-xl text-xs leading-relaxed font-medium">
-          {SITE.disclaimer} Ollama is a trademark of its respective owner. App Store and iPhone are
-          trademarks of Apple Inc. © 2026 {SITE.author}.
+          {SITE.disclaimer} {LEGAL_NOTE} © 2026 {SITE.author}.
         </p>
       </div>
       <div
         aria-hidden="true"
         className="pointer-events-none relative mt-10 flex justify-center select-none [mask-image:linear-gradient(to_bottom,black_35%,transparent_100%)]"
       >
-        <span className="text-foreground/[0.07] translate-y-[12%] text-[clamp(7rem,30vw,26rem)] leading-[0.82] font-bold tracking-[-0.06em]">
+        <span className="text-foreground/[0.07] text-wordmark translate-y-[12%] leading-[0.82] font-bold tracking-[-0.06em]">
           {SITE.name}
         </span>
       </div>

@@ -12,34 +12,29 @@ import {
   SparkIcon,
 } from "@/components/ui/icons";
 import { AppIcon } from "@/components/global/logo";
+import { DATA_FLOW } from "@/modules/privacy/content";
 import { cn } from "@/lib/utils";
 
 const ATTACH_ACTIONS = [
   { label: "Camera", icon: CameraIcon },
   { label: "Photo", icon: ImageIcon },
   { label: "File", icon: DocumentIcon },
-];
+] as const;
 
-const MEMORY_FACTS = ["Goes by Sam", "Prefers short answers", "Is learning Japanese"];
+const MEMORY_FACTS = ["Goes by Sam", "Prefers short answers", "Is learning Japanese"] as const;
 
-const DATA_ROWS = [
-  { where: "Your iPhone", what: "Chats, memory, settings", when: "Always" },
-  { where: "Ollama Cloud", what: "The chat you send, with memory while it is on", when: "On send" },
-  { where: "Apple", what: "The telemetry iOS collects for every app", when: "Per your settings" },
-  { where: "Quock's author", what: "Nothing", when: "Never" },
-];
 
 const EXCERPT_ACTIONS = [
   { label: "Deep dive", icon: SparkIcon },
   { label: "Web search", icon: GlobeIcon },
-];
+] as const;
 
 const REPLY_ACTIONS = [
   { label: "Copy message", icon: CopyIcon },
   { label: "Select text", icon: SelectIcon },
   { label: "Regenerate response", icon: RegenerateIcon },
   { label: "Fork conversation from here", icon: ForkIcon },
-];
+] as const;
 
 // Drawn in HTML rather than captured: crisp at any size, and each one mirrors behaviour the app really has.
 export function AttachMock(): ReactNode {
@@ -125,7 +120,7 @@ export function DataFlowMock(): ReactNode {
           </tr>
         </thead>
         <tbody>
-          {DATA_ROWS.map((row, index) => (
+          {DATA_FLOW.map((row, index) => (
             <tr key={row.where} className={cn(index % 2 === 1 && "bg-foreground/[0.025]", index > 2 && "text-faint-foreground")}>
               <td className="px-4 py-2 font-semibold">{row.where}</td>
               <td className="px-4 py-2">{row.what}</td>

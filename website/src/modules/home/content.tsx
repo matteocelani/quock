@@ -94,6 +94,9 @@ export const SHOWCASES: readonly Showcase[] = [
 ];
 
 export const HERO = {
+  // Two lines; the second carries the headline's one highlighter stroke.
+  headline: ["Open. Type.", "That’s it."],
+  aside: "Psst… it’s interactive!",
   facts: [
     { label: "Every model on", value: "Ollama Cloud" },
     { label: "Sign in with your", value: "ollama.com account" },
@@ -101,6 +104,8 @@ export const HERO = {
 } as const;
 
 export const HOW_IT_WORKS = { eyebrow: "How it works", title: "Ready in minutes." } as const;
+
+export const FINAL_CTA = { signIn: "Sign in with ollama.com" } as const;
 
 export type BentoMock = "attach" | "notification" | "memory" | "dataFlow" | "continue" | "menu";
 

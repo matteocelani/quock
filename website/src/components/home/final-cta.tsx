@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Caption } from "@/components/home/typography";
 import { PhoneIcon } from "@/components/ui/icons";
 import { DownloadButton } from "@/components/global/download-button";
+import { FINAL_CTA } from "@/modules/home/content";
 import { SITE } from "@/lib/site";
 
 export function FinalCta(): ReactNode {
@@ -10,7 +11,7 @@ export function FinalCta(): ReactNode {
       <DownloadButton />
       <Caption>
         <PhoneIcon className="size-4" />
-        iOS {SITE.minimumIos}+ · {SITE.priceLabel} · Sign in with ollama.com
+        iOS {SITE.minimumIos}+ · {SITE.priceLabel} · {FINAL_CTA.signIn}
       </Caption>
     </section>
   );

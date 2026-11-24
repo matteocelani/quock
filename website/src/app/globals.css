@@ -17,11 +17,12 @@
   --marker: oklch(0.87 0.07 248);
   --ring: #0060c0;
   --shade: 29 35 52;
-  /* Mock app surfaces: an opaque iOS card and the system colours the app itself uses. */
+  /* Mock app surfaces: an opaque iOS card, and the system colours iOS uses with Increase Contrast,
+     so a switch, a tag or a dot keeps 3:1 (and white text on red 4.5:1). */
   --surface: #ffffff;
-  --system-red: #ff3b30;
+  --system-red: #d70015;
   --system-yellow: #febc2e;
-  --system-green: #34c759;
+  --system-green: #248a3d;
 }
 
 /* Dark pages put the dark tokens on the root too, so overscroll and the header area match. */
@@ -71,6 +72,7 @@
   --container-content: 61rem;
   --container-hero: 62rem;
   --container-stage: 75rem;
+  --text-wordmark: clamp(7rem, 30vw, 26rem);
 
   --radius-tile: 1.5rem;
   --radius-stage: 2.5rem;
@@ -267,6 +269,7 @@
 
   .header-glass {
     background-color: color-mix(in oklab, var(--background) 78%, transparent);
+    backdrop-filter: blur(20px) saturate(1.5);
   }
 
   .thinking-text {
