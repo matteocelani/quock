@@ -13,6 +13,7 @@ import {
   ThinkIcon,
 } from "@/components/ui/icons";
 import type { ScreenName } from "@/modules/home/screens";
+import { SITE } from "@/lib/site";
 
 // The icon is already rendered: a server page cannot hand a component function to a client one.
 interface ShowcaseTab {
@@ -159,7 +160,7 @@ export const FEATURES: readonly Feature[] = [
   { icon: DocumentIcon, title: ["On-device", "PDF reading"] },
   { icon: PinIcon, title: ["Pinned chats", "and forks"] },
   { icon: MoonIcon, title: ["Light and", "dark themes"] },
-  { icon: CodeIcon, title: ["Free and", "open source"] },
+  { icon: CodeIcon, title: [`${SITE.priceLabel} and`, "open source"] },
 ];
 
 // The grid's capabilities plus the ones too long for a two-line title.
@@ -170,3 +171,38 @@ export const APP_FEATURES: readonly string[] = [
   "Answers that finish in the background",
   "Chats stored on the iPhone, no analytics",
 ];
+
+// The search phrases people use for this app; the keywords meta tag and the JSON-LD both read them.
+export const SEO_KEYWORDS = [
+  "Ollama Cloud client",
+  "Ollama Cloud iPhone app",
+  "how to use Ollama Cloud on iPhone",
+  "iPhone LLM client",
+  "LLM chat app",
+  "open models",
+  "AI chat iPhone",
+  "private AI chat",
+  "Quock",
+] as const;
+
+// Sample content inside the bento mocks: what each mock shows, kept beside the tiles that hold them.
+export const MOCK_COPY = {
+  pdfName: "lease-agreement.pdf",
+  pdfNote: "Text read on this iPhone",
+  notification: "Your answer is ready.",
+  memoryFacts: ["Goes by Sam", "Prefers short answers", "Is learning Japanese"],
+  dataFlowTitle: "Where your data goes",
+  continueDone: "The quickest route is the coastal road, then the ferry from Anacortes. Leave before nine and you",
+  continuePending: " will avoid the queue at",
+  continueStatus: "Interrupted",
+  excerptMarked: "Setting it up algebraically, where x is the ball\u2019s price",
+  excerptRest: ", the bat costs x + $1.00 and together they cost $1.10.",
+} as const;
+
+// The phone itself, then the recipients of docs/PRIVACY.md section 4, drawn as the bento's data table.
+export const DATA_FLOW = [
+  { where: "Your iPhone", what: "Chats, memory, settings", when: "Always" },
+  { where: "Ollama Cloud", what: "The chat you send, with memory while it is on", when: "On send" },
+  { where: "Apple", what: "The telemetry iOS collects for every app", when: "Per your settings" },
+  { where: "Quock's author", what: "Nothing", when: "Never" },
+] as const;

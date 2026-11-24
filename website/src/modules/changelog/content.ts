@@ -83,6 +83,7 @@ const RELEASES: readonly Release[] = [
 // The newest entry is the live release: its version and date are the site's version and "Updated" date.
 export const LATEST_RELEASE = RELEASES[0];
 export const CHANGELOG_UPDATED = LATEST_RELEASE.date;
+export const CHANGELOG_DESCRIPTION = `What changed in each Quock release, up to version ${LATEST_RELEASE.version}.`;
 
 const minorOf = (version: string): string => version.split(".").slice(0, 2).join(".");
 

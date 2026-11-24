@@ -1,5 +1,5 @@
 import { LATEST_RELEASE } from "@/modules/changelog/content";
-import { APP_FEATURES } from "@/modules/home/content";
+import { APP_FEATURES, SEO_KEYWORDS } from "@/modules/home/content";
 import { screenSrc, type ScreenName } from "@/modules/home/screens";
 import { AUTHOR_JSON_LD, SHARE_IMAGE } from "@/lib/metadata";
 import { SITE } from "@/lib/site";
@@ -31,6 +31,6 @@ export const APP_JSON_LD = {
   license: SITE.licenseUrl,
   isAccessibleForFree: SITE.price === 0,
   sameAs: [SITE.appStoreUrl, SITE.githubUrl],
-  keywords: "Ollama Cloud, iPhone, LLM chat, open models, private AI chat",
+  keywords: SEO_KEYWORDS.join(", "),
   featureList: APP_FEATURES,
 };

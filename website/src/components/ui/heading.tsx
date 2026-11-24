@@ -6,10 +6,10 @@ import { cn } from "@/lib/utils";
 const headingVariants = cva("font-bold text-balance", {
   variants: {
     size: {
-      display: "text-[2.75rem] leading-[1.02] tracking-[-0.03em] sm:text-7xl lg:text-8xl lg:leading-none",
-      section: "text-[2.5rem] leading-[1.05] tracking-[-0.02em] sm:text-6xl lg:text-[4.375rem]",
-      feature: "text-2xl leading-tight tracking-[-0.015em] sm:text-[1.875rem]",
-      subsection: "text-3xl leading-tight tracking-[-0.015em] sm:text-4xl",
+      display: "text-display-sm tracking-display leading-[1.02] sm:text-7xl lg:text-8xl lg:leading-none",
+      section: "text-section-sm tracking-section leading-[1.05] sm:text-6xl lg:text-section",
+      feature: "tracking-feature text-2xl leading-tight sm:text-3xl",
+      subsection: "tracking-feature text-3xl leading-tight sm:text-4xl",
       item: "text-lg leading-snug tracking-title sm:text-2xl",
     },
   },
@@ -36,7 +36,7 @@ export function Marker({ className, ...props }: ComponentProps<"span">): ReactNo
 export function Lead({ className, ...props }: ComponentProps<"p">): ReactNode {
   return (
     <p
-      className={cn("text-lg leading-snug font-bold tracking-title text-pretty sm:text-[1.4375rem] sm:leading-[1.35]", className)}
+      className={cn("text-lg leading-snug font-bold tracking-title text-pretty sm:text-lead sm:leading-[1.35]", className)}
       {...props}
     />
   );

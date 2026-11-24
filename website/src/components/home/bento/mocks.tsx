@@ -12,7 +12,7 @@ import {
   SparkIcon,
 } from "@/components/ui/icons";
 import { AppIcon } from "@/components/global/logo";
-import { DATA_FLOW } from "@/modules/privacy/content";
+import { DATA_FLOW, MOCK_COPY } from "@/modules/home/content";
 import { cn } from "@/lib/utils";
 
 const ATTACH_ACTIONS = [
@@ -21,7 +21,6 @@ const ATTACH_ACTIONS = [
   { label: "File", icon: DocumentIcon },
 ] as const;
 
-const MEMORY_FACTS = ["Goes by Sam", "Prefers short answers", "Is learning Japanese"] as const;
 
 
 const EXCERPT_ACTIONS = [
@@ -53,14 +52,14 @@ export function AttachMock(): ReactNode {
       <div className="bg-surface shadow-card w-56 rotate-2 rounded-xl p-4">
         <div className="flex items-center gap-2">
           <span className="bg-system-red text-surface rounded px-1.5 py-0.5 text-tag font-bold">PDF</span>
-          <span className="text-foreground text-xs font-bold">lease-agreement.pdf</span>
+          <span className="text-foreground text-xs font-bold">{MOCK_COPY.pdfName}</span>
         </div>
         <div className="mt-3 space-y-1.5">
           {["w-full", "w-11/12", "w-4/5", "w-full", "w-2/3"].map((width, index) => (
             <span key={index} className={cn("block h-1.5 rounded-full", width, index === 2 ? "bg-marker" : "bg-foreground/10")} />
           ))}
         </div>
-        <p className="text-faint-foreground mt-3 text-tag font-bold">Text read on this iPhone</p>
+        <p className="text-faint-foreground mt-3 text-tag font-bold">{MOCK_COPY.pdfNote}</p>
       </div>
     </div>
   );
@@ -77,7 +76,7 @@ export function NotificationMock(): ReactNode {
             <span className="font-bold">Quock</span>
             <span className="text-faint-foreground">now</span>
           </div>
-          <p className="text-mock">Your answer is ready.</p>
+          <p className="text-mock">{MOCK_COPY.notification}</p>
         </div>
       </div>
     </div>
@@ -87,7 +86,7 @@ export function NotificationMock(): ReactNode {
 export function MemoryMock(): ReactNode {
   return (
     <ul className="w-full space-y-2 p-6 sm:p-7">
-      {MEMORY_FACTS.map((fact, index) => (
+      {MOCK_COPY.memoryFacts.map((fact, index) => (
         <li
           key={fact}
           className="bg-surface text-foreground shadow-card flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-semibold"
@@ -109,7 +108,7 @@ export function DataFlowMock(): ReactNode {
         <span className="bg-system-red size-3 rounded-full" />
         <span className="bg-system-yellow size-3 rounded-full" />
         <span className="bg-system-green size-3 rounded-full" />
-        <span className="ml-3 text-mock font-bold">Where your data goes</span>
+        <span className="ml-3 text-mock font-bold">{MOCK_COPY.dataFlowTitle}</span>
       </div>
       <table className="w-full text-left text-mock">
         <thead className="text-faint-foreground">
@@ -138,15 +137,15 @@ export function ContinueMock(): ReactNode {
     <div className="w-full p-6 sm:p-7">
       <div className="bg-surface text-foreground shadow-card rounded-2xl p-4 text-mock leading-relaxed">
         <p>
-          The quickest route is the coastal road, then the ferry from Anacortes. Leave before nine and you
-          <span className="text-foreground/25"> will avoid the queue at</span>
+          {MOCK_COPY.continueDone}
+          <span className="text-foreground/25">{MOCK_COPY.continuePending}</span>
         </p>
         <div className="mt-3 flex items-center gap-2">
           <span className="bg-primary text-primary-foreground inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold">
             <ResumeIcon className="size-3" />
             Continue
           </span>
-          <span className="text-faint-foreground text-xs font-semibold">Interrupted</span>
+          <span className="text-faint-foreground text-xs font-semibold">{MOCK_COPY.continueStatus}</span>
         </div>
       </div>
     </div>
@@ -159,8 +158,8 @@ export function MenuMock(): ReactNode {
     <div className="w-full px-6 pt-6 sm:px-7">
       <div className="bg-surface text-muted-foreground shadow-card rounded-t-2xl p-4 text-mock leading-relaxed">
         <p>
-          <span className="bg-marker text-foreground rounded px-0.5">Setting it up algebraically, where x is the ball&rsquo;s price</span>
-          , the bat costs x + $1.00 and together they cost $1.10.
+          <span className="bg-marker text-foreground rounded px-0.5">{MOCK_COPY.excerptMarked}</span>
+          {MOCK_COPY.excerptRest}
         </p>
         <ul className="bg-panel text-foreground mt-3 w-40 rounded-xl p-1.5 text-mock font-semibold">
           {EXCERPT_ACTIONS.map(({ label, icon: Icon }, index) => (

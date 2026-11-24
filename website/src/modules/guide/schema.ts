@@ -1,4 +1,4 @@
-import { GUIDE_MINUTES, GUIDE_STEPS, GUIDE_TITLE, stepAnchor } from "@/modules/guide/content";
+import { GUIDE_DESCRIPTION, GUIDE_MINUTES, GUIDE_STEPS, GUIDE_TITLE, stepAnchor } from "@/modules/guide/content";
 import { PATHS, SITE } from "@/lib/site";
 import { absoluteUrl } from "@/lib/utils";
 
@@ -6,7 +6,7 @@ export const HOW_TO_JSON_LD = {
   "@context": "https://schema.org",
   "@type": "HowTo",
   name: GUIDE_TITLE,
-  description: "Chat with Ollama Cloud models on an iPhone using Quock.",
+  description: GUIDE_DESCRIPTION,
   totalTime: `PT${GUIDE_MINUTES}M`,
   tool: [{ "@type": "HowToTool", name: `iPhone with iOS ${SITE.minimumIos} or later` }],
   supply: [{ "@type": "HowToSupply", name: "An ollama.com account" }],

@@ -24,17 +24,17 @@ export function AppIcon({ className }: LogoProps): ReactNode {
 }
 
 // The version tag links to the changelog, so "what's new" is one tap from every page.
-export function Wordmark({ className }: LogoProps): ReactNode {
+export function Wordmark(): ReactNode {
   return (
-    <div className={cn("flex items-center gap-2.5", className)}>
+    <div className="flex items-center gap-2.5">
       <Link href={PATHS.home} className="flex items-center gap-2.5 rounded-xl" aria-label={`${SITE.name} home`}>
         <AppIcon />
-        <span className="text-xl font-bold tracking-[-0.02em]">{SITE.name}</span>
+        <span className="tracking-section text-xl font-bold">{SITE.name}</span>
       </Link>
       <Link
         href={PATHS.changelog}
         aria-label={`v${LATEST_RELEASE.version} changelog`}
-        className="text-faint-foreground hover:text-foreground -mt-4 rounded-md border px-1 py-px text-chip leading-tight font-bold transition-colors"
+        className="bg-background text-muted-foreground hover:text-foreground -mt-4 rounded-md border px-1 py-px text-chip leading-tight font-bold transition-colors"
       >
         v{LATEST_RELEASE.version}
       </Link>

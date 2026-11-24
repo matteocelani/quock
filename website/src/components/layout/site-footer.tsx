@@ -66,7 +66,7 @@ export function SiteFooter(): ReactNode {
         aria-hidden="true"
         className="pointer-events-none relative mt-10 flex justify-center select-none [mask-image:linear-gradient(to_bottom,black_35%,transparent_100%)]"
       >
-        <span className="text-foreground/[0.07] text-wordmark translate-y-[12%] leading-[0.82] font-bold tracking-[-0.06em]">
+        <span className="text-foreground/7 text-wordmark leading-wordmark tracking-wordmark translate-y-1/8 font-bold">
           {SITE.name}
         </span>
       </div>

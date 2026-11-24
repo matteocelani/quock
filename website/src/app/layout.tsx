@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { PropsWithChildren, ReactNode } from "react";
 import "@/app/globals.css";
 import { JsonLd } from "@/components/global/json-ld";
+import { SEO_KEYWORDS } from "@/modules/home/content";
 import { TITLE_TEMPLATE, WEBSITE_JSON_LD, socialMetadata } from "@/lib/metadata";
 import { IS_INDEXABLE, PATHS, SITE, THEME_COLOR } from "@/lib/site";
 
@@ -12,17 +13,7 @@ export const metadata: Metadata = {
   applicationName: SITE.name,
   authors: [{ name: SITE.author, url: SITE.authorUrl }],
   creator: SITE.author,
-  keywords: [
-    "Ollama Cloud client",
-    "Ollama Cloud iPhone app",
-    "how to use Ollama Cloud on iPhone",
-    "iPhone LLM client",
-    "LLM chat app",
-    "open models",
-    "AI chat iPhone",
-    "private AI chat",
-    "Quock",
-  ],
+  keywords: [...SEO_KEYWORDS],
   category: "productivity",
   robots: { index: IS_INDEXABLE, follow: IS_INDEXABLE },
   itunes: { appId: SITE.appStoreId },
