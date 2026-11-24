@@ -1,4 +1,5 @@
 import Foundation
+import MLX
 
 // What happens to a model between download and first load, chosen by the benchmark loop (bench/EXPERIMENTS.md):
 // from a full-precision Ollama build, the linear layers become affine 6-bit (group 64) and the tied embedding /
@@ -9,6 +10,7 @@ enum InstallOptimizer {
   static let headGroupSize = 128
   static let bodyBits = 6
   static let bodyGroupSize = 64
+  static let installCacheLimit = 64 << 20
 
   private static let fullPrecisionFileTypes: Set<String> = ["", "bf16", "f16", "fp16", "f32"]
 
@@ -20,6 +22,14 @@ enum InstallOptimizer {
   // Returns the bytes left on flash (read per token, never resident).
   @discardableResult
   static func optimize(directory: URL, isFullPrecision: Bool) throws -> Int64 {
+    // Each tensor is quantized and written once, so recycled buffers buy nothing; uncapped, MLX's cache kept 1.8 GB
+    // after a 2B install on the iPhone, close to the app's limit for a larger model and held until the next load.
+    let previousLimit = Memory.cacheLimit
+    Memory.cacheLimit = installCacheLimit
+    defer {
+      Memory.cacheLimit = previousLimit
+      Memory.clearCache()
+    }
     if isFullPrecision {
       _ = try BodyQuantizer.quantize(
         directory: directory,

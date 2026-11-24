@@ -418,6 +418,21 @@ func run() async throws {
     let sampler = TopPSampler(temperature: 0.7, topP: 0.8)
     report("TopPSampler end to end", timeIt(iterations) { sampler.sample(logits: logits) })
 
+  case "optimize":
+    // optimize <full-precision model>: the app's install step on a copy (<tag>-opt), with its time and memory.
+    let variant = try ModelReference("\(ref.name):\(ref.tag)-opt")
+    let target = LocalModelStore.directory(for: variant)
+    try? FileManager.default.removeItem(at: target)
+    try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try FileManager.default.copyItem(at: LocalModelStore.directory(for: ref), to: target)
+    Memory.peakMemory = 0
+    let start = Date()
+    let flashBytes = try InstallOptimizer.optimize(directory: target, isFullPrecision: true)
+    let seconds = Date().timeIntervalSince(start)
+    emit(String(format: "optimize %@: %.1f s, MLX peak %d MB, cache after %d MB, footprint %d MB, flash %d MB",
+      variant.display, seconds, Memory.peakMemory >> 20, Memory.cacheMemory >> 20, AppMemory.footprint >> 20,
+      Int(flashBytes >> 20)))
+
   case "verify":
     // verify <model> [runs] [rehash]: time the per-session file check that runs before the first load; `rehash`
     // first re-records the digests in the current format.
