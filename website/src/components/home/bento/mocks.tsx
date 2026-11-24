@@ -1,57 +1,31 @@
 import type { ReactNode } from "react";
-import {
-  CameraIcon,
-  CopyIcon,
-  DocumentIcon,
-  ForkIcon,
-  GlobeIcon,
-  ImageIcon,
-  RegenerateIcon,
-  ResumeIcon,
-  SelectIcon,
-  SparkIcon,
-} from "@/components/ui/icons";
+import { CopyIcon, ForkIcon, RegenerateIcon, ResumeIcon, SelectIcon, SparkIcon } from "@/components/ui/icons";
 import { AppIcon } from "@/components/global/logo";
 import { DATA_FLOW, MOCK_COPY } from "@/modules/home/content";
 import { SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
-const ATTACH_ACTIONS = [
-  { label: "Camera", icon: CameraIcon },
-  { label: "Photo", icon: ImageIcon },
-  { label: "File", icon: DocumentIcon },
-] as const;
-
-const EXCERPT_ACTIONS = [
-  { label: "Deep dive", icon: SparkIcon },
-  { label: "Web search", icon: GlobeIcon },
-] as const;
-
-const REPLY_ACTIONS = [
-  { label: "Copy message", icon: CopyIcon },
-  { label: "Select text", icon: SelectIcon },
-  { label: "Regenerate response", icon: RegenerateIcon },
-  { label: "Fork conversation from here", icon: ForkIcon },
-] as const;
+// The reply's action row: copy, select, regenerate, fork. Icons only, as the app draws it.
+const REPLY_ICONS = [CopyIcon, SelectIcon, RegenerateIcon, ForkIcon] as const;
 
 // Drawn in HTML rather than captured: crisp at any size, and each one mirrors behaviour the app really has.
 export function AttachMock(): ReactNode {
   return (
     <div className="flex w-full flex-col items-center gap-6 px-6 pt-8 pb-8 sm:flex-row sm:justify-center sm:gap-10">
       <div className="flex gap-5">
-        {ATTACH_ACTIONS.map(({ label, icon: Icon }) => (
+        {MOCK_COPY.attachActions.map(({ label, icon: Icon }) => (
           <div key={label} className="flex flex-col items-center gap-2">
             <span className="bg-surface text-foreground shadow-card flex size-16 items-center justify-center rounded-full">
               <Icon className="size-6" />
             </span>
-            <span className="text-muted-foreground text-xs font-bold">{label}</span>
+            <span className="text-muted-foreground text-mock font-bold">{label}</span>
           </div>
         ))}
       </div>
       <div className="bg-surface shadow-card w-56 rotate-2 rounded-xl p-4">
         <div className="flex items-center gap-2">
-          <span className="bg-system-red text-surface rounded px-1.5 py-0.5 text-tag font-bold">PDF</span>
-          <span className="text-foreground text-xs font-bold">{MOCK_COPY.pdfName}</span>
+          <span className="bg-system-red text-surface rounded px-1.5 py-0.5 text-tag font-bold">{MOCK_COPY.pdfTag}</span>
+          <span className="text-foreground text-mock font-bold">{MOCK_COPY.pdfName}</span>
         </div>
         <div className="mt-3 space-y-1.5">
           {["w-full", "w-11/12", "w-4/5", "w-full", "w-2/3"].map((width, index) => (
@@ -73,7 +47,7 @@ export function NotificationMock(): ReactNode {
         <div className="min-w-0 flex-1">
           <div className="flex justify-between text-mock">
             <span className="font-bold">{SITE.name}</span>
-            <span className="text-faint-foreground">now</span>
+            <span className="text-faint-foreground">{MOCK_COPY.notificationTime}</span>
           </div>
           <p className="text-mock">{MOCK_COPY.notification}</p>
         </div>
@@ -103,7 +77,7 @@ export function MemoryMock(): ReactNode {
   );
 }
 
-// The phone itself, then the three recipients of docs/PRIVACY.md section 4, drawn as a small system window.
+// Drawn as a small system window; a recipient that gets nothing is set faint.
 export function DataFlowMock(): ReactNode {
   return (
     <div className="bg-surface text-foreground shadow-card mx-6 mt-6 w-full overflow-hidden rounded-t-xl sm:mx-7">
@@ -116,14 +90,14 @@ export function DataFlowMock(): ReactNode {
       <table className="w-full text-left text-mock">
         <thead className="text-faint-foreground">
           <tr className="border-b">
-            <th scope="col" className="px-4 py-2 font-semibold">Place</th>
-            <th scope="col" className="px-4 py-2 font-semibold">What</th>
-            <th scope="col" className="hidden px-4 py-2 font-semibold sm:table-cell">When</th>
+            <th scope="col" className="px-4 py-2 font-semibold">{MOCK_COPY.dataFlowColumns.where}</th>
+            <th scope="col" className="px-4 py-2 font-semibold">{MOCK_COPY.dataFlowColumns.what}</th>
+            <th scope="col" className="hidden px-4 py-2 font-semibold sm:table-cell">{MOCK_COPY.dataFlowColumns.when}</th>
           </tr>
         </thead>
         <tbody>
           {DATA_FLOW.map((row, index) => (
-            <tr key={row.where} className={cn(index % 2 === 1 && "bg-foreground/3", index > 2 && "text-faint-foreground")}>
+            <tr key={row.where} className={cn(index % 2 === 1 && "bg-foreground/3", row.isNothing && "text-faint-foreground")}>
               <td className="px-4 py-2 font-semibold">{row.where}</td>
               <td className="px-4 py-2">{row.what}</td>
               <td className="hidden px-4 py-2 sm:table-cell">{row.when}</td>
@@ -139,16 +113,13 @@ export function ContinueMock(): ReactNode {
   return (
     <div className="w-full p-6 sm:p-7">
       <div className="bg-surface text-foreground shadow-card rounded-2xl p-4 text-mock leading-relaxed">
-        <p>
-          {MOCK_COPY.continueDone}
-          <span className="text-foreground/25">{MOCK_COPY.continuePending}</span>
-        </p>
+        <p>{MOCK_COPY.continueText}</p>
         <div className="mt-3 flex items-center gap-2">
-          <span className="bg-primary text-primary-foreground inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold">
+          <span className="bg-primary text-primary-foreground inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-mock font-bold">
             <ResumeIcon className="size-3" />
-            Continue
+            {MOCK_COPY.continueAction}
           </span>
-          <span className="text-faint-foreground text-xs font-semibold">{MOCK_COPY.continueStatus}</span>
+          <span className="text-faint-foreground text-mock font-semibold">{MOCK_COPY.continueStatus}</span>
         </div>
       </div>
     </div>
@@ -165,7 +136,7 @@ export function MenuMock(): ReactNode {
           {MOCK_COPY.excerptRest}
         </p>
         <ul className="bg-panel text-foreground mt-3 w-40 rounded-xl p-1.5 text-mock font-semibold">
-          {EXCERPT_ACTIONS.map(({ label, icon: Icon }, index) => (
+          {MOCK_COPY.excerptActions.map(({ label, icon: Icon }, index) => (
             <li key={label} className={cn("flex items-center gap-2.5 rounded-lg px-2.5 py-1.5", index === 0 && "bg-foreground/5")}>
               <Icon className="text-faint-foreground size-4" />
               {label}
@@ -173,8 +144,8 @@ export function MenuMock(): ReactNode {
           ))}
         </ul>
         <ul className="text-faint-foreground mt-4 flex gap-3 border-t pt-3">
-          {REPLY_ACTIONS.map(({ label, icon: Icon }) => (
-            <li key={label}>
+          {REPLY_ICONS.map((Icon, index) => (
+            <li key={index}>
               <Icon className="size-4" />
             </li>
           ))}

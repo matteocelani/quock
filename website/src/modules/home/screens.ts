@@ -28,3 +28,6 @@ export const MODELS = [
   { name: "gemma4:31b", tags: ["vision", "thinking"] },
   { name: "kimi-k2.6", tags: ["vision", "thinking"] },
 ] as const;
+
+// The model the picker capture shows as chosen, so the hero stage opens on the same one.
+export const PICKED_MODEL = "glm-5.2" satisfies (typeof MODELS)[number]["name"];

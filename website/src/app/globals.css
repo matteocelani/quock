@@ -76,8 +76,6 @@
   --tracking-section: -0.02em;
   --tracking-feature: -0.015em;
   --tracking-title: -0.01em;
-  --tracking-wordmark: -0.06em;
-  --leading-wordmark: 0.82;
   --leading-display: 1.02;
   --leading-section: 1.05;
   --leading-lead: 1.35;
@@ -85,7 +83,6 @@
   --container-content: 61rem;
   --container-hero: 62rem;
   --container-stage: 75rem;
-  --text-wordmark: clamp(7rem, 30vw, 26rem);
 
   --radius-tile: 1.5rem;
   --radius-stage: 2.5rem;
@@ -261,6 +258,13 @@
       animation: reveal linear both;
       animation-timeline: view();
       animation-range: entry 0% entry 35%;
+    }
+
+    /* Where the browser can, the two sweeps follow the scroll, so they play as the word comes into view. */
+    .thinking-text {
+      animation: shimmer linear 2 both;
+      animation-timeline: view();
+      animation-range: entry 100% cover 55%;
     }
   }
 

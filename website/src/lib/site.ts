@@ -2,7 +2,7 @@
 // modules/changelog, whose newest entry is the current release.
 const VERCEL_HOST = process.env.VERCEL_PROJECT_PRODUCTION_URL;
 const GITHUB = "https://github.com/matteocelani/quock";
-// main lags the live release until release/0.2.1 is merged, so the legal docs are read from develop.
+// Policy changes land on develop before a release reaches main, so the legal docs are read from there.
 const DOCS = `${GITHUB}/blob/develop/docs`;
 
 export const SITE = {
@@ -29,6 +29,8 @@ export const SITE = {
   releaseDate: "2026-07-23",
   price: 0,
   priceLabel: "Free",
+  priceCurrency: "USD",
+  category: "Productivity",
   minimumIos: "15.1",
   sizeMb: 37,
   ageRating: "12+",

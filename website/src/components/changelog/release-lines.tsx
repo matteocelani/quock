@@ -22,7 +22,7 @@ export function ReleaseLines(): ReactNode {
                 title={release.version}
                 open={lineIndex === 0 && index === 0}
                 aside={
-                  <time dateTime={release.date} className="text-faint-foreground shrink-0 text-sm font-bold">
+                  <time dateTime={release.date} className="text-faint-foreground shrink-0 text-ui font-bold">
                     {DATE_FORMAT.format(new Date(release.date))}
                   </time>
                 }

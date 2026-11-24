@@ -33,7 +33,7 @@ export const FAQ: readonly FaqItem[] = [
   {
     question: "Which models can I use?",
     answer:
-      "Every model in the Ollama Cloud catalogue, including families such as Gemma, Qwen, Llama, GPT-OSS, DeepSeek, Kimi and GLM. The picker shows which ones can see images and which ones can think before they answer.",
+      "Every model in the Ollama Cloud catalogue, including families such as Gemma, GPT-OSS, DeepSeek, Kimi, GLM, Mistral and MiniMax. The picker shows which ones can see images and which ones can think before they answer.",
   },
   {
     question: "Where are my conversations stored?",

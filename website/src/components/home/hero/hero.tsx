@@ -36,7 +36,7 @@ function AppStoreButton(): ReactNode {
 function Fact({ label, value }: FactProps): ReactNode {
   return (
     <div className="leading-tight">
-      <p className="text-faint-foreground text-sm font-bold">{label}</p>
+      <p className="text-faint-foreground text-ui font-bold">{label}</p>
       <p className="text-muted-foreground text-lg font-bold">{value}</p>
     </div>
   );

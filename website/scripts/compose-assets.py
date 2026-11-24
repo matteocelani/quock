@@ -1,6 +1,8 @@
 """Builds the site's committed images (device shots, icons, share card) from the repo's own captures.
 Run `pnpm assets` from website/; the ollama.com avatar is masked because it defaults to Ollama's mascot."""
 
+import math
+import re
 import sys
 from pathlib import Path
 
@@ -12,16 +14,15 @@ FRAME = ROOT / "docs" / "store" / "ios" / "device-iphone-16-pro-max-natural.png"
 ICON = ROOT / "assets" / "images" / "icon-light.png"
 PUBLIC = ROOT / "website" / "public"
 APP = ROOT / "website" / "src" / "app"
+SRC = ROOT / "website" / "src"
 
 # The frame's transparent screen cut-out starts here and matches the 1320x2868 captures.
 SCREEN_ORIGIN = (75, 66)
 # Avatar orb centre and the radius of the picture inside its ring, in capture pixels.
 AVATAR_CENTER = (1218, 276)
 AVATAR_RADIUS = 40
-SHOT_WIDTH = 840
-
 # name -> whether the header sits under a blurred scrim (a sheet is open) in that capture
-SCREENS = {
+BLURRED_HEADER = {
     "home": False,
     "open_model": True,
     "compose": True,
@@ -33,11 +34,46 @@ SCREENS = {
 OG_SIZE = (1200, 630)
 FONT_BOLD = Path("/Library/Fonts/SF-Pro-Display-Bold.otf")
 FONT_REGULAR = Path("/Library/Fonts/SF-Pro-Display-Regular.otf")
-INK = (29, 29, 31)
-MUTED = (110, 110, 115)
-# The site's highlighter colour, oklch(0.87 0.07 248).
-MARKER = (180, 214, 250)
-PAGE = (247, 249, 253)
+# The share card's two lines under the headline; nothing else uses them.
+OG_LINES = ("Chat with Ollama Cloud on iPhone.", "Independent, free and open source.")
+
+
+def read_source(path: str, pattern: str) -> re.Match[str]:
+    """Each value keeps one home in the site's source; the script reads it from there."""
+    match = re.search(pattern, (SRC / path).read_text(), re.S)
+    if not match:
+        sys.exit(f"compose-assets: {pattern!r} not found in src/{path}")
+    return match
+
+
+def oklch_to_rgb(lightness: float, chroma: float, hue: float) -> tuple[int, int, int]:
+    a, b = chroma * math.cos(math.radians(hue)), chroma * math.sin(math.radians(hue))
+    l_, m_, s_ = (
+        (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3,
+        (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3,
+        (lightness - 0.0894841775 * a - 1.2914855480 * b) ** 3,
+    )
+    linear = (
+        4.0767416621 * l_ - 3.3077115913 * m_ + 0.2309699292 * s_,
+        -1.2684380046 * l_ + 2.6097574011 * m_ - 0.3413193965 * s_,
+        -0.0041960863 * l_ - 0.7034186147 * m_ + 1.7076147010 * s_,
+    )
+    encode = lambda x: 12.92 * x if x <= 0.0031308 else 1.055 * x ** (1 / 2.4) - 0.055
+    return tuple(round(255 * min(max(encode(x), 0), 1)) for x in linear)
+
+
+def light_token(name: str) -> tuple[int, int, int]:
+    value = read_source("app/globals.css", r":root,[^{]*\{(.*?)\}").group(1)
+    raw = re.search(rf"--{name}:\s*([^;]+);", value).group(1).strip()
+    if raw.startswith("#"):
+        return tuple(int(raw[i : i + 2], 16) for i in (1, 3, 5))
+    return oklch_to_rgb(*map(float, re.findall(r"[\d.]+", raw)))
+
+
+SHOT_WIDTH = int(read_source("modules/home/screens.ts", r"SHOT_WIDTH = (\d+)").group(1))
+SCREEN_NAMES = re.findall(r'"(\w+)"', read_source("modules/home/screens.ts", r"type ScreenName = ([^;]+);").group(1))
+HEADLINE = read_source("modules/home/content.tsx", r'headline: \["([^"]+)", "([^"]+)"\]').groups()
+INK, MUTED, MARKER, PAGE = (light_token(name) for name in ("foreground", "muted-foreground", "marker", "background"))
 
 
 def neutral_avatar(shot: Image.Image, is_blurred: bool) -> Image.Image:
@@ -95,7 +131,9 @@ def compose_screens(frame: Image.Image) -> dict[str, Image.Image]:
     out_dir.mkdir(parents=True, exist_ok=True)
     devices = {}
     mask = screen_mask(frame)
-    for name, is_blurred in SCREENS.items():
+    if sorted(BLURRED_HEADER) != sorted(SCREEN_NAMES):
+        sys.exit("compose-assets: BLURRED_HEADER must list exactly the ScreenName captures in screens.ts")
+    for name, is_blurred in BLURRED_HEADER.items():
         device = framed(name, is_blurred, frame, mask)
         devices[name] = device
         height = round(device.height * SHOT_WIDTH / device.width)
@@ -133,13 +171,13 @@ def compose_og(devices: dict[str, Image.Image]) -> None:
     draw.rounded_rectangle((72, 64, 135, 127), radius=15, outline=(220, 220, 225), width=1)
     draw.text((152, 96), "Quock", font=brand, fill=INK, anchor="lm")
 
-    draw.text((68, 250), "Open. Type.", font=bold, fill=INK, anchor="ls")
+    draw.text((68, 250), HEADLINE[0], font=bold, fill=INK, anchor="ls")
     # Same highlighter stroke as the site's headline: the lower half of the line, behind the words.
-    left, top, right, bottom = draw.textbbox((68, 350), "That’s it.", font=bold, anchor="ls")
+    left, top, right, bottom = draw.textbbox((68, 350), HEADLINE[1], font=bold, anchor="ls")
     draw.rectangle((left - 4, top + (bottom - top) * 0.52, right + 4, bottom + 6), fill=MARKER)
-    draw.text((68, 350), "That’s it.", font=bold, fill=INK, anchor="ls")
-    draw.text((74, 440), "Chat with Ollama Cloud on iPhone.", font=small, fill=MUTED, anchor="ls")
-    draw.text((74, 480), "Independent, free and open source.", font=small, fill=MUTED, anchor="ls")
+    draw.text((68, 350), HEADLINE[1], font=bold, fill=INK, anchor="ls")
+    draw.text((74, 440), OG_LINES[0], font=small, fill=MUTED, anchor="ls")
+    draw.text((74, 480), OG_LINES[1], font=small, fill=MUTED, anchor="ls")
 
     # Blur clamps at the image edge, so the shadow gets a margin or it renders as a hard box.
     pad = 96

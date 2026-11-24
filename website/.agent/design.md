@@ -46,7 +46,8 @@ The inner pages (FAQ, changelog, guide, privacy) are for reading. They are dark 
 
 - **Type:**
   - one family, the system font, with weight 700 for headings and labels. Mock UI follows iOS: bold for labels, semibold for secondary text, and model names in the system monospace, as the app shows them;
-  - a steep scale: a 96px hero, 70px sections, 36px subsections, 30px feature titles, a 23px lead, 24px list items, a 17px body (`text-body`), 15px UI copy (`text-ui`), 13px mock UI (`text-mock`), 11px chips (`text-chip`) and 10px tags (`text-tag`);
+  - a steep scale: a 96px hero, 70px sections, 36px subsections, 30px feature titles, a 23px lead, 24px list items and eyebrows, a 17px body (`text-body`), 15px UI copy and captions (`text-ui`), 13px mock UI (`text-mock`), 11px chips (`text-chip`) and 10px tags (`text-tag`);
+  - on phones the large steps shrink to Tailwind's own sizes (leads and items to 18px, eyebrows and the header wordmark to 20px), set once in the components that own them;
   - tight tracking on large sizes.
 - **Colour:**
   - tint, ink, panel, muted and faint, plus a marker colour and a link accent;
@@ -60,7 +61,7 @@ The inner pages (FAQ, changelog, guide, privacy) are for reading. They are dark 
   - phones cast their own shadow.
 - **Motion:**
   - things arrive by lifting and un-blurring, sections reveal as you scroll, and presses spring;
-  - no endless motion: wallpapers are still, the thinking word sweeps twice (under 5s), and tab autoplay cycles only until the first tap, click, key or focus in its section, then stops for good (hover pauses it);
+  - no endless motion: wallpapers are still, the thinking word sweeps twice as it scrolls into view (under 5s where the browser cannot follow the scroll), and tab autoplay cycles only until the first tap, click, key or focus in its section, then stops for good (hover pauses it);
   - `prefers-reduced-motion` stops all of it, including tab autoplay.
 - **Mock surfaces:** an opaque `surface` card with `shadow-card`, ink from the theme tokens, and the iOS Increase Contrast system colours (`system-red`, `system-yellow`, `system-green`) only where the real UI shows them, such as a PDF tag, a switch or window controls, so controls keep 3:1. Glass is for things floating over wallpaper, never over a card.
 - **Imagery:**
@@ -72,6 +73,7 @@ The inner pages (FAQ, changelog, guide, privacy) are for reading. They are dark 
 
 | Element | Rule | Example |
 | --- | --- | --- |
+| Eyebrow | A bold topic label above a home headline, so the headline itself can play. One per section. | "Open models" |
 | Section headline | On the home page: short, ends with a period, can turn a phrase, at most one highlighted phrase. | "Every corner, covered." |
 | Page title | Inner pages use a plain label, with no period. | "FAQs", "Changelog" |
 | Lead | One bold sentence, dark rather than muted. Used under home headlines and at the top of reading pages. | "Pick any model on Ollama Cloud and start typing." |
@@ -85,7 +87,7 @@ The inner pages (FAQ, changelog, guide, privacy) are for reading. They are dark 
 ## Building something new
 
 1. **Write the headline first.** If it needs a "but", it is two sections.
-2. **Reuse a pattern** before inventing one: hero, stage, showcase, bento tile, numbered steps, icon grid, or an inner-page list. If you do invent one, add a line about it here.
+2. **Reuse a pattern** before inventing one: hero, stage, showcase, bento tile, numbered steps, icon grid, or an inner-page list. A section that teaches (the showcases, How it works) opens with an eyebrow above its headline. If you do invent one, add a line about it here.
 3. **Build it from tokens and existing components.** A new value goes into `globals.css`, not into the markup.
 4. **Check it at 390px and 1440px**, in both themes if it appears on both, with reduced motion on.
 5. **Ask whether the page got simpler.** If it didn't, cut something.

@@ -2,7 +2,7 @@ export const NOT_FOUND = {
   metaTitle: "Page not found",
   title: "Not",
   marked: "here.",
-  body: "That page doesn\u2019t exist. The app does, though.",
+  body: "That page doesn\u2019t exist, but the app does.",
 } as const;
 
 // Trademark notes that sit beside the disclaimer in the footer.
