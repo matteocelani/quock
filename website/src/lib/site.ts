@@ -1,6 +1,8 @@
 // Store facts were read from the App Store lookup API on 2026-11-23. The version and its date live in
 // modules/changelog, whose newest entry is the current release.
-const VERCEL_HOST = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+// The production domain is fixed here: Vercel's own production host can be the project's vercel.app
+// alias, which would leak into canonical, og:image and the sitemap. Previews and local builds stay noindex.
+const PRODUCTION_URL = "https://www.quock.app";
 const GITHUB = "https://github.com/matteocelani/quock";
 // Policy changes land on develop before a release reaches main, so the legal docs are read from there.
 const DOCS = `${GITHUB}/blob/develop/docs`;
@@ -13,7 +15,7 @@ export const SITE = {
     "An independent, open-source iPhone app for Ollama Cloud: streamed replies, thinking, web search, PDFs and images. Your chats stay on your phone. Free.",
   url:
     process.env.NEXT_PUBLIC_SITE_URL ??
-    (VERCEL_HOST ? `https://${VERCEL_HOST}` : "http://localhost:3000"),
+    (process.env.VERCEL_ENV === "production" ? PRODUCTION_URL : "http://localhost:3000"),
   appStoreUrl: "https://apps.apple.com/app/quock/id6785608333",
   appStoreId: "6785608333",
   githubUrl: GITHUB,
