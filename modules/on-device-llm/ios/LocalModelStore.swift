@@ -201,10 +201,8 @@ enum LocalModelStore {
   }
 
   static func recordFileHashes(in directory: URL) throws {
-    var hashes: [String: String] = [:]
-    for file in try modelFiles(in: directory) {
-      hashes[file.lastPathComponent] = try OllamaRegistry.sha256(of: file)
-    }
+    let files = try modelFiles(in: directory)
+    let hashes = Dictionary(uniqueKeysWithValues: zip(files.map(\.lastPathComponent), try FileDigest.digests(of: files)))
     try JSONEncoder().encode(hashes).write(to: directory.appending(path: fileHashesName), options: .atomic)
   }
 
@@ -217,8 +215,16 @@ enum LocalModelStore {
     guard Set(present.map(\.lastPathComponent)) == Set(expected.keys) else {
       throw LocalModelStoreError.corrupted(ref.display)
     }
-    for file in present where try OllamaRegistry.sha256(of: file) != expected[file.lastPathComponent] {
+    // Installs recorded before FileDigest carry one plain SHA-256 per file.
+    let chunked = present.filter { expected[$0.lastPathComponent]?.hasPrefix(FileDigest.prefix) == true }
+    for (file, digest) in zip(chunked, try FileDigest.digests(of: chunked))
+    where digest != expected[file.lastPathComponent] {
       throw LocalModelStoreError.corrupted(ref.display)
+    }
+    for file in present where !chunked.contains(file) {
+      guard try OllamaRegistry.sha256(of: file) == expected[file.lastPathComponent] else {
+        throw LocalModelStoreError.corrupted(ref.display)
+      }
     }
   }
 

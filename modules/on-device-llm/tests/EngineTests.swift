@@ -234,6 +234,41 @@ final class FileIntegrityTests: XCTestCase {
     XCTAssertThrowsError(try LocalModelStore.verifyFiles(of: ref))
   }
 
+  func testChunkedDigestIsStableAndCatchesChangesInAnyChunk() throws {
+    let dir = FileManager.default.temporaryDirectory.appending(path: "quock-digest-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    let bytes = Data((0 ..< 1000).map { UInt8($0 % 251) })
+    let file = dir.appending(path: "a.bin")
+    let empty = dir.appending(path: "empty.bin")
+    try bytes.write(to: file)
+    try Data().write(to: empty)
+    // 64-byte chunks: 16 work items for one file, so ordering and grouping across chunks and files are exercised.
+    let first = try FileDigest.digests(of: [file, empty], chunkBytes: 64)
+    XCTAssertEqual(first, try FileDigest.digests(of: [file, empty], chunkBytes: 64))
+    XCTAssertTrue(first.allSatisfy { $0.hasPrefix(FileDigest.prefix) })
+    XCTAssertNotEqual(first[0], first[1])
+    XCTAssertEqual(try FileDigest.digests(of: [empty, file], chunkBytes: 64), [first[1], first[0]])
+
+    var changed = bytes
+    changed[900] ^= 1
+    try changed.write(to: file)
+    XCTAssertNotEqual(try FileDigest.digests(of: [file], chunkBytes: 64)[0], first[0])
+    try bytes.prefix(960).write(to: file)
+    XCTAssertNotEqual(try FileDigest.digests(of: [file], chunkBytes: 64)[0], first[0])
+  }
+
+  func testInstallsRecordedWithPlainSHA256StillVerify() throws {
+    let (ref, dir) = try installedDirectory()
+    var legacy: [String: String] = [:]
+    for name in ["config.json", "model-00001.safetensors"] {
+      legacy[name] = try OllamaRegistry.sha256(of: dir.appending(path: name))
+    }
+    try JSONEncoder().encode(legacy).write(to: dir.appending(path: LocalModelStore.fileHashesName))
+    XCTAssertNoThrow(try LocalModelStore.verifyFiles(of: ref))
+    try Data("weightz".utf8).write(to: dir.appending(path: "model-00001.safetensors"))
+    XCTAssertThrowsError(try LocalModelStore.verifyFiles(of: ref))
+  }
+
   func testResumeMarkersAreRemovedAndModelFilesKept() throws {
     let (ref, dir) = try installedDirectory()
     FileManager.default.createFile(atPath: dir.appending(path: ".model-00001.safetensors.0123456789ab").path, contents: nil)

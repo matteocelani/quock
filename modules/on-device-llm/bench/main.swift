@@ -418,6 +418,19 @@ func run() async throws {
     let sampler = TopPSampler(temperature: 0.7, topP: 0.8)
     report("TopPSampler end to end", timeIt(iterations) { sampler.sample(logits: logits) })
 
+  case "verify":
+    // verify <model> [runs] [rehash]: time the per-session file check that runs before the first load; `rehash`
+    // first re-records the digests in the current format.
+    let runs = args.first.flatMap(Int.init) ?? 3
+    if args.dropFirst().first == "rehash" { try LocalModelStore.recordFileHashes(in: LocalModelStore.directory(for: ref)) }
+    var seconds: [Double] = []
+    for _ in 0 ..< runs {
+      let start = Date()
+      try LocalModelStore.verifyFiles(of: ref)
+      seconds.append(Date().timeIntervalSince(start))
+    }
+    emit(String(format: "verify %@: median %.3f s (%@)", ref.display, median(seconds), seconds.map { String(format: "%.3f", $0) }.joined(separator: ", ")))
+
   case "flashify":
     // flashify <model>: copy as <tag>-flash with the per-layer embedding table moved to flash (FlashEmbedding).
     let variant = try ModelReference("\(ref.name):\(ref.tag)-flash")
