@@ -31,7 +31,7 @@ enum SpikeSelfTest {
           log("pull \(completed >> 20)/\(total >> 20) MB")
         }
       }
-      log("pulled \(installed.bytes >> 20) MB in \(String(format: "%.1f", Date().timeIntervalSince(pullStart)))s available=\(AppMemory.available >> 20)MB footprint=\(AppMemory.footprint >> 20)MB")
+      log("installed on disk \(installed.bytes >> 20) MB resident \((installed.residentBytes ?? installed.bytes) >> 20) MB in \(String(format: "%.1f", Date().timeIntervalSince(pullStart)))s available=\(AppMemory.available >> 20)MB footprint=\(AppMemory.footprint >> 20)MB")
 
       // Launched from the Mac, the app may still be inactive; generation refuses until it is in the foreground.
       for _ in 0 ..< 120 where !ForegroundGate.shared.isActive {
@@ -61,7 +61,29 @@ enum SpikeSelfTest {
         log("answer: \(answer.value)")
         log("stats: \(stats.dictionary) available=\(os_proc_available_memory() >> 20)MB")
       }
+
+      // Three turns of one chat, the way the app sends them: turns 2 and 3 should restore the previous prompt cache.
+      var history: [LocalTurn] = []
+      for (index, message) in ["Mi consigli un libro di fantascienza?", "Perché proprio quello?", "Riassumi in una frase."]
+        .enumerated()
+      {
+        history.append(LocalTurn(role: "user", content: message))
+        let answer = SpikeBox<String>("")
+        let stats = try await LocalEngine.shared.generate(ref, turns: history, think: false, maxTokens: 120) { event in
+          if case .content(let text) = event { answer.append(text) }
+        }
+        history.append(LocalTurn(role: "assistant", content: answer.value))
+        log(String(
+          format: "chat turn %d prompt=%d prefilled=%d reused=%d ttft=%.3fs tok/s=%.1f", index + 1, stats.promptTokens,
+          stats.prefilledTokens, stats.reusedTokens, stats.firstTokenSeconds,
+          stats.generateSeconds > 0 ? Double(stats.generatedTokens) / stats.generateSeconds : 0))
+      }
       log("DONE")
+      if ProcessInfo.processInfo.arguments.contains("-QuockLLMCleanup") {
+        await LocalEngine.shared.unload()
+        try? LocalModelStore.remove(ref)
+        log("removed \(model) after the test")
+      }
     } catch {
       // A model refused for memory would otherwise keep several GB on the test phone for nothing.
       if case LocalEngineError.insufficientMemory = error, let ref = try? ModelReference(model) {
