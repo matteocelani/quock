@@ -79,7 +79,7 @@ Placement rules, the same as the app:
 | `pnpm lint` · `pnpm typecheck` · `pnpm build` | The gate (CI: `.github/workflows/website.yml`) |
 | `pnpm assets` | Rebuild device shots, icons and the share card `public/og.png`. Needs Python 3 with Pillow and, on macOS, Apple's SF Pro fonts in `/Library/Fonts` |
 
-`pnpm build` writes static HTML to `out/`, which any host can serve. Set `NEXT_PUBLIC_SITE_URL` when deploying outside Vercel. Without a real URL, the build marks itself `noindex` on purpose.
+`pnpm build` writes static HTML to `out/`, which any host can serve. Vercel production builds use the domain fixed in `src/lib/site.ts`; set `NEXT_PUBLIC_SITE_URL` to override it or when deploying elsewhere. Without a real URL (previews, local builds), the build marks itself `noindex` on purpose.
 
 ## Code rules
 
