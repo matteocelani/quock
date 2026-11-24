@@ -574,6 +574,15 @@ func run() async throws {
         proposed > 0 ? 100 * Double(accepted) / Double(proposed) : 0, accepted, proposed, identical, prompts.count))
     }
 
+  case "unloadcheck":
+    // unloadcheck <model>: a reply (which queues the next turn's prefill) and an immediate unload must leave no model
+    // memory behind, or switching models right after a reply holds two in memory.
+    _ = try await LocalEngine.shared.generate(
+      ref, turns: [LocalTurn(role: "user", content: "Scrivi tre frasi sul mare.")], think: false, maxTokens: 48,
+      temperatureOverride: 0) { _ in }
+    await LocalEngine.shared.unload()
+    emit("UNLOAD active after unload: \(Memory.activeMemory >> 20) MB")
+
   case "verify":
     // verify <model> [runs] [rehash]: time the per-session file check that runs before the first load; `rehash`
     // first re-records the digests in the current format.

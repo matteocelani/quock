@@ -113,6 +113,7 @@ actor LocalEngine {
 
   func load(_ ref: ModelReference) async throws -> (ModelContainer, Double) {
     if let container, loadedRef == ref { return (container, 0) }
+    await stopFollowUp()
     container = nil
     loadedRef = nil
     snapshots = []
@@ -142,6 +143,14 @@ actor LocalEngine {
     return (loaded, Date().timeIntervalSince(start))
   }
 
+  // The idle-time prefill holds the loaded model until its current chunk ends; releasing the model before it stops would
+  // leave it in memory beside the next one (1.6 GB still allocated after unloading qwen3.5:2b on the Mac bench).
+  private func stopFollowUp() async {
+    followUp?.cancel()
+    await followUp?.value
+    followUp = nil
+  }
+
   // Loads a model and runs it once on a throwaway prompt, so the user's first message pays neither the load nor the GPU
   // kernel setup: on the iPhone, qwen3.5:2b's first reply waited 1.2 s to load and 1.1 s to its first token, against
   // 0.3 s once warm. Called when a chat with an on-device model opens; never while a reply is being generated.
@@ -166,9 +175,8 @@ actor LocalEngine {
     return true
   }
 
-  func unload() {
-    followUp?.cancel()
-    followUp = nil
+  func unload() async {
+    await stopFollowUp()
     container = nil
     loadedRef = nil
     snapshots = []
