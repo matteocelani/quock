@@ -30,7 +30,7 @@ let package = Package(
     ),
     .executableTarget(
       name: "quock-llm-bench",
-      dependencies: ["OnDeviceLLMCore"] + mlx,
+      dependencies: ["OnDeviceLLMCore", .product(name: "MLXVLM", package: "mlx-swift-lm")] + mlx,
       path: "bench",
       exclude: ["baselines.json", "results.jsonl", "EXPERIMENTS.md"],
       swiftSettings: [.swiftLanguageMode(.v5)]

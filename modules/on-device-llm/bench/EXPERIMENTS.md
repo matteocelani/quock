@@ -48,6 +48,14 @@ Head GEMV alone (248320 × 1024): BF16 1.198 ms, q8 0.718, q6 0.548, q4 0.430; i
 
 ## Rejected
 
+- **Gemma 4's speculative drafter** (`draft.*` in Ollama's gemma4 builds: a 4-layer `gemma4_assistant` that reuses
+  the target's KV cache, run through mlx-swift-lm's `MTPSpeculativeTokenIterator`; `bench mtpprep` / `mtpbench`).
+  Only ~25% of drafted tokens are accepted (47% for the first position). On the BF16 build it gains x1.20-1.32
+  greedy and x1.17-1.21 sampled, but on the 6-bit build the app installs it loses: 149 -> 143 tok/s greedy, 140 ->
+  125 sampled. Block sizes 2, 3 and 6 are no better than 4. It would also need the multimodal Gemma 4 target with
+  its 321 MB vision tower, which does not fit beside the model on an 8 GB iPhone. Greedy output diverges from plain
+  decoding only late and between equally likely words (batched verification is not bit-exact).
+
 - **Ollama nvfp4 builds** (0.8b): 396 tok/s but KL 0.27, top-1 81%, factual errors in Italian.
 - **6-bit from the mxfp8 build** instead of BF16 (0.8b): KL 0.030 / 93.5% vs 0.020 / 95.1% — re-quantizing a
   quantized body compounds the error.

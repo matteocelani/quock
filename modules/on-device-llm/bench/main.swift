@@ -3,6 +3,7 @@ import Foundation
 import MLX
 import MLXLLM
 import MLXLMCommon
+import MLXVLM
 import MLXNN
 
 // quock-llm-bench: measures the on-device engine on a Mac with the exact sources the app ships.
@@ -469,6 +470,109 @@ func run() async throws {
     ) { _ in if firstToken == nil { firstToken = Date().timeIntervalSince(start) } }
     emit(String(format: "FIRSTTURN %@ prepare=%.3fs load=%.3fs firstToken=%.3fs (from send)", ref.display, prepareSeconds,
       stats.loadSeconds, firstToken ?? 0))
+
+  case "mtpprep":
+    // mtpprep <full-precision gemma4 model>: a copy as <tag>-vlm with Ollama's vision tower and processor files added
+    // (the multimodal Gemma 4 is the target the library's drafter supports), and the build's speculative drafter
+    // (draft.*, draft/*) in <tag>-vlm/drafter with its tensor names unprefixed.
+    let variant = try ModelReference("\(ref.name):\(ref.tag)-vlm")
+    let target = LocalModelStore.directory(for: variant)
+    try? FileManager.default.removeItem(at: target)
+    try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try FileManager.default.copyItem(at: LocalModelStore.directory(for: ref), to: target)
+    let manifest = try await OllamaRegistry.manifest(for: ref)
+    let drafter = target.appending(path: "drafter")
+    try FileManager.default.createDirectory(at: drafter, withIntermediateDirectories: true)
+    var draftArrays: [String: MLXArray] = [:]
+    var visionIndex = 0
+    for layer in manifest.layers ?? [] {
+      let name = layer.name ?? ""
+      if name.hasPrefix("draft/") {
+        _ = try await OllamaRegistry.download(layer, of: ref, to: drafter.appending(path: String(name.dropFirst(6))))
+      } else if name.hasPrefix("draft.") {
+        let part = drafter.appending(path: "part.safetensors")
+        _ = try await OllamaRegistry.download(layer, of: ref, to: part)
+        let arrays = try loadArrays(url: part)
+        eval(Array(arrays.values))
+        for (key, value) in arrays { draftArrays[key.hasPrefix("draft.") ? String(key.dropFirst(6)) : key] = value }
+        try FileManager.default.removeItem(at: part)
+      } else if name.contains("vision"), !name.contains("audio") {
+        visionIndex += 1
+        _ = try await OllamaRegistry.download(
+          layer, of: ref, to: target.appending(path: String(format: "vision-%05d.safetensors", visionIndex)))
+      } else if name.hasSuffix(".json"), !name.contains("/"),
+        !FileManager.default.fileExists(atPath: target.appending(path: name).path)
+      {
+        _ = try await OllamaRegistry.download(layer, of: ref, to: target.appending(path: name))
+      }
+    }
+    try save(arrays: draftArrays, url: drafter.appending(path: "model.safetensors"))
+    emit("mtpprep \(variant.display): \(visionIndex) vision tensors, drafter \(draftArrays.count) tensors")
+
+  case "mtpbench":
+    // mtpbench <model>-vlm [blockSize]: the same prompts with and without the drafter, greedy and sampled. Greedy
+    // speculation must reproduce the plain text exactly.
+    let blockSize = args.first.flatMap(Int.init) ?? 4
+    let directory = LocalModelStore.directory(for: ref)
+    let container = try await VLMModelFactory.shared.loadContainer(from: directory, using: TransformersTokenizerLoader())
+    await Gemma4AssistantRegistration.register()
+    let drafterContext = try await MTPDrafterModelFactory.shared.load(
+      from: directory.appending(path: "drafter"), using: TransformersTokenizerLoader())
+    let drafterModel = drafterContext.model
+    let prompts = [
+      "Spiegami in un paragrafo come funziona la fotosintesi.",
+      "Write a short story about a lighthouse keeper, about 150 words.",
+      "Elenca i passi per preparare una carbonara.",
+    ]
+    for temperature: Float in [0, 0.7] {
+      var plainRates: [Double] = []
+      var mtpRates: [Double] = []
+      var accepted = 0
+      var proposed = 0
+      var identical = 0
+      for prompt in prompts {
+        var texts: [String] = []
+        for useDrafter in [false, true] {
+          let (rate, acc, prop, text): (Double, Int, Int, String) = try await container.perform { context in
+            let input = try await context.processor.prepare(
+              input: UserInput(chat: [.user(prompt)], additionalContext: ["enable_thinking": false]))
+            let parameters = GenerateParameters(maxTokens: 200, temperature: temperature, topP: temperature == 0 ? 1 : 0.95)
+            let stream = useDrafter
+              ? try MLXLMCommon.generate(
+                input: input, parameters: parameters, context: context, mtpDrafter: drafterModel, blockSize: blockSize)
+              : try MLXLMCommon.generate(input: input, parameters: parameters, context: context)
+            var text = ""
+            var info: GenerateCompletionInfo?
+            for await item in stream {
+              switch item {
+              case .chunk(let chunk): text += chunk
+              case .info(let completion): info = completion
+              default: break
+              }
+            }
+            return (info?.tokensPerSecond ?? 0, info?.acceptedDraftTokens ?? 0, info?.proposedDraftTokens ?? 0, text)
+          }
+          if useDrafter {
+            mtpRates.append(rate)
+            accepted += acc
+            proposed += prop
+          } else {
+            plainRates.append(rate)
+          }
+          texts.append(text)
+        }
+        if texts[0] == texts[1] {
+          identical += 1
+        } else if temperature == 0 {
+          let shared = zip(texts[0], texts[1]).prefix(while: { $0 == $1 }).count
+          emit("diverge at char \(shared)/\(texts[0].count): plain «\(texts[0].dropFirst(max(0, shared - 40)).prefix(80))» speculative «\(texts[1].dropFirst(max(0, shared - 40)).prefix(80))»")
+        }
+      }
+      emit(String(
+        format: "MTP T=%.1f block=%d plain %.1f tok/s, speculative %.1f tok/s (x%.2f), acceptance %.1f%% (%d/%d), identical %d/%d",
+        temperature, blockSize, median(plainRates), median(mtpRates), median(mtpRates) / max(median(plainRates), 1e-9),
+        proposed > 0 ? 100 * Double(accepted) / Double(proposed) : 0, accepted, proposed, identical, prompts.count))
+    }
 
   case "verify":
     // verify <model> [runs] [rehash]: time the per-session file check that runs before the first load; `rehash`
