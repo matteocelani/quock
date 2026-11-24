@@ -330,6 +330,8 @@ func run() async throws {
       ("Riassumi tutto in una frase.", "Dune è un classico profondo e Herbert ha scritto molto altro nello stesso universo."),
       ("Ora dimmi tre film simili.", ""),
     ]
+    await FlashEmbeddings.registerIfNeeded()
+    FlashEmbeddings.loadingDirectory = LocalModelStore.directory(for: ref)
     let container = try await loadModelContainer(from: LocalModelStore.directory(for: ref), using: TransformersTokenizerLoader())
     let parameters = GenerateParameters(maxKVSize: 8192)
     var reuseKL: [Double] = []
@@ -358,23 +360,37 @@ func run() async throws {
           logits = context.model(MLXArray([next])[.newAxis], cache: greedyCache)
         }
         let scored = (prompt.count - 1) ..< (sequence.count - 1)
-        func logProbs(splitAt split: Int) throws -> MLXArray {
-          let cache = try context.model.newCache(parameters: parameters)
+        // Where the engine's idle-time prefill after the previous reply stops: the tokens shared by the history
+        // rendered with two different next messages.
+        var renderings: [[Int]] = []
+        for placeholder in ["?", "Ok."] {
+          renderings.append(try await context.processor.prepare(
+            input: UserInput(chat: chat.dropLast() + [.user(placeholder)], additionalContext: ["enable_thinking": false])
+          ).text.tokens.flattened().asArray(Int.self))
+        }
+        let followUp = zip(renderings[0], renderings[1]).prefix(while: { $0 == $1 }).count
+        let followUpPoint = prompt.starts(with: renderings[0][..<followUp]) ? max(followUp, reusePoint) : reusePoint
+        // Each split is a cache copied and resumed, as the engine does at every snapshot it restores.
+        func logProbs(splits: [Int]) throws -> MLXArray {
+          var cache = try context.model.newCache(parameters: parameters)
           var position = 0
-          while position < split {
-            let end = min(split, position + 512)
-            _ = context.model(MLXArray(Array(sequence[position ..< end]))[.newAxis], cache: cache)
-            eval(cache.flatMap(\.state))
-            position = end
+          for split in splits {
+            while position < split {
+              let end = min(split, position + 512)
+              _ = context.model(MLXArray(Array(sequence[position ..< end]))[.newAxis], cache: cache)
+              eval(cache.flatMap(\.state))
+              position = end
+            }
+            cache = cache.map { $0.copy() }
           }
-          let restored = cache.map { $0.copy() }
-          let all = context.model(MLXArray(Array(sequence[split...]))[.newAxis], cache: restored)
+          let split = position
+          let all = context.model(MLXArray(Array(sequence[split...]))[.newAxis], cache: cache)
           let scaled = all[0, (scored.lowerBound - split) ..< (scored.upperBound - split)].asType(.float32) / 0.7
           return scaled - logSumExp(scaled, axis: -1, keepDims: true)
         }
-        let cold = try logProbs(splitAt: 0)
-        let reused = try logProbs(splitAt: reusePoint)
-        let control = try logProbs(splitAt: prompt.count / 2)
+        let cold = try logProbs(splits: [0])
+        let reused = try logProbs(splits: [reusePoint, followUpPoint])
+        let control = try logProbs(splits: [prompt.count / 2])
         let klReuse = (exp(cold) * (cold - reused)).sum(axis: -1)
         let klControl = (exp(cold) * (cold - control)).sum(axis: -1)
         let same = (argMax(cold, axis: -1) .== argMax(reused, axis: -1)).asType(.int32)

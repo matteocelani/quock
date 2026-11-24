@@ -92,3 +92,17 @@ Both with the per-layer table on flash and judged against gemma4:e2b-mlx-bf16 wi
 The 6-bit install is 18× closer to full precision for 10% of decode speed and 310 MB more memory, and passes every
 functional check including reasoning (the BF16 build declares thinking; the nvfp4 one does not). Download is 8.9 GB
 instead of 6.6 GB. The app catalog now offers gemma4:e2b-mlx-bf16, which the installer turns into this build.
+
+## Idle-time prefill of the next turn's history (shipped)
+
+The reply cannot be resumed from the cache that generated it: Qwen's template renders a past reply without the empty
+think block the generation prompt carried, so the next prompt diverges right after the assistant marker. Instead,
+once a reply completes, the engine renders the history with two different placeholder messages, keeps the tokens
+both share (everything up to where the next user message starts, whatever the template), and prefills them into a
+copy of the turn's cache while the reply is read. The next turn waits for it rather than racing it.
+
+6-turn chat on the Mac: prefill at turn 6 is 22 tokens instead of 124 (qwen3.5:0.8b) and 18 instead of 574 cold
+(gemma4:e2b). On the iPhone, qwen3.5:2b's second turn had spent 1.26 s re-reading 139 tokens before its first token.
+`bench reusecheck` now replays both resume points: mean KL vs cold 0.8b 1.67e-3 (control 1.69e-3), 2b 1.14e-3
+(1.24e-3), gemma4:e2b nvfp4 1.99e-3 (1.84e-3), gemma4:e2b 6-bit 1.24e-3 (2.70e-3): all within the noise of an
+ordinary chunked prefill.
