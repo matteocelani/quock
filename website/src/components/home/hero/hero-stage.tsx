@@ -49,31 +49,31 @@ const TOOLS = [
 
 type ToolId = (typeof TOOLS)[number]["id"];
 
-interface SwitchProps {
+interface ToolCheckProps {
   isOn: boolean;
   label: string;
   onToggle: () => void;
 }
 
-function Switch({ isOn, label, onToggle }: SwitchProps): ReactNode {
+// The attach sheet marks a tool with a check circle (filled when on), so the stage does the same.
+function ToolCheck({ isOn, label, onToggle }: ToolCheckProps): ReactNode {
   return (
     <button
       type="button"
-      role="switch"
+      role="checkbox"
       aria-checked={isOn}
-      aria-label={label}
       onClick={onToggle}
-      className={cn(
-        "relative h-6 w-10 shrink-0 rounded-full transition-colors duration-300",
-        isOn ? "bg-system-green" : "bg-foreground/60",
-      )}
+      className="flex w-full items-center justify-between gap-3 py-1 text-left"
     >
+      <span className="text-ui font-semibold">{label}</span>
       <span
         className={cn(
-          "bg-surface shadow-card absolute top-0.5 left-0.5 size-5 rounded-full transition-transform duration-300 ease-spring",
-          isOn && "translate-x-4",
+          "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+          isOn ? "border-primary bg-primary text-primary-foreground" : "border-foreground/60",
         )}
-      />
+      >
+        {isOn && <CheckIcon className="size-3" strokeWidth={3} />}
+      </span>
     </button>
   );
 }
@@ -135,7 +135,7 @@ export function HeroStage(): ReactNode {
                   >
                     <span
                       className={cn(
-                        "flex size-5 shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors",
+                        "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
                         isSelected ? "border-primary bg-primary text-primary-foreground" : "border-foreground/60",
                       )}
                     >
@@ -166,11 +166,10 @@ export function HeroStage(): ReactNode {
           </div>
           <div className="bg-foreground/10 my-3 h-px" />
           <p className="text-muted-foreground mb-1 text-xs font-bold">Tools</p>
-          <ul className="space-y-2.5">
+          <ul className="space-y-1">
             {TOOLS.map((tool) => (
-              <li key={tool.id} className="flex items-center justify-between gap-3">
-                <span className="text-ui font-semibold">{tool.label}</span>
-                <Switch isOn={tools[tool.id]} label={tool.label} onToggle={() => toggleTool(tool.id, tool.screen)} />
+              <li key={tool.id}>
+                <ToolCheck isOn={tools[tool.id]} label={tool.label} onToggle={() => toggleTool(tool.id, tool.screen)} />
               </li>
             ))}
           </ul>

@@ -44,7 +44,8 @@ export const PATHS = {
   privacy: "/privacy/",
 } as const;
 
-// The short name of each page, used wherever a page is named in a list: nav, footer, page titles, llms.txt.
+// The short name of each page for lists that name pages: nav, footer, llms.txt, and the inner pages' titles
+// (the guide keeps its longer GUIDE_TITLE and GUIDE_HEADLINE).
 export const PAGE_LABELS = {
   home: "Home",
   guide: "Guide",

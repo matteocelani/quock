@@ -12,9 +12,9 @@ interface IconLink {
 }
 
 const ICON_LINKS: readonly IconLink[] = [
-  { href: SITE.githubUrl, label: "Quock on GitHub", icon: GithubIcon },
+  { href: SITE.githubUrl, label: `${SITE.name} on GitHub`, icon: GithubIcon },
   { href: SITE.authorXUrl, label: `${SITE.author} on X`, icon: XIcon },
-  { href: SITE.appStoreUrl, label: "Quock on the App Store", icon: DownloadIcon },
+  { href: SITE.appStoreUrl, label: `${SITE.name} on the App Store`, icon: DownloadIcon },
   { href: PATHS.privacy, label: PAGE_LABELS.privacy, icon: ShieldIcon },
 ];
 
@@ -64,7 +64,7 @@ export function SiteFooter(): ReactNode {
       </div>
       <div
         aria-hidden="true"
-        className="pointer-events-none relative mt-10 flex justify-center select-none [mask-image:linear-gradient(to_bottom,black_35%,transparent_100%)]"
+        className="pointer-events-none relative mt-10 flex justify-center select-none mask-b-from-35%"
       >
         <span className="text-foreground/7 text-wordmark leading-wordmark tracking-wordmark translate-y-1/8 font-bold">
           {SITE.name}

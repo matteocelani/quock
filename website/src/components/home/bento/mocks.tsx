@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/icons";
 import { AppIcon } from "@/components/global/logo";
 import { DATA_FLOW, MOCK_COPY } from "@/modules/home/content";
+import { SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 const ATTACH_ACTIONS = [
@@ -20,8 +21,6 @@ const ATTACH_ACTIONS = [
   { label: "Photo", icon: ImageIcon },
   { label: "File", icon: DocumentIcon },
 ] as const;
-
-
 
 const EXCERPT_ACTIONS = [
   { label: "Deep dive", icon: SparkIcon },
@@ -73,7 +72,7 @@ export function NotificationMock(): ReactNode {
         <AppIcon className="size-10" />
         <div className="min-w-0 flex-1">
           <div className="flex justify-between text-mock">
-            <span className="font-bold">Quock</span>
+            <span className="font-bold">{SITE.name}</span>
             <span className="text-faint-foreground">now</span>
           </div>
           <p className="text-mock">{MOCK_COPY.notification}</p>
@@ -83,20 +82,24 @@ export function NotificationMock(): ReactNode {
   );
 }
 
+// Memory has no screen of its own in the app: it is one switch in Settings, so that is what the mock shows.
 export function MemoryMock(): ReactNode {
   return (
-    <ul className="w-full space-y-2 p-6 sm:p-7">
-      {MOCK_COPY.memoryFacts.map((fact, index) => (
-        <li
-          key={fact}
-          className="bg-surface text-foreground shadow-card flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-semibold"
-          style={{ marginLeft: `${index * 12}px` }}
-        >
-          <SparkIcon className="text-faint-foreground size-4" />
-          {fact}
-        </li>
-      ))}
-    </ul>
+    <div className="w-full p-6 sm:p-7">
+      <p className="text-muted-foreground px-1 text-mock font-bold">{MOCK_COPY.memorySection}</p>
+      <div className="bg-surface text-foreground shadow-card mt-2 flex items-center justify-between gap-4 rounded-2xl px-4 py-3">
+        <div className="flex items-center gap-3">
+          <SparkIcon className="text-muted-foreground size-5" />
+          <div>
+            <p className="text-ui font-semibold">{MOCK_COPY.memoryLabel}</p>
+            <p className="text-muted-foreground text-mock">{MOCK_COPY.memoryNote}</p>
+          </div>
+        </div>
+        <span className="bg-system-green relative h-6 w-10 shrink-0 rounded-full">
+          <span className="bg-surface shadow-card absolute top-0.5 left-4.5 size-5 rounded-full" />
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -120,7 +123,7 @@ export function DataFlowMock(): ReactNode {
         </thead>
         <tbody>
           {DATA_FLOW.map((row, index) => (
-            <tr key={row.where} className={cn(index % 2 === 1 && "bg-foreground/[0.025]", index > 2 && "text-faint-foreground")}>
+            <tr key={row.where} className={cn(index % 2 === 1 && "bg-foreground/3", index > 2 && "text-faint-foreground")}>
               <td className="px-4 py-2 font-semibold">{row.where}</td>
               <td className="px-4 py-2">{row.what}</td>
               <td className="hidden px-4 py-2 sm:table-cell">{row.when}</td>
