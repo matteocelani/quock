@@ -58,7 +58,7 @@ The inner pages (FAQ, changelog, guide, privacy) are for reading. They are dark 
   - flat by default;
   - one raised shadow on the primary button;
   - glass only for things floating over moving content: panels over wallpaper, and the header once the page scrolls under it;
-  - phones cast their own shadow, from their panel: Safari paints an image blank when `blur()` and `drop-shadow()` share its filter.
+  - phones cast their own shadow.
 - **Motion:**
   - things arrive by lifting and un-blurring, sections reveal as you scroll, and presses spring;
   - no endless motion: wallpapers are still, the thinking word sweeps twice as it scrolls into view (under 5s where the browser cannot follow the scroll), and tab autoplay cycles only until the first tap, click, key or focus in its section, then stops for good (hover pauses it);
