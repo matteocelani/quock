@@ -78,6 +78,22 @@ enum SpikeSelfTest {
           stats.prefilledTokens, stats.reusedTokens, stats.firstTokenSeconds,
           stats.generateSeconds > 0 ? Double(stats.generatedTokens) / stats.generateSeconds : 0))
       }
+
+      // A chat's first message, from send to first token: cold, then after prepare() as the app does on opening a chat.
+      for prepared in [false, true] {
+        await LocalEngine.shared.unload()
+        let prepareStart = Date()
+        if prepared { try await LocalEngine.shared.prepare(ref) }
+        let prepareSeconds = Date().timeIntervalSince(prepareStart)
+        let sent = Date()
+        let firstToken = SpikeBox<Double>(0)
+        _ = try await LocalEngine.shared.generate(
+          ref, turns: [LocalTurn(role: "user", content: "Ciao! Come stai?")], think: false, maxTokens: 16
+        ) { _ in if firstToken.value == 0 { _ = firstToken.swap(Date().timeIntervalSince(sent)) } }
+        log(String(
+          format: "first message prepared=%@ prepare=%.3fs send-to-first-token=%.3fs", prepared ? "yes" : "no",
+          prepareSeconds, firstToken.value))
+      }
       log("DONE")
       if ProcessInfo.processInfo.arguments.contains("-QuockLLMCleanup") {
         await LocalEngine.shared.unload()
