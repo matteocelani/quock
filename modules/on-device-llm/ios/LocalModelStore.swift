@@ -22,6 +22,9 @@ enum LocalModelStore {
   // A phone drops connections all the time (Wi-Fi handoff, sleep, a flaky CDN edge); one lost file must not end a pull.
   private static let downloadAttempts = 4
   private static let retryBaseDelay: UInt64 = 1_000_000_000
+  // Room the install needs beyond the download: the optimizer writes each rewritten file next to the original, and
+  // the largest (a BF16 embedding table) is under 1 GB.
+  static let installScratchBytes: Int64 = 1 << 30
 
   static var root: URL {
     // The macOS benchmark points this at its own cache so it never touches a real install.
@@ -105,6 +108,12 @@ enum LocalModelStore {
       }
     }
 
+    // Checked before the first byte: a full disk would otherwise end the pull halfway with a generic write error.
+    let remaining = jobs.reduce(Int64(0)) { $0 + $1.0.size }
+    if let free = availableDiskBytes(at: directory), free < remaining + installScratchBytes {
+      throw LocalModelStoreError.insufficientSpace(needed: remaining + installScratchBytes, free: free)
+    }
+
     try await withThrowingTaskGroup(of: Int64.self) { group in
       var iterator = jobs.makeIterator()
       func enqueue() {
@@ -173,6 +182,12 @@ enum LocalModelStore {
     try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
       .filter { !$0.lastPathComponent.hasPrefix(".") && !$0.lastPathComponent.hasPrefix("quock-") }
       .sorted { $0.lastPathComponent < $1.lastPathComponent }
+  }
+
+  // What the system will free up for a user-initiated download (purgeable caches included), not just empty blocks.
+  static func availableDiskBytes(at url: URL) -> Int64? {
+    let values = try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+    return values?.volumeAvailableCapacityForImportantUsage
   }
 
   // Markers are the empty ".<file>.<digest prefix>" files written as each layer finishes downloading.
@@ -249,11 +264,18 @@ enum LocalModelStore {
 
 enum LocalModelStoreError: LocalizedError {
   case corrupted(String)
+  case insufficientSpace(needed: Int64, free: Int64)
 
   var errorDescription: String? {
     switch self {
     case .corrupted(let ref): "The files of \(ref) are damaged. Remove the model and download it again."
+    case .insufficientSpace(let needed, let free):
+      "This model needs \(Self.gigabytes(needed)) of free storage and \(Self.gigabytes(free)) is available."
     }
+  }
+
+  private static func gigabytes(_ bytes: Int64) -> String {
+    ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
   }
 }
 
