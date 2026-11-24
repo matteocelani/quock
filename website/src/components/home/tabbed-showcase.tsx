@@ -11,37 +11,34 @@ import { cn } from "@/lib/utils";
 
 const TAB_DURATION_MS = 6000;
 
-// Autoplay rides a CSS animation, so reduced motion turns it off; hovering or focusing the section pauses
-// it, and any tap, click or key stops it for good, which covers touch browsers too (WCAG 2.2.2).
-export function TabbedShowcase({ id, eyebrow, title, lead, tabs, wallpaper, footnote }: Showcase): ReactNode {
+// Autoplay rides a CSS animation, so reduced motion turns it off. Hover pauses it; any tap, click, key or
+// focus inside the section stops it for good, touch browsers included (WCAG 2.2.2).
+export function TabbedShowcase({ id, eyebrow, title, shimmerWord, lead, tabs, wallpaper, footnote }: Showcase): ReactNode {
   const [active, setActive] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
   const screens = [...new Set(tabs.map((tab) => tab.screen))];
   const panelId = `${id}-screen`;
   const tabId = (index: number): string => `${id}-tab-${index}`;
-  const isPaused = isHovered || isFocused;
 
-  const choose = (index: number): void => {
-    setIsStopped(true);
-    setActive(index);
-  };
+  const stop = (): void => setIsStopped(true);
 
   return (
     <section
       id={id}
       aria-labelledby={`${id}-title`}
-      className="scroll-mt-28 px-5 pt-32 sm:px-8 sm:pt-44"
+      className="px-5 pt-32 sm:px-8 sm:pt-44"
       onPointerEnter={(event) => event.pointerType === "mouse" && setIsHovered(true)}
       onPointerLeave={(event) => event.pointerType === "mouse" && setIsHovered(false)}
-      onFocus={() => setIsFocused(true)}
-      onBlur={(event) => !event.currentTarget.contains(event.relatedTarget) && setIsFocused(false)}
+      onPointerDown={stop}
+      onFocus={stop}
+      onKeyDown={stop}
     >
       <div className="reveal mx-auto max-w-3xl text-center">
         <Eyebrow>{eyebrow}</Eyebrow>
         <Heading id={`${id}-title`} className="mt-2">
           {title}
+          {shimmerWord && <span className="thinking-text"> {shimmerWord}</span>}
         </Heading>
         <Lead className="mx-auto mt-6 max-w-2xl">{lead}</Lead>
       </div>
@@ -89,8 +86,8 @@ export function TabbedShowcase({ id, eyebrow, title, lead, tabs, wallpaper, foot
               aria-selected={isActive}
               aria-controls={panelId}
               tabIndex={isActive ? 0 : -1}
-              onClick={() => choose(index)}
-              onKeyDown={(event) => handleRovingKeys(event, index, tabs.length, choose)}
+              onClick={() => setActive(index)}
+              onKeyDown={(event) => handleRovingKeys(event, index, tabs.length, setActive)}
               className="group text-left"
             >
               <span
@@ -101,7 +98,7 @@ export function TabbedShowcase({ id, eyebrow, title, lead, tabs, wallpaper, foot
               >
                 {tab.icon}
               </span>
-              <span className="mt-3 block text-[15px] leading-snug text-pretty">
+              <span className="mt-3 block text-ui leading-snug text-pretty">
                 <span className="font-bold">{tab.lead}</span>{" "}
                 <span className="text-muted-foreground">{tab.body}</span>
               </span>
@@ -113,7 +110,7 @@ export function TabbedShowcase({ id, eyebrow, title, lead, tabs, wallpaper, foot
                     style={
                       {
                         "--duration": `${TAB_DURATION_MS}ms`,
-                        animationPlayState: isPaused ? "paused" : "running",
+                        animationPlayState: isHovered ? "paused" : "running",
                       } as CSSProperties
                     }
                     onAnimationEnd={() => setActive((current) => (current + 1) % tabs.length)}

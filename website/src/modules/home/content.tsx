@@ -25,7 +25,9 @@ interface ShowcaseTab {
 export interface Showcase {
   id: string;
   eyebrow: string;
-  title: ReactNode;
+  title: string;
+  // A word that gets the thinking sheen after the title, as the app's thinking label does.
+  shimmerWord?: string;
   lead: string;
   tabs: readonly ShowcaseTab[];
   wallpaper: "sky" | "dusk";
@@ -63,11 +65,8 @@ export const SHOWCASES: readonly Showcase[] = [
   {
     id: "thinking",
     eyebrow: "Reasoning",
-    title: (
-      <>
-        Watch it <span className="thinking-text">think.</span>
-      </>
-    ),
+    title: "Watch it",
+    shimmerWord: "think.",
     lead: "Follow the reasoning as it streams, right above the answer.",
     wallpaper: "dusk",
     footnote: "Thinking needs a thinking-capable model.",
@@ -91,6 +90,53 @@ export const SHOWCASES: readonly Showcase[] = [
         screen: "history",
       },
     ],
+  },
+];
+
+export const HERO = {
+  facts: [
+    { label: "Every model on", value: "Ollama Cloud" },
+    { label: "Sign in with your", value: "ollama.com account" },
+  ],
+} as const;
+
+export const HOW_IT_WORKS = { eyebrow: "How it works", title: "Ready in minutes." } as const;
+
+export type BentoMock = "attach" | "notification" | "memory" | "dataFlow" | "continue" | "menu";
+
+interface BentoCell {
+  mock: BentoMock;
+  lead: string;
+  body: string;
+  isWide?: boolean;
+}
+
+export const BENTO_TITLE = "Every corner, covered.";
+
+export const BENTO_CELLS: readonly BentoCell[] = [
+  {
+    mock: "attach",
+    lead: "Attach anything.",
+    body: "Photos, screenshots and PDFs. Quock reads a document's text, or runs OCR on your phone when there is none.",
+    isWide: true,
+  },
+  { mock: "notification", lead: "Finishes in the background.", body: "Leave mid-answer. Quock can tell you when it is ready." },
+  {
+    mock: "memory",
+    lead: "Remembers what matters.",
+    body: "A few facts you share, stored on your phone and sent with your messages while memory is on.",
+  },
+  {
+    mock: "dataFlow",
+    lead: "Private by design.",
+    body: "Your history lives on your iPhone, and your messages go only to Ollama Cloud.",
+    isWide: true,
+  },
+  { mock: "continue", lead: "Never lose an answer.", body: "A reply cut short continues where it stopped, without paying twice." },
+  {
+    mock: "menu",
+    lead: "Act on any part.",
+    body: "Long-press a paragraph for a Deep dive or a web search. Fork the chat from any reply.",
   },
 ];
 

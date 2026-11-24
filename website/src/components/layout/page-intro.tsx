@@ -34,5 +34,5 @@ export function PageIntro({ title, updated, path }: PageIntroProps): ReactNode {
 
 // One narrow column keeps reading pages at a comfortable line length.
 export function PageColumn({ children }: PageColumnProps): ReactNode {
-  return <div className="mx-auto max-w-[40rem] px-5 sm:px-0">{children}</div>;
+  return <div className="mx-auto max-w-prose px-5 sm:px-0">{children}</div>;
 }

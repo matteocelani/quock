@@ -5,8 +5,8 @@ import { APP_FEATURES } from "@/modules/home/content";
 import { PAGE_LABELS, PATHS, SITE } from "@/lib/site";
 import { absoluteUrl } from "@/lib/utils";
 
-// llms.txt (llmstxt.org) is assembled from the same modules as the pages, so assistants quote what the site says.
-// The legal line reaches it through the "Who makes Quock?" answer, so it is not repeated here.
+// llmstxt.org shape: H1, summary, then prose and lists, with H2 sections reserved for link lists.
+// Built from the same modules as the pages, so assistants quote what the site says.
 export function buildLlmsTxt(): string {
   const pages = (Object.keys(PAGE_LABELS) as (keyof typeof PAGE_LABELS)[]).map(
     (key) => `- [${PAGE_LABELS[key]}](${absoluteUrl(PATHS[key])})`,
@@ -16,25 +16,28 @@ export function buildLlmsTxt(): string {
     "",
     `> ${SITE.description}`,
     "",
-    `Version ${LATEST_RELEASE.version}, free on the App Store, iOS ${SITE.minimumIos} or later. Made by ${SITE.author}.`,
+    `Version ${LATEST_RELEASE.version}, ${SITE.priceLabel.toLowerCase()} on the App Store, iOS ${SITE.minimumIos} or later. Made by ${SITE.author}.`,
     "",
-    "## Features",
+    "Features:",
     "",
     ...APP_FEATURES.map((feature) => `- ${feature}`),
     "",
-    `## ${GUIDE_TITLE}`,
+    `${GUIDE_TITLE}:`,
     "",
     ...GUIDE_STEPS.map((step, index) => `${index + 1}. ${step.title} ${step.body}`),
     "",
+    "Questions and answers:",
+    "",
+    ...FAQ.flatMap((item) => [`- **${item.question}** ${item.answer}`]),
+    "",
     "## Pages",
     "",
-    `- [Home](${absoluteUrl(PATHS.home)})`,
     ...pages,
-    `- [App Store](${SITE.appStoreUrl})`,
-    `- [Source code](${SITE.githubUrl})`,
     "",
-    "## FAQs",
+    "## Links",
     "",
-    ...FAQ.flatMap((item) => [`### ${item.question}`, "", item.answer, ""]),
+    `- [App Store](${SITE.appStoreUrl}): download Quock`,
+    `- [Source code](${SITE.githubUrl}): the full project on GitHub`,
+    `- [Privacy policy](${SITE.privacyUrl}): the controlling text`,
   ].join("\n");
 }

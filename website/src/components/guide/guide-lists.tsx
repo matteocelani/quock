@@ -8,7 +8,7 @@ export function GuideSteps(): ReactNode {
   return (
     <ol className="mt-12 space-y-10">
       {GUIDE_STEPS.map((step, index) => (
-        <li key={step.title} id={stepAnchor(index)} className="flex scroll-mt-28 gap-5">
+        <li key={step.title} id={stepAnchor(index)} className="flex gap-5">
           <StepBadge step={index + 1} />
           <div>
             <Heading as="h3" size="item">

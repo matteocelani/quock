@@ -24,7 +24,8 @@ The marketing site for Quock: a small, static Next.js project beside the app. It
 Same shape as the app: features in `modules/`, their UI in `components/`, shared pieces in `lib/`, and thin routes in `app/`.
 
 ```
-src/app/                 Routes only: metadata plus composition. (home) is light, (pages) is dark;
+src/app/                 Routes compose: metadata, the page frame and components. They define no components and
+                         own no content; a sentence of glue around a link is fine. (home) is light, (pages) is dark;
                          sitemap, robots, manifest, llms.txt and the icons sit beside them.
 src/modules/<feature>/   Content and schema for one feature, with no UI:
                          faq, changelog, guide, privacy, home, llms.
@@ -48,12 +49,12 @@ scripts/                 compose-assets.py: builds the committed images from doc
 Placement rules, the same as the app:
 - **Who imports it decides where it lives.** Used by one file, it is a constant at the top of that file. Used by one feature, it goes in that feature's module or component folder. Used by two or more features, it goes in `lib/` (or `components/ui/` for a primitive). When something gets a second user, promote it in the same change.
 - **Dependencies point one way:** `app → components → modules → lib`. `ui/` never imports `layout/`, `global/` or `home/`. Modules never import components, with one exception: they may reference `ui/icons` to tag their content.
-- **One item is a file; two or more make a folder.** No empty folders, no stubs, no barrel `index.ts`.
+- **Feature folders are always folders**, as in the app (`modules/<feature>/`, `components/<feature>/`), even with one file. Inside one, a single item is a file and two or more make a subfolder. No empty folders, no stubs, no barrel `index.ts`.
 - **Each value has one home.**
   - Design tokens live in `globals.css` and are used through semantic classes. Never a hex at the use site.
-  - Facts, URLs, paths and page labels live in `site.ts`.
-  - Copy that feeds more than one surface (a page and its JSON-LD, llms.txt, another page) lives in its module.
-  - Copy that only one component shows stays in that component's file, the same placement rule as everything else.
+  - Facts (version aside, which is the newest changelog entry), price, URLs, paths and page labels live in `site.ts`.
+  - **Content lives in its module**: headlines, leads, tile and step copy, lists, the FAQ, anything a writer would edit. One source then feeds the page, the JSON-LD and llms.txt.
+  - **Control labels stay in their component**: a button's text, an aria-label, a panel heading such as "Choose a model". They describe the control, not the product.
 - **Files stay under about 300 lines.** Split only on a clean seam.
 
 ## Everyday updates
@@ -79,7 +80,7 @@ Placement rules, the same as the app:
 ## Code rules
 
 - TypeScript strict, no `any`, explicit return types on exports, `@/*` imports, no barrel files.
-- Server components by default. `"use client"` is allowed only for real interactivity: today that is `home/hero/hero-stage.tsx` and `home/tabbed-showcase.tsx`, with local `useState` only. A server page passes icons to them as rendered elements.
+- Server components by default. `"use client"` is allowed only for real interactivity: today that is `home/hero/hero-stage.tsx` and `home/tabbed-showcase.tsx`, with local `useState` only. Tabbed-showcase gets its tab icons from the module as rendered elements, because a server page cannot hand a component function to a client one.
 - Every other animation is CSS, and `prefers-reduced-motion` turns it off.
 - Inner pages set metadata through `pageMetadata()`, because Next merges `openGraph` shallowly. The root layout uses `socialMetadata()` directly, and the 404 sets `noindex` with no canonical and no social card. Structured data always goes through `<JsonLd>`.
 - shadcn naming is kept for cva maps (`buttonVariants`, `headingVariants`), the one exception to UPPER_SNAKE_CASE constants.

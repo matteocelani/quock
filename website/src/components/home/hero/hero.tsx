@@ -1,21 +1,38 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Heading, Marker } from "@/components/ui/heading";
-import { AppStoreButton, DownloadButton } from "@/components/global/download-button";
+import { ButtonLink } from "@/components/ui/button";
+import { DownloadIcon } from "@/components/ui/icons";
+import { DownloadButton } from "@/components/global/download-button";
 import { HeroStage } from "@/components/home/hero/hero-stage";
+import { HERO } from "@/modules/home/content";
+import { SITE } from "@/lib/site";
 
 interface FactProps {
   label: string;
   value: string;
 }
 
-// The two facts a visitor needs before tapping Download: what it works with, and what to sign in with.
-const FACTS: readonly FactProps[] = [
-  { label: "Every model on", value: "Ollama Cloud" },
-  { label: "Sign in with your", value: "ollama.com account" },
-];
-
 const step = (ms: number): CSSProperties => ({ "--delay": `${ms}ms` }) as CSSProperties;
 
+// The quieter second CTA carries the price, so "free" is visible before the store opens.
+function AppStoreButton(): ReactNode {
+  return (
+    <ButtonLink
+      href={SITE.appStoreUrl}
+      variant="secondary"
+      className="hidden sm:inline-flex"
+      aria-label={`App Store, ${SITE.priceLabel.toLowerCase()}`}
+    >
+      <DownloadIcon className="text-faint-foreground" />
+      App Store
+      <span className="bg-primary text-primary-foreground rounded-lg px-2 py-1 text-mock leading-none font-bold">
+        {SITE.priceLabel}
+      </span>
+    </ButtonLink>
+  );
+}
+
+// A faint label over a bold value: the two facts a visitor needs before tapping Download.
 function Fact({ label, value }: FactProps): ReactNode {
   return (
     <div className="leading-tight">
@@ -28,7 +45,7 @@ function Fact({ label, value }: FactProps): ReactNode {
 export function Hero(): ReactNode {
   return (
     <section className="pt-28 sm:pt-44">
-      <div className="mx-auto max-w-[62rem] px-5 sm:px-8">
+      <div className="mx-auto max-w-hero px-5 sm:px-8">
         <Heading as="h1" size="display" className="enter" style={step(60)}>
           Open. Type.
           <br />
@@ -36,9 +53,9 @@ export function Hero(): ReactNode {
         </Heading>
         <div className="enter mt-9 flex flex-wrap items-center gap-x-4 gap-y-6 sm:mt-11" style={step(220)}>
           <DownloadButton />
-          <AppStoreButton className="hidden sm:inline-flex" />
+          <AppStoreButton />
           <div className="flex gap-7 sm:ml-4">
-            {FACTS.map((fact) => (
+            {HERO.facts.map((fact) => (
               <Fact key={fact.value} {...fact} />
             ))}
           </div>

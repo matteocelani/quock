@@ -47,7 +47,7 @@ export const PRINCIPLES: readonly Principle[] = [
 ];
 
 export const PRIVACY_NOTE =
-  "This page is a summary. The full privacy policy is the controlling text, covering legal bases, retention and your rights under GDPR and similar laws.";
+  "This page is a summary. The full privacy policy is the controlling text, covering legal bases, retention and your rights under GDPR and similar laws. For the server side, read";
 
 export const PRIVACY_LINKS = {
   ollama: "Ollama's privacy policy",
