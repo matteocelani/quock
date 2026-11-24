@@ -1,0 +1,156 @@
+import type { ReactNode } from "react";
+import { CopyIcon, ForkIcon, RegenerateIcon, ResumeIcon, SelectIcon, SparkIcon } from "@/components/ui/icons";
+import { AppIcon } from "@/components/global/logo";
+import { DATA_FLOW, MOCK_COPY } from "@/modules/home/content";
+import { SITE } from "@/lib/site";
+import { cn } from "@/lib/utils";
+
+// The reply's action row: copy, select, regenerate, fork. Icons only, as the app draws it.
+const REPLY_ICONS = [CopyIcon, SelectIcon, RegenerateIcon, ForkIcon] as const;
+
+// Drawn in HTML rather than captured: crisp at any size, and each one mirrors behaviour the app really has.
+export function AttachMock(): ReactNode {
+  return (
+    <div className="flex w-full flex-col items-center gap-6 px-6 pt-8 pb-8 sm:flex-row sm:justify-center sm:gap-10">
+      <div className="flex gap-5">
+        {MOCK_COPY.attachActions.map(({ label, icon: Icon }) => (
+          <div key={label} className="flex flex-col items-center gap-2">
+            <span className="bg-surface text-foreground shadow-card flex size-16 items-center justify-center rounded-full">
+              <Icon className="size-6" />
+            </span>
+            <span className="text-muted-foreground text-mock font-bold">{label}</span>
+          </div>
+        ))}
+      </div>
+      <div className="bg-surface shadow-card w-56 rotate-2 rounded-xl p-4">
+        <div className="flex items-center gap-2">
+          <span className="bg-system-red text-surface rounded px-1.5 py-0.5 text-tag font-bold">{MOCK_COPY.pdfTag}</span>
+          <span className="text-foreground text-mock font-bold">{MOCK_COPY.pdfName}</span>
+        </div>
+        <div className="mt-3 space-y-1.5">
+          {["w-full", "w-11/12", "w-4/5", "w-full", "w-2/3"].map((width, index) => (
+            <span key={index} className={cn("bg-foreground/10 block h-1.5 rounded-full", width)} />
+          ))}
+        </div>
+        <p className="text-faint-foreground mt-3 text-tag font-semibold">{MOCK_COPY.pdfNote}</p>
+      </div>
+    </div>
+  );
+}
+
+export function NotificationMock(): ReactNode {
+  return (
+    <div className="relative isolate h-44 w-full overflow-hidden">
+      <div aria-hidden="true" className="wallpaper -z-10 opacity-80" />
+      <div className="glass text-foreground absolute inset-x-5 top-8 flex items-center gap-3 rounded-3xl p-3 sm:inset-x-7">
+        <AppIcon className="size-10" />
+        <div className="min-w-0 flex-1">
+          <div className="flex justify-between text-mock">
+            <span className="font-bold">{SITE.name}</span>
+            <span className="text-faint-foreground font-semibold">{MOCK_COPY.notificationTime}</span>
+          </div>
+          <p className="text-mock font-semibold">{MOCK_COPY.notification}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Memory has no screen of its own in the app: it is one switch in Settings, so that is what the mock shows.
+export function MemoryMock(): ReactNode {
+  return (
+    <div className="w-full p-6 sm:p-7">
+      <p className="text-muted-foreground px-1 text-mock font-bold">{MOCK_COPY.memorySection}</p>
+      <div className="bg-surface text-foreground shadow-card mt-2 flex items-center justify-between gap-4 rounded-2xl px-4 py-3">
+        <div className="flex items-center gap-3">
+          <SparkIcon className="text-muted-foreground size-5" />
+          <div>
+            <p className="text-mock font-bold">{MOCK_COPY.memoryLabel}</p>
+            <p className="text-muted-foreground text-mock font-semibold">{MOCK_COPY.memoryNote}</p>
+          </div>
+        </div>
+        <span className="bg-system-green relative h-6 w-10 shrink-0 rounded-full">
+          <span className="bg-surface shadow-card absolute top-0.5 left-4.5 size-5 rounded-full" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Drawn as a small system window; a recipient that gets nothing is set faint.
+export function DataFlowMock(): ReactNode {
+  return (
+    <div className="bg-surface text-foreground shadow-card mx-6 mt-6 w-full overflow-hidden rounded-t-xl sm:mx-7">
+      <div className="flex items-center gap-1.5 border-b px-4 py-3">
+        <span className="bg-system-red size-3 rounded-full" />
+        <span className="bg-system-yellow size-3 rounded-full" />
+        <span className="bg-system-green size-3 rounded-full" />
+        <span className="ml-3 text-mock font-bold">{MOCK_COPY.dataFlowTitle}</span>
+      </div>
+      <table className="w-full text-left text-mock">
+        <thead className="text-faint-foreground">
+          <tr className="border-b">
+            <th scope="col" className="px-4 py-2 font-semibold">{MOCK_COPY.dataFlowColumns.where}</th>
+            <th scope="col" className="px-4 py-2 font-semibold">{MOCK_COPY.dataFlowColumns.what}</th>
+            <th scope="col" className="hidden px-4 py-2 font-semibold sm:table-cell">{MOCK_COPY.dataFlowColumns.when}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {DATA_FLOW.map((row, index) => (
+            <tr key={row.where} className={cn(index % 2 === 1 && "bg-foreground/3", row.isNothing && "text-faint-foreground")}>
+              <td className="px-4 py-2 font-semibold">{row.where}</td>
+              <td className="px-4 py-2 font-semibold">{row.what}</td>
+              <td className="hidden px-4 py-2 font-semibold sm:table-cell">{row.when}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function ContinueMock(): ReactNode {
+  return (
+    <div className="w-full p-6 sm:p-7">
+      <div className="bg-surface text-foreground shadow-card rounded-2xl p-4 text-mock leading-relaxed">
+        <p>{MOCK_COPY.continueText}</p>
+        <div className="mt-3 flex items-center gap-2">
+          <span className="bg-primary text-primary-foreground inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-mock font-bold">
+            <ResumeIcon className="size-3" />
+            {MOCK_COPY.continueAction}
+          </span>
+          <span className="text-faint-foreground text-mock font-semibold">{MOCK_COPY.continueStatus}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// The excerpt menu under a long-pressed paragraph, and the reply's own action row beneath it.
+export function MenuMock(): ReactNode {
+  return (
+    <div className="w-full px-6 pt-6 sm:px-7">
+      <div className="bg-surface text-muted-foreground shadow-card rounded-t-2xl p-4 text-mock leading-relaxed">
+        <p>
+          <span className="bg-marker text-foreground rounded px-0.5">{MOCK_COPY.excerptMarked}</span>
+          {MOCK_COPY.excerptRest}
+        </p>
+        <ul className="bg-panel text-foreground mt-3 w-40 rounded-xl p-1.5 text-mock font-bold">
+          {MOCK_COPY.excerptActions.map(({ label, icon: Icon }, index) => (
+            <li key={label} className={cn("flex items-center gap-2.5 rounded-lg px-2.5 py-1.5", index === 0 && "bg-foreground/5")}>
+              <Icon className="text-faint-foreground size-4" />
+              {label}
+            </li>
+          ))}
+        </ul>
+        <ul className="text-faint-foreground mt-4 flex gap-3 border-t pt-3">
+          {REPLY_ICONS.map((Icon, index) => (
+            <li key={index}>
+              <Icon className="size-4" />
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}

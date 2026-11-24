@@ -1,0 +1,302 @@
+@import "tailwindcss";
+
+/* Light home, dark inner pages. Quock's tint is a cool iOS blue-white. */
+:root,
+[data-theme="light"] {
+  --background: #f7fbff;
+  --foreground: #1d1d1f;
+  --panel: oklch(0.955 0.01 252);
+  --panel-strong: oklch(0.925 0.014 252);
+  /* Both greys clear 4.5:1 on every surface text sits on (page, panel, glass, mock card). */
+  --muted-foreground: #5c5c61;
+  --faint-foreground: #6a6a6f;
+  --border: rgb(29 29 31 / 0.09);
+  --primary: #1d1d1f;
+  --primary-foreground: #f7fbff;
+  --accent: #0060c0;
+  --marker: oklch(0.87 0.07 248);
+  --ring: #0060c0;
+  --shade: 29 35 52;
+  /* Mock app surfaces: an opaque iOS card, and the system colours iOS uses with Increase Contrast,
+     so a switch, a tag or a dot keeps 3:1 (and white text on red 4.5:1). */
+  --surface: #ffffff;
+  --system-red: #d70015;
+  --system-yellow: #b25000;
+  --system-green: #248a3d;
+}
+
+/* Dark pages put the dark tokens on the root too, so overscroll and the header area match. */
+[data-theme="dark"],
+:root:has([data-theme="dark"]) {
+  --background: #1d1d1f;
+  --foreground: #f5f5f7;
+  --panel: #2a2a2d;
+  --panel-strong: #333336;
+  --muted-foreground: #a1a1a6;
+  --faint-foreground: #98989d;
+  --border: rgb(255 255 255 / 0.1);
+  --primary: #f5f5f7;
+  --primary-foreground: #1d1d1f;
+  --accent: #4fa9ff;
+  --marker: oklch(0.42 0.11 252);
+  --ring: #4fa9ff;
+  --shade: 0 0 0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-panel: var(--panel);
+  --color-panel-strong: var(--panel-strong);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-faint-foreground: var(--faint-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-marker: var(--marker);
+  --color-surface: var(--surface);
+  --color-system-red: var(--system-red);
+  --color-system-yellow: var(--system-yellow);
+  --color-system-green: var(--system-green);
+
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+
+  /* The type steps between Tailwind's: 17px body, 15px UI copy, 13px mock UI, 11px chips, 10px tags. */
+  --text-display-sm: 2.75rem;
+  --text-section-sm: 2.5rem;
+  --text-section: 4.375rem;
+  --text-lead: 1.4375rem;
+  --text-body: 1.0625rem;
+  --text-ui: 0.9375rem;
+  --text-mock: 0.8125rem;
+  --text-chip: 0.6875rem;
+  --text-tag: 0.625rem;
+  --tracking-display: -0.03em;
+  --tracking-section: -0.02em;
+  --tracking-feature: -0.015em;
+  --tracking-title: -0.01em;
+  --leading-display: 1.02;
+  --leading-section: 1.05;
+  --leading-lead: 1.35;
+  --container-reading: 40rem;
+  --container-content: 61rem;
+  --container-hero: 62rem;
+  --container-stage: 75rem;
+
+  --radius-tile: 1.5rem;
+  --radius-stage: 2.5rem;
+  /* App icons are squircles; 22% of the side matches the iOS mask closely enough at this size. */
+  --radius-icon: 22%;
+
+  --shadow-raised:
+    0 20px 25px -5px rgb(var(--shade) / 0.15), 0 8px 10px -6px rgb(var(--shade) / 0.15);
+  --shadow-card: 0 6px 20px rgb(var(--shade) / 0.1);
+  --shadow-float:
+    0 24px 48px -12px rgb(var(--shade) / 0.28), 0 0 0 1px rgb(255 255 255 / 0.5) inset;
+
+  --ease-spring: cubic-bezier(0.34, 1.2, 0.64, 1);
+  --ease-glide: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes enter-lift {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+    filter: blur(6px);
+  }
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(32px) scale(0.98);
+  }
+}
+
+@keyframes header-solid {
+  to {
+    background-color: var(--header-fill);
+    backdrop-filter: var(--header-blur);
+  }
+}
+
+@keyframes progress {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    /* The solid header, in one place: the scroll animation, its fallback and reduced motion all use it. */
+    --header-fill: color-mix(in oklab, var(--background) 78%, transparent);
+    --header-blur: blur(20px) saturate(1.5);
+    scroll-behavior: smooth;
+    scroll-padding-top: 7rem;
+    -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+    background: var(--background);
+  }
+
+  html:has([data-theme="dark"]) {
+    color-scheme: dark;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  [data-theme] {
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  ::selection {
+    background: var(--marker);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+    border-radius: 0.75rem;
+  }
+}
+
+@layer utilities {
+  .enter {
+    animation: enter-lift 0.7s var(--ease-glide) backwards;
+    animation-delay: var(--delay, 0ms);
+  }
+
+  /* Entrance order: each step arrives a beat after the one before it. */
+  .enter-1 { --delay: 60ms; }
+  .enter-2 { --delay: 220ms; }
+  .enter-3 { --delay: 420ms; }
+
+  /* A highlighter stroke under the lower half of a word: the one accent a headline gets. */
+  .marker {
+    background-image: linear-gradient(var(--marker), var(--marker));
+    background-repeat: no-repeat;
+    background-size: 100% 0.5em;
+    background-position: 0 88%;
+    padding-inline: 0.04em;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  /* The word that "thinks": a slow sheen sweeps across it, like the app's thinking label. */
+  .thinking-text {
+    background: linear-gradient(
+        100deg,
+        var(--faint-foreground) 20%,
+        var(--foreground) 40%,
+        var(--faint-foreground) 60%
+      )
+      0 0 / 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    /* Two sweeps, under 5s in total: a hint of thinking, not a loop the reader has to stop. */
+    animation: shimmer 2.4s linear 2;
+  }
+
+  /* iOS-style wallpaper for the stages: layered soft light, still, so nothing moves for longer than 5s. */
+  .wallpaper {
+    position: absolute;
+    inset: -10%;
+    background:
+      radial-gradient(42% 52% at 18% 28%, var(--w1, oklch(0.8 0.11 245)) 0%, transparent 70%),
+      radial-gradient(38% 48% at 82% 22%, var(--w2, oklch(0.82 0.09 290)) 0%, transparent 70%),
+      radial-gradient(48% 55% at 62% 92%, var(--w3, oklch(0.74 0.13 255)) 0%, transparent 72%),
+      radial-gradient(30% 40% at 30% 85%, var(--w4, oklch(0.88 0.07 210)) 0%, transparent 70%),
+      linear-gradient(160deg, var(--w5, oklch(0.9 0.04 250)), var(--w6, oklch(0.8 0.08 262)));
+  }
+
+  /* Warmer palette for a second stage, so two showcases in a row do not read as one. */
+  .wallpaper-dusk {
+    --w1: oklch(0.78 0.1 300);
+    --w2: oklch(0.84 0.08 20);
+    --w3: oklch(0.7 0.13 275);
+    --w4: oklch(0.86 0.07 330);
+    --w5: oklch(0.9 0.04 300);
+    --w6: oklch(0.76 0.09 280);
+  }
+
+  .glass {
+    /* Opaque enough that small text on it keeps 4.5:1 over any wallpaper behind. */
+    background: rgb(255 255 255 / 0.88);
+    backdrop-filter: blur(24px) saturate(1.6);
+    box-shadow: var(--shadow-float);
+  }
+
+  .progress-run {
+    transform-origin: left;
+    animation: progress var(--duration) linear forwards;
+  }
+
+  .header-glass {
+    background-color: transparent;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    .header-glass {
+      animation: header-solid linear both;
+      animation-timeline: scroll();
+      animation-range: 0 120px;
+    }
+
+    .reveal {
+      animation: reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 35%;
+    }
+
+    /* Where the browser can, the two sweeps follow the scroll, so they play as the word comes into view. */
+    .thinking-text {
+      animation: shimmer linear 2 both;
+      animation-timeline: view();
+      animation-range: entry 100% cover 55%;
+    }
+  }
+
+  @supports not (animation-timeline: scroll()) {
+    .header-glass {
+      background-color: var(--header-fill);
+      backdrop-filter: var(--header-blur);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+
+  .header-glass {
+    background-color: var(--header-fill);
+    backdrop-filter: var(--header-blur);
+  }
+
+  .thinking-text {
+    color: var(--foreground);
+    background: none;
+  }
+}

@@ -1,0 +1,46 @@
+import Image from "next/image";
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { LATEST_RELEASE } from "@/modules/changelog/content";
+import { PATHS, SITE } from "@/lib/site";
+import { cn } from "@/lib/utils";
+
+interface LogoProps {
+  className?: string;
+}
+
+// The largest the icon is drawn, in CSS pixels; `pnpm assets` writes the file at twice that for 2x screens.
+const APP_ICON = { src: "/app-icon.png", size: 72 } as const;
+
+// The real app icon, so the site and the Home Screen look like the same product.
+export function AppIcon({ className }: LogoProps): ReactNode {
+  return (
+    <Image
+      src={APP_ICON.src}
+      alt=""
+      width={APP_ICON.size}
+      height={APP_ICON.size}
+      className={cn("rounded-icon ring-border size-9 ring-1", className)}
+      preload
+    />
+  );
+}
+
+// The version tag links to the changelog, so "what's new" is one tap from every page.
+export function Wordmark(): ReactNode {
+  return (
+    <div className="flex items-center gap-2.5">
+      <Link href={PATHS.home} className="flex items-center gap-2.5 rounded-xl" aria-label={`${SITE.name} home`}>
+        <AppIcon />
+        <span className="tracking-section text-xl font-bold">{SITE.name}</span>
+      </Link>
+      <Link
+        href={PATHS.changelog}
+        aria-label={`v${LATEST_RELEASE.version} changelog`}
+        className="bg-panel text-muted-foreground hover:text-foreground -mt-4 rounded-md px-1 py-px text-chip leading-tight font-bold transition-colors"
+      >
+        v{LATEST_RELEASE.version}
+      </Link>
+    </div>
+  );
+}

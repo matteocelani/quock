@@ -1,0 +1,2 @@
+# Own workspace root, so pnpm never folds the site into the app's hoisted Metro layout one level up.
+packages: []

@@ -27,4 +27,6 @@ module.exports = {
     "!src/**/index.ts",
   ],
   testMatch: ["**/?(*.)+(test).[jt]s?(x)"],
+  // The marketing site is a separate Next.js project; keep its node_modules out of the haste map.
+  modulePathIgnorePatterns: ["<rootDir>/website/"],
 };
