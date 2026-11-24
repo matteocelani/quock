@@ -5,7 +5,7 @@ import { FEATURES } from "@/modules/home/content";
 // A recap the eye takes in at once, just before the last call to download.
 export function FeatureGrid(): ReactNode {
   return (
-    <section id="features" aria-labelledby="features-title" className="scroll-mt-28 px-5 pt-32 sm:px-8 sm:pt-44">
+    <section id="features" aria-labelledby="features-title" className="px-5 pt-32 sm:px-8 sm:pt-44">
       <h2 id="features-title" className="sr-only">
         Features
       </h2>

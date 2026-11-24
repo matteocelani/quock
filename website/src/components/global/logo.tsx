@@ -34,7 +34,7 @@ export function Wordmark({ className }: LogoProps): ReactNode {
       <Link
         href={PATHS.changelog}
         aria-label={`v${LATEST_RELEASE.version} changelog`}
-        className="text-faint-foreground hover:text-foreground -mt-4 rounded-md border px-1 py-px text-[11px] leading-tight font-bold transition-colors"
+        className="text-faint-foreground hover:text-foreground -mt-4 rounded-md border px-1 py-px text-chip leading-tight font-bold transition-colors"
       >
         v{LATEST_RELEASE.version}
       </Link>

@@ -7,7 +7,7 @@
   --foreground: #1d1d1f;
   --panel: oklch(0.955 0.01 252);
   --panel-strong: oklch(0.925 0.014 252);
-  /* Both greys clear 4.5:1 on the page, the panels and mock surfaces: they carry real text. */
+  /* Both greys clear 4.5:1 on every surface text sits on (page, panel, glass, mock card). */
   --muted-foreground: #5c5c61;
   --faint-foreground: #6a6a6f;
   --border: rgb(29 29 31 / 0.09);
@@ -60,9 +60,17 @@
 
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
 
+  /* The type steps between Tailwind's: 17px body, 15px UI copy, 13px mock UI, 11px chips, 10px tags. */
   --text-body: 1.0625rem;
+  --text-ui: 0.9375rem;
+  --text-mock: 0.8125rem;
+  --text-chip: 0.6875rem;
+  --text-tag: 0.625rem;
   --tracking-title: -0.01em;
+  --container-prose: 40rem;
   --container-content: 61rem;
+  --container-hero: 62rem;
+  --container-stage: 75rem;
 
   --radius-tile: 1.5rem;
   --radius-stage: 2.5rem;
@@ -210,7 +218,8 @@
   }
 
   .glass {
-    background: rgb(255 255 255 / 0.72);
+    /* Opaque enough that small text on it keeps 4.5:1 over any wallpaper behind. */
+    background: rgb(255 255 255 / 0.88);
     backdrop-filter: blur(24px) saturate(1.6);
     -webkit-backdrop-filter: blur(24px) saturate(1.6);
     box-shadow: var(--shadow-float);

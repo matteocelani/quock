@@ -64,7 +64,7 @@ function Switch({ isOn, label, onToggle }: SwitchProps): ReactNode {
       onClick={onToggle}
       className={cn(
         "relative h-6 w-10 shrink-0 rounded-full transition-colors duration-300",
-        isOn ? "bg-system-green" : "bg-foreground/12",
+        isOn ? "bg-system-green" : "bg-foreground/45",
       )}
     >
       <span
@@ -95,7 +95,7 @@ export function HeroStage(): ReactNode {
   };
 
   return (
-    <div className="relative mx-auto max-w-[75rem] px-4 sm:px-8">
+    <div className="relative mx-auto max-w-stage px-4 sm:px-8">
       <div className="relative">
         <div className="rounded-stage relative isolate h-[30rem] overflow-hidden sm:h-[36rem] lg:h-[38rem]">
           <div aria-hidden="true" className="wallpaper -z-10" />
@@ -114,7 +114,7 @@ export function HeroStage(): ReactNode {
 
         {/* Picking a model opens the picker capture, so the list reads as the app's own. */}
         <div className="glass text-foreground absolute top-12 -left-2 hidden w-80 rounded-2xl p-2 lg:block xl:-left-6">
-          <p id="hero-models" className="text-faint-foreground px-3 pt-2 pb-1 text-xs font-bold">
+          <p id="hero-models" className="text-muted-foreground px-3 pt-2 pb-1 text-xs font-bold">
             Choose a model
           </p>
           <ul role="radiogroup" aria-labelledby="hero-models">
@@ -134,15 +134,15 @@ export function HeroStage(): ReactNode {
                     <span
                       className={cn(
                         "flex size-5 shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors",
-                        isSelected ? "border-primary bg-primary text-primary-foreground" : "border-foreground/20",
+                        isSelected ? "border-primary bg-primary text-primary-foreground" : "border-foreground/45",
                       )}
                     >
                       {isSelected && <CheckIcon className="size-3" strokeWidth={3} />}
                     </span>
-                    <span className="flex-1 font-mono text-[13px] font-semibold">{item.name}</span>
+                    <span className="flex-1 font-mono text-mock font-semibold">{item.name}</span>
                     <span className="flex gap-1">
                       {item.tags.map((tag) => (
-                        <span key={tag} className="bg-foreground/5 text-faint-foreground rounded-md px-1.5 py-0.5 text-[10px] font-bold">
+                        <span key={tag} className="bg-foreground/5 text-muted-foreground rounded-md px-1.5 py-0.5 text-tag font-bold">
                           {tag}
                         </span>
                       ))}
@@ -157,23 +157,23 @@ export function HeroStage(): ReactNode {
         {/* Each switch jumps to the capture it affects, the way the attach sheet sets tools per chat. */}
         <div className="glass text-foreground absolute top-24 -right-2 hidden w-64 rounded-2xl p-4 lg:block xl:-right-6">
           <div className="flex items-center justify-between">
-            <span className="text-[15px] font-bold">{SITE.name}</span>
-            <span className="bg-foreground/5 text-faint-foreground rounded-md px-1.5 py-0.5 font-mono text-[11px] font-semibold">
+            <span className="text-ui font-bold">{SITE.name}</span>
+            <span className="bg-foreground/5 text-muted-foreground rounded-md px-1.5 py-0.5 font-mono text-chip font-semibold">
               {model}
             </span>
           </div>
           <div className="bg-foreground/10 my-3 h-px" />
-          <p className="text-faint-foreground mb-1 text-xs font-bold">Tools</p>
+          <p className="text-muted-foreground mb-1 text-xs font-bold">Tools</p>
           <ul className="space-y-2.5">
             {TOOLS.map((tool) => (
               <li key={tool.id} className="flex items-center justify-between gap-3">
-                <span className="text-[15px] font-semibold">{tool.label}</span>
+                <span className="text-ui font-semibold">{tool.label}</span>
                 <Switch isOn={tools[tool.id]} label={tool.label} onToggle={() => toggleTool(tool.id, tool.screen)} />
               </li>
             ))}
           </ul>
           <div className="bg-foreground/10 my-3 h-px" />
-          <p className="text-faint-foreground text-xs font-bold">Version {LATEST_RELEASE.version}</p>
+          <p className="text-muted-foreground text-xs font-bold">Version {LATEST_RELEASE.version}</p>
         </div>
       </div>
 
@@ -193,7 +193,7 @@ export function HeroStage(): ReactNode {
                 onClick={() => setScreen(tabScreen)}
                 onKeyDown={(event) => handleRovingKeys(event, index, TABS.length, (next) => setScreen(TABS[next].screen))}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors duration-200 sm:px-3.5 sm:text-sm",
+                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-mock font-bold transition-colors duration-200 sm:px-3.5 sm:text-sm",
                   isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >

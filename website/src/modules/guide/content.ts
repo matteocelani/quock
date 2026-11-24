@@ -26,7 +26,7 @@ export const GUIDE_STEPS: readonly GuideItem[] = [
   },
   {
     title: "Download Quock.",
-    body: `Quock is free on the App Store for any iPhone on iOS ${SITE.minimumIos} or later.`,
+    body: `Quock is ${SITE.priceLabel.toLowerCase()} on the App Store for any iPhone on iOS ${SITE.minimumIos} or later.`,
   },
   {
     title: "Sign in once.",

@@ -23,8 +23,8 @@ export default function PrivacyPage(): ReactNode {
       <PageIntro title={PAGE_LABELS.privacy} updated={PRIVACY_UPDATED} path={PATHS.privacy} />
       <Lead>{PRIVACY_LEAD}</Lead>
       <PrincipleList />
-      <p className="text-muted-foreground mt-10 text-[15px] leading-relaxed">
-        {PRIVACY_NOTE} <TextLink href={SITE.ollamaPrivacyUrl}>{PRIVACY_LINKS.ollama}</TextLink>
+      <p className="text-muted-foreground mt-10 text-ui leading-relaxed">
+        {PRIVACY_NOTE} <TextLink href={SITE.ollamaPrivacyUrl}>{PRIVACY_LINKS.ollama}</TextLink>.
       </p>
       <ButtonLink href={SITE.privacyUrl} variant="secondary" size="md" className="mt-8">
         {PRIVACY_LINKS.full}

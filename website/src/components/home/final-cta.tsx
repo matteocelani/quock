@@ -10,7 +10,7 @@ export function FinalCta(): ReactNode {
       <DownloadButton />
       <Caption>
         <PhoneIcon className="size-4" />
-        iOS {SITE.minimumIos}+ · Free · Sign in with ollama.com
+        iOS {SITE.minimumIos}+ · {SITE.priceLabel} · Sign in with ollama.com
       </Caption>
     </section>
   );

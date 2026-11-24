@@ -21,12 +21,11 @@ export const FAQ: readonly FaqItem[] = [
   },
   {
     question: "What do I need to use it?",
-    answer: `An iPhone on iOS ${SITE.minimumIos} or later and an ollama.com account. Quock itself is free. Ollama sets the usage limits and any paid plan on ollama.com.`,
+    answer: `An iPhone on iOS ${SITE.minimumIos} or later and an ollama.com account. Quock itself is ${SITE.priceLabel.toLowerCase()}. Ollama sets the usage limits and any paid plan on ollama.com.`,
   },
   {
     question: "How much does Quock cost?",
-    answer:
-      "Quock is free on the App Store and shows no ads. Your Ollama Cloud plan and its limits are managed by Ollama on ollama.com.",
+    answer: `Quock is ${SITE.priceLabel.toLowerCase()} on the App Store and shows no ads. Your Ollama Cloud plan and its limits are managed by Ollama on ollama.com.`,
   },
   {
     question: "Which models can I use?",

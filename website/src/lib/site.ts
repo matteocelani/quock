@@ -27,6 +27,8 @@ export const SITE = {
   authorUrl: "https://github.com/matteocelani",
   authorXUrl: "https://x.com/0xMashu",
   releaseDate: "2026-07-23",
+  price: 0,
+  priceLabel: "Free",
   minimumIos: "15.1",
   sizeMb: 37,
   ageRating: "12+",
@@ -44,6 +46,7 @@ export const PATHS = {
 
 // The short name of each inner page, shared by the header, footer, page titles and llms.txt.
 export const PAGE_LABELS = {
+  home: "Home",
   guide: "Guide",
   faq: "FAQs",
   changelog: "Changelog",
