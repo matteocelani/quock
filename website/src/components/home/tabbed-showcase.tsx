@@ -62,8 +62,6 @@ export function TabbedShowcase({ id, eyebrow, title, shimmerWord, lead, tabs, fo
             screens={screens}
             active={tabs[active].screen}
             className="w-60 sm:w-74"
-            // Mirrors w-60 / w-74 at 16px per rem.
-            sizes="(min-width: 640px) 296px, 240px"
           />
         </div>
       </div>

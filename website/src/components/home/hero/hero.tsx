@@ -34,9 +34,9 @@ function AppStoreButton(): ReactNode {
 // A faint label over a bold value: the two facts a visitor needs before tapping Download.
 function Fact({ label, value }: FactProps): ReactNode {
   return (
-    <div className="leading-tight">
-      <p className="text-faint-foreground text-ui font-bold">{label}</p>
-      <p className="text-muted-foreground text-lg font-bold">{value}</p>
+    <div>
+      <p className="text-faint-foreground text-ui leading-tight font-bold">{label}</p>
+      <p className="text-muted-foreground text-lg leading-tight font-bold">{value}</p>
     </div>
   );
 }

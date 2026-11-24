@@ -1,26 +1,14 @@
 import { clsx, type ClassValue } from "clsx";
 import { extendTailwindMerge } from "tailwind-merge";
 import { SITE } from "@/lib/site";
+import { THEME_TOKENS } from "@/lib/theme";
 
 interface ExternalLinkProps {
   target?: string;
   rel?: string;
 }
 
-// Our @theme names, so tailwind-merge reads text-ui as a size (not a colour) and keeps both classes.
-const twMerge = extendTailwindMerge({
-  extend: {
-    theme: {
-      text: ["display-sm", "section-sm", "section", "lead", "body", "ui", "mock", "chip", "tag"],
-      shadow: ["raised", "card", "float"],
-      radius: ["tile", "stage", "icon"],
-      tracking: ["display", "section", "feature", "title"],
-      leading: ["display", "section", "lead"],
-      ease: ["spring", "glide"],
-      container: ["reading", "content", "hero", "stage"],
-    },
-  },
-});
+const twMerge = extendTailwindMerge({ extend: { theme: THEME_TOKENS } });
 
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));

@@ -53,7 +53,7 @@ export const SHOWCASES: readonly Showcase[] = [
       {
         icon: <HandIcon />,
         lead: "Three taps.",
-        body: "Open the app, tap a model, type. The reply streams in word by word.",
+        body: "Open the app, tap the model at the top, pick one and type.",
         screen: "home",
       },
       {

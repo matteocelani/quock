@@ -105,15 +105,13 @@ export function HeroStage(): ReactNode {
               screens={SCREENS}
               active={screen}
               className="w-62 sm:w-76 lg:w-82"
-              // Mirrors w-62 / w-76 / w-82 at 16px per rem.
-              sizes="(min-width: 1024px) 328px, (min-width: 640px) 304px, 248px"
               isPriority
             />
           </div>
         </div>
 
         {/* Picking a model opens the picker capture, so the list reads as the app's own. */}
-        <div className="glass text-foreground absolute top-12 -left-2 hidden w-80 rounded-2xl p-2 lg:block xl:-left-6">
+        <div className="glass text-foreground absolute top-12 left-4 hidden w-80 rounded-2xl p-2 lg:block xl:left-6">
           <p id="hero-models" className="text-muted-foreground px-3 pt-2 pb-1 text-mock font-bold">
             Choose a model
           </p>
@@ -155,7 +153,7 @@ export function HeroStage(): ReactNode {
         </div>
 
         {/* Each check jumps to the capture it affects, the way the attach sheet sets tools per chat. */}
-        <div className="glass text-foreground absolute top-24 -right-2 hidden w-64 rounded-2xl p-4 lg:block xl:-right-6">
+        <div className="glass text-foreground absolute top-24 right-4 hidden w-64 rounded-2xl p-4 lg:block xl:right-6">
           <div className="flex items-center justify-between">
             <span className="text-ui font-bold">{SITE.name}</span>
             <span className="bg-foreground/5 text-muted-foreground rounded-md px-1.5 py-0.5 font-mono text-chip font-semibold">
