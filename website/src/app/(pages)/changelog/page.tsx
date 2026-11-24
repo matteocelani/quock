@@ -3,13 +3,13 @@ import type { ReactNode } from "react";
 import { TextLink } from "@/components/ui/text-link";
 import { ReleaseLines } from "@/components/changelog/release-lines";
 import { PageColumn, PageIntro } from "@/components/layout/page-intro";
-import { CHANGELOG_FOOTNOTE, CHANGELOG_UPDATED, LATEST_RELEASE } from "@/modules/changelog/content";
+import { CHANGELOG_DESCRIPTION, CHANGELOG_FOOTNOTE, CHANGELOG_UPDATED } from "@/modules/changelog/content";
 import { pageMetadata } from "@/lib/metadata";
 import { PAGE_LABELS, PATHS, SITE } from "@/lib/site";
 
 export const metadata: Metadata = pageMetadata({
   title: PAGE_LABELS.changelog,
-  description: `What changed in each Quock release, up to version ${LATEST_RELEASE.version}.`,
+  description: CHANGELOG_DESCRIPTION,
   path: PATHS.changelog,
 });
 

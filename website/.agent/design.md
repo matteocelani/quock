@@ -52,7 +52,7 @@ The inner pages (FAQ, changelog, guide, privacy) are for reading. They are dark 
   - tint, ink, panel, muted and faint, plus a marker colour and a link accent;
   - light tokens on the home page, dark tokens on the inner pages;
   - colour never carries meaning on its own.
-- **Shape:** buttons are rounded rectangles, 60px tall with a 16px radius by default (52px for secondary actions such as the header and the privacy link; the 44px icon-only button uses 12px). Tiles are 24px, stages 40px at every size, app icons use the squircle token, and tags and chips use small radii. Pills are for the segmented control and iOS controls that are pills in the app (switches, a Continue button).
+- **Shape:** buttons are rounded rectangles, 60px tall with a 16px radius by default; the `md` size is 52px for compact spots (the header, the privacy link) and the 44px icon-only button uses 12px. Secondary is a colour, not a size. Tiles are 24px, stages 40px at every size, app icons use the squircle token, and tags and chips use small radii. Pills are for the segmented control and iOS controls that are pills in the app (switches, a Continue button).
 - **Depth:**
   - flat by default;
   - one raised shadow on the primary button;
@@ -66,7 +66,7 @@ The inner pages (FAQ, changelog, guide, privacy) are for reading. They are dark 
 - **Imagery:**
   - real captures in the real iPhone frame;
   - wallpapers drawn in CSS;
-  - small mock surfaces in HTML (menus, notifications, tables) that describe real app behaviour, never invented features.
+  - small mock surfaces in HTML (menus, notifications, tables) that describe real app behaviour, never invented features; their sample text lives in the home module like any other copy.
 
 ## Voice
 

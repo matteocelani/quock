@@ -39,6 +39,7 @@ src/components/global/   App-wide pieces: logo, download buttons, json-ld.
 src/components/home/     One file per home section; a section with parts gets a folder (hero/, bento/).
                          Pieces only home uses live here too (screen-stack, roving-keys, typography).
 src/components/<page>/   UI for one inner page, so its route stays thin: changelog/, guide/, privacy/, faq/.
+                         The reading column is `max-w-reading` (40rem), not Tailwind's 65ch `max-w-prose`.
 src/lib/                 Shared by 2+ features: site.ts (facts, URLs, PATHS, PAGE_LABELS, theme colours),
                          metadata.ts (title template, social metadata, share image, breadcrumbs, WebSite
                          schema), utils.ts.

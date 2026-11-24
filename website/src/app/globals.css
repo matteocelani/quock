@@ -21,7 +21,7 @@
      so a switch, a tag or a dot keeps 3:1 (and white text on red 4.5:1). */
   --surface: #ffffff;
   --system-red: #d70015;
-  --system-yellow: #febc2e;
+  --system-yellow: #b25000;
   --system-green: #248a3d;
 }
 
@@ -62,13 +62,22 @@
   --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
 
   /* The type steps between Tailwind's: 17px body, 15px UI copy, 13px mock UI, 11px chips, 10px tags. */
+  --text-display-sm: 2.75rem;
+  --text-section-sm: 2.5rem;
+  --text-section: 4.375rem;
+  --text-lead: 1.4375rem;
   --text-body: 1.0625rem;
   --text-ui: 0.9375rem;
   --text-mock: 0.8125rem;
   --text-chip: 0.6875rem;
   --text-tag: 0.625rem;
+  --tracking-display: -0.03em;
+  --tracking-section: -0.02em;
+  --tracking-feature: -0.015em;
   --tracking-title: -0.01em;
-  --container-prose: 40rem;
+  --tracking-wordmark: -0.06em;
+  --leading-wordmark: 0.82;
+  --container-reading: 40rem;
   --container-content: 61rem;
   --container-hero: 62rem;
   --container-stage: 75rem;
@@ -106,8 +115,8 @@
 
 @keyframes header-solid {
   to {
-    background-color: color-mix(in oklab, var(--background) 78%, transparent);
-    backdrop-filter: blur(20px) saturate(1.5);
+    background-color: var(--header-fill);
+    backdrop-filter: var(--header-blur);
   }
 }
 
@@ -130,6 +139,9 @@
   }
 
   html {
+    /* The solid header, in one place: the scroll animation, its fallback and reduced motion all use it. */
+    --header-fill: color-mix(in oklab, var(--background) 78%, transparent);
+    --header-blur: blur(20px) saturate(1.5);
     scroll-behavior: smooth;
     scroll-padding-top: 7rem;
     -webkit-text-size-adjust: 100%;
@@ -223,7 +235,6 @@
     /* Opaque enough that small text on it keeps 4.5:1 over any wallpaper behind. */
     background: rgb(255 255 255 / 0.88);
     backdrop-filter: blur(24px) saturate(1.6);
-    -webkit-backdrop-filter: blur(24px) saturate(1.6);
     box-shadow: var(--shadow-float);
   }
 
@@ -252,8 +263,8 @@
 
   @supports not (animation-timeline: scroll()) {
     .header-glass {
-      background-color: color-mix(in oklab, var(--background) 78%, transparent);
-      backdrop-filter: blur(20px) saturate(1.5);
+      background-color: var(--header-fill);
+      backdrop-filter: var(--header-blur);
     }
   }
 }
@@ -268,8 +279,8 @@
   }
 
   .header-glass {
-    background-color: color-mix(in oklab, var(--background) 78%, transparent);
-    backdrop-filter: blur(20px) saturate(1.5);
+    background-color: var(--header-fill);
+    backdrop-filter: var(--header-blur);
   }
 
   .thinking-text {

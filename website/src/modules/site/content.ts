@@ -1,4 +1,5 @@
 export const NOT_FOUND = {
+  metaTitle: "Page not found",
   title: "Not",
   marked: "here.",
   body: "That page doesn\u2019t exist. The app does, though.",

@@ -8,7 +8,7 @@ import { PATHS } from "@/lib/site";
 
 // No canonical and no social card: a missing page must never preview or index as the home page.
 export const metadata: Metadata = {
-  title: "Page not found",
+  title: NOT_FOUND.metaTitle,
   robots: { index: false, follow: true },
   alternates: { canonical: null },
   openGraph: null,
