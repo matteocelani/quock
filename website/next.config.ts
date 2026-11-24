@@ -1,5 +1,14 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { NextConfig } from "next";
+import { THEME_COLOR } from "./src/lib/site";
+
+// THEME_COLOR tints the browser chrome but cannot read CSS, so the build stops if it drifts from --background.
+const css = readFileSync(path.join(__dirname, "src/app/globals.css"), "utf8");
+const [light, dark] = [...css.matchAll(/--background:\s*(#[0-9a-f]{6});/gi)].map((match) => match[1].toLowerCase());
+if (light !== THEME_COLOR.light || dark !== THEME_COLOR.dark) {
+  throw new Error(`THEME_COLOR in src/lib/site.ts must match --background in globals.css (${light}, ${dark}).`);
+}
 
 // Static export: the site is plain HTML, so it deploys to any host (Vercel, Pages, a bucket).
 const nextConfig: NextConfig = {

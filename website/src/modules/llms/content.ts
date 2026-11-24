@@ -2,7 +2,7 @@ import { LATEST_RELEASE } from "@/modules/changelog/content";
 import { FAQ } from "@/modules/faq/content";
 import { GUIDE_STEPS, GUIDE_TITLE } from "@/modules/guide/content";
 import { APP_FEATURES } from "@/modules/home/content";
-import { PAGE_LABELS, PATHS, SITE } from "@/lib/site";
+import { LINK_LABELS, PAGE_LABELS, PATHS, SITE } from "@/lib/site";
 import { absoluteUrl } from "@/lib/utils";
 
 // llmstxt.org shape: H1, summary, then prose and lists, with H2 sections reserved for link lists.
@@ -37,7 +37,7 @@ export function buildLlmsTxt(): string {
     "## Links",
     "",
     `- [App Store](${SITE.appStoreUrl}): download Quock`,
-    `- [Source code](${SITE.githubUrl}): the full project on GitHub`,
-    `- [Privacy policy](${SITE.privacyUrl}): the controlling text`,
+    `- [${LINK_LABELS.source}](${SITE.githubUrl}): the full project on GitHub`,
+    `- [${LINK_LABELS.policy}](${SITE.privacyUrl}): the controlling text`,
   ].join("\n");
 }

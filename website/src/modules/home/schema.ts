@@ -1,5 +1,6 @@
 import { LATEST_RELEASE } from "@/modules/changelog/content";
-import { APP_FEATURES, SEO_KEYWORDS } from "@/modules/home/content";
+import { APP_FEATURES } from "@/modules/home/content";
+import { SEO_KEYWORDS } from "@/modules/site/content";
 import { screenSrc, type ScreenName } from "@/modules/home/screens";
 import { AUTHOR_JSON_LD, SHARE_IMAGE } from "@/lib/metadata";
 import { PATHS, SITE } from "@/lib/site";
@@ -15,7 +16,8 @@ export const APP_JSON_LD = {
   name: SITE.name,
   description: SITE.description,
   operatingSystem: `iOS ${SITE.minimumIos} or later`,
-  applicationCategory: `${SITE.category}Application`,
+  // Google's app types have no Productivity; Utilities is the closest it accepts.
+  applicationCategory: "UtilitiesApplication",
   softwareVersion: LATEST_RELEASE.version,
   datePublished: SITE.releaseDate,
   dateModified: LATEST_RELEASE.date,

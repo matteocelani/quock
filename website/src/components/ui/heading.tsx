@@ -3,7 +3,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 // The type ramp: 96px hero, 70px section, 36px subsection, 30px feature, 24px item (see design.md).
-const headingVariants = cva("font-bold text-balance", {
+export const headingVariants = cva("font-bold text-balance", {
   variants: {
     size: {
       display: "text-display-sm tracking-display leading-display sm:text-7xl lg:text-8xl lg:leading-none",

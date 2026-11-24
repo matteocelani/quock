@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { PropsWithChildren, ReactNode } from "react";
 import "@/app/globals.css";
 import { JsonLd } from "@/components/global/json-ld";
-import { SEO_KEYWORDS } from "@/modules/home/content";
+import { SEO_KEYWORDS } from "@/modules/site/content";
 import { WEBSITE_JSON_LD } from "@/modules/site/schema";
 import { TITLE_TEMPLATE, socialMetadata } from "@/lib/metadata";
 import { IS_INDEXABLE, PATHS, SITE, THEME_COLOR } from "@/lib/site";

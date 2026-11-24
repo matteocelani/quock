@@ -1,9 +1,8 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Heading } from "@/components/ui/heading";
 import { NotesIcon } from "@/components/ui/icons";
 import { JsonLd } from "@/components/global/json-ld";
-import { PATHS, SITE } from "@/lib/site";
-import { absoluteUrl } from "@/lib/utils";
+import { breadcrumbJsonLd } from "@/modules/site/schema";
 
 interface PageIntroProps {
   title: string;
@@ -17,18 +16,6 @@ interface PageColumnProps {
 
 const MONTH = new Intl.DateTimeFormat("en", { month: "long", year: "numeric", timeZone: "UTC" });
 
-// Search engines show Home > Page in place of the bare URL.
-function breadcrumbJsonLd(name: string, path: string): Record<string, unknown> {
-  return {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: SITE.name, item: absoluteUrl(PATHS.home) },
-      { "@type": "ListItem", position: 2, name, item: absoluteUrl(path) },
-    ],
-  };
-}
-
 // Every reading page opens the same way, and carries its breadcrumb so search shows Home > Page.
 export function PageIntro({ title, updated, path }: PageIntroProps): ReactNode {
   return (
@@ -37,7 +24,7 @@ export function PageIntro({ title, updated, path }: PageIntroProps): ReactNode {
       <Heading as="h1" size="display" className="enter">
         {title}
       </Heading>
-      <p className="text-faint-foreground enter mt-3 flex items-center gap-1.5 text-ui font-bold" style={{ "--delay": "120ms" } as CSSProperties}>
+      <p className="text-faint-foreground enter enter-1 mt-3 flex items-center gap-1.5 text-ui font-bold">
         <NotesIcon className="size-4" />
         Updated <time dateTime={updated}>{MONTH.format(new Date(updated))}</time>
       </p>

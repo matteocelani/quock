@@ -31,11 +31,12 @@ BLURRED_HEADER = {
     "settings": True,
 }
 
-OG_SIZE = (1200, 630)
 FONT_BOLD = Path("/Library/Fonts/SF-Pro-Display-Bold.otf")
 FONT_REGULAR = Path("/Library/Fonts/SF-Pro-Display-Regular.otf")
-# The share card's two lines under the headline; nothing else uses them.
-OG_LINES = ("Chat with Ollama Cloud on iPhone.", "Independent, free and open source.")
+# Share-card-only paint: the wash at its foot, the hairline round the icon and the phones' shadow tint.
+OG_WASH = (232, 240, 252)
+OG_ICON_OUTLINE = (220, 220, 225)
+OG_PHONE_SHADOW = (20, 30, 60)
 
 
 def read_source(path: str, pattern: str) -> re.Match[str]:
@@ -71,6 +72,12 @@ def light_token(name: str) -> tuple[int, int, int]:
 
 
 SHOT_WIDTH = int(read_source("modules/home/screens.ts", r"SHOT_WIDTH = (\d+)").group(1))
+SHOT_HEIGHT = int(read_source("modules/home/screens.ts", r"SHOT_HEIGHT = (\d+)").group(1))
+OG_SIZE = tuple(map(int, read_source("lib/metadata.ts", r"SHARE_IMAGE = \{.*?width: (\d+),\s*height: (\d+)").groups()))
+OG_LINES = read_source("modules/site/content.ts", r'SHARE_CARD_LINES = \["([^"]+)", "([^"]+)"\]').groups()
+BRAND = read_source("lib/site.ts", r'name: "([^"]+)"').group(1)
+ICON_SIZE = int(read_source("app/manifest.ts", r"ICON_SIZE = (\d+)").group(1))
+ICON_RADIUS = float(read_source("app/globals.css", r"--radius-icon:\s*([\d.]+)%").group(1)) / 100
 SCREEN_NAMES = re.findall(r'"(\w+)"', read_source("modules/home/screens.ts", r"type ScreenName = ([^;]+);").group(1))
 HEADLINE = read_source("modules/home/content.tsx", r'headline: \["([^"]+)", "([^"]+)"\]').groups()
 INK, MUTED, MARKER, PAGE = (light_token(name) for name in ("foreground", "muted-foreground", "marker", "background"))
@@ -137,6 +144,8 @@ def compose_screens(frame: Image.Image) -> dict[str, Image.Image]:
         device = framed(name, is_blurred, frame, mask)
         devices[name] = device
         height = round(device.height * SHOT_WIDTH / device.width)
+        if height != SHOT_HEIGHT:
+            sys.exit(f"compose-assets: shots are now {SHOT_WIDTH}x{height}; set SHOT_HEIGHT in screens.ts to {height}")
         device.resize((SHOT_WIDTH, height), Image.LANCZOS).save(
             out_dir / f"{name}-{SHOT_WIDTH}.webp", "WEBP", quality=84, method=6
         )
@@ -145,7 +154,7 @@ def compose_screens(frame: Image.Image) -> dict[str, Image.Image]:
 
 def compose_icons() -> None:
     icon = Image.open(ICON).convert("RGB")
-    icon.resize((512, 512), Image.LANCZOS).save(APP / "icon.png", optimize=True)
+    icon.resize((ICON_SIZE, ICON_SIZE), Image.LANCZOS).save(APP / "icon.png", optimize=True)
     icon.resize((180, 180), Image.LANCZOS).save(APP / "apple-icon.png", optimize=True)
     # The header shows the real app icon, so the site and the Home Screen match.
     icon.resize((144, 144), Image.LANCZOS).save(PUBLIC / "app-icon.png", optimize=True)
@@ -157,7 +166,7 @@ def compose_og(devices: dict[str, Image.Image]) -> None:
     card = Image.new("RGB", OG_SIZE, PAGE)
     # Soft top-to-bottom wash, the same white-to-blue air as the App Store screenshots.
     wash = Image.linear_gradient("L").resize(OG_SIZE)
-    card = Image.composite(Image.new("RGB", OG_SIZE, (232, 240, 252)), card, wash)
+    card = Image.composite(Image.new("RGB", OG_SIZE, OG_WASH), card, wash)
     draw = ImageDraw.Draw(card)
 
     bold = ImageFont.truetype(str(FONT_BOLD), 92)
@@ -166,10 +175,10 @@ def compose_og(devices: dict[str, Image.Image]) -> None:
 
     icon = Image.open(ICON).convert("RGB").resize((64, 64), Image.LANCZOS)
     icon_mask = Image.new("L", (64, 64), 0)
-    ImageDraw.Draw(icon_mask).rounded_rectangle((0, 0, 63, 63), radius=15, fill=255)
+    ImageDraw.Draw(icon_mask).rounded_rectangle((0, 0, 63, 63), radius=round(64 * ICON_RADIUS), fill=255)
     card.paste(icon, (72, 64), icon_mask)
-    draw.rounded_rectangle((72, 64, 135, 127), radius=15, outline=(220, 220, 225), width=1)
-    draw.text((152, 96), "Quock", font=brand, fill=INK, anchor="lm")
+    draw.rounded_rectangle((72, 64, 135, 127), radius=round(64 * ICON_RADIUS), outline=OG_ICON_OUTLINE, width=1)
+    draw.text((152, 96), BRAND, font=brand, fill=INK, anchor="lm")
 
     draw.text((68, 250), HEADLINE[0], font=bold, fill=INK, anchor="ls")
     # Same highlighter stroke as the site's headline: the lower half of the line, behind the words.
@@ -188,7 +197,7 @@ def compose_og(devices: dict[str, Image.Image]) -> None:
         shadow = Image.new("L", (phone.width + 2 * pad, phone.height + 2 * pad), 0)
         shadow.paste(phone.split()[3].point(lambda a: 60 if a > 128 else 0), (pad, pad))
         shadow = shadow.filter(ImageFilter.GaussianBlur(36))
-        card.paste((20, 30, 60), (x - pad, y + 28 - pad), shadow)
+        card.paste(OG_PHONE_SHADOW, (x - pad, y + 28 - pad), shadow)
         card.paste(phone, (x, y), phone)
 
     card.save(PUBLIC / "og.png", optimize=True)

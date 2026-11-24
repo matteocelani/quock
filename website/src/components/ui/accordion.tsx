@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
+import { headingVariants } from "@/components/ui/heading";
 import { cn } from "@/lib/utils";
 
 // Native <details>: keyboard, find-in-page and no-JS support for free, and crawlers see every answer.
@@ -19,7 +20,7 @@ export function AccordionItem({ title, aside, children, className, ...props }: A
           <span className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-current" />
           <span className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 rounded-full bg-current transition-transform duration-300 ease-spring group-open:scale-y-0" />
         </span>
-        <span className="flex-1 text-lg font-bold tracking-title sm:text-2xl">{title}</span>
+        <span className={cn(headingVariants({ size: "item" }), "flex-1")}>{title}</span>
         {aside}
       </summary>
       <div className="text-muted-foreground pt-1 pb-6 pl-8 text-body leading-relaxed text-pretty">{children}</div>

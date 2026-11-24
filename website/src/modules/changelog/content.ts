@@ -75,7 +75,7 @@ const RELEASES: readonly Release[] = [
     title: "Hello, Quock.",
     changes: [
       "Sign in with your ollama.com account.",
-      "Pick any Ollama Cloud model and chat with streamed replies.",
+      "Pick an Ollama Cloud model and chat with streamed replies.",
       "Conversations stored on your phone.",
     ],
   },

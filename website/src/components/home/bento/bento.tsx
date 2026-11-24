@@ -33,6 +33,9 @@ function Cell({ lead, body, className, children }: CellProps): ReactNode {
 }
 
 // Each tile is one capability from the module; the mock under it shows it.
+// Mocks that need room span both columns; the rest sit side by side.
+const WIDE: ReadonlySet<BentoMock> = new Set(["attach", "dataFlow"]);
+
 const MOCKS: Record<BentoMock, ReactNode> = {
   attach: <AttachMock />,
   notification: <NotificationMock />,
@@ -50,7 +53,7 @@ export function Bento(): ReactNode {
       </Heading>
       <div className="max-w-content mx-auto mt-14 grid gap-3 sm:grid-cols-2">
         {BENTO_CELLS.map((cell) => (
-          <Cell key={cell.lead} lead={cell.lead} body={cell.body} className={cell.isWide ? "sm:col-span-2" : undefined}>
+          <Cell key={cell.lead} lead={cell.lead} body={cell.body} className={WIDE.has(cell.mock) ? "sm:col-span-2" : undefined}>
             {MOCKS[cell.mock]}
           </Cell>
         ))}

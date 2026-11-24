@@ -10,7 +10,7 @@
     "build": "next build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "assets": "python3 -I scripts/compose-assets.py"
+    "assets": "python3 scripts/compose-assets.py"
   },
   "dependencies": {
     "class-variance-authority": "0.7.1",
