@@ -1,8 +1,7 @@
 name: ci
 
-# Standalone repo (post-rebrand from the ollama monorepo): runs on every PR
-# and every push to the long-lived branches. No path filter — the whole tree
-# is the mobile app.
+# Runs on every PR and push to the long-lived branches, with no path filter so the app gate stays a
+# required check; website/ is excluded by the app's configs and has its own gate in website.yml.
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
