@@ -9,6 +9,8 @@ struct InstalledModel: Codable, Sendable {
   // the format is what a second engine would route on instead of the tag name.
   let manifestDigest: String?
   let format: String?
+  // What has to fit in memory: the files on disk minus tables streamed from flash per token.
+  let residentBytes: Int64?
 }
 
 enum LocalModelStore {
@@ -125,9 +127,11 @@ enum LocalModelStore {
     // Read before patching: an unquantized build has no quantization to derive.
     let isFullPrecision = try OllamaRegistry.quantization(ofTensorsIn: directory) == nil
     try patchConfiguration(in: directory)
+    try ChatTemplates.installIfMissing(in: directory)
     // The macOS benchmark keeps its full-precision reference this way; the app always optimizes.
+    var flashBytes: Int64 = 0
     if ProcessInfo.processInfo.environment["QUOCK_LLM_KEEP_HEAD"] == nil {
-      try InstallOptimizer.optimize(directory: directory, isFullPrecision: isFullPrecision)
+      flashBytes = try InstallOptimizer.optimize(directory: directory, isFullPrecision: isFullPrecision)
     }
     try recordFileHashes(in: directory)
     // What is on disk now, not what was downloaded: the memory checks need the size of the weights that load.
@@ -136,7 +140,7 @@ enum LocalModelStore {
     }
     let model = InstalledModel(
       reference: ref.display, bytes: installedBytes, installedAt: Date(), capabilities: capabilities,
-      manifestDigest: manifest.digest, format: mlxFormat)
+      manifestDigest: manifest.digest, format: mlxFormat, residentBytes: installedBytes - flashBytes)
     try JSONEncoder().encode(model).write(to: directory.appending(path: markerName), options: .atomic)
     return model
   }

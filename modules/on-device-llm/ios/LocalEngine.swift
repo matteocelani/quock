@@ -100,7 +100,8 @@ actor LocalEngine {
   private var snapshot: PromptSnapshot?
   // Prompt tokens prefilled per model call before the snapshot point.
   private static let prefillChunk = 512
-  private static let assistantMarker = "<|im_start|>assistant"
+  // Where each family's assistant turn starts: ChatML (Qwen) and Gemma 4.
+  private static let assistantMarkers = ["<|im_start|>assistant", "<|turn>model"]
 
   func load(_ ref: ModelReference) async throws -> (ModelContainer, Double) {
     if let container, loadedRef == ref { return (container, 0) }
@@ -110,7 +111,7 @@ actor LocalEngine {
     Memory.clearCache()
     guard let installed = LocalModelStore.installed(ref) else { throw LocalEngineError.notInstalled(ref.display) }
     // Offering uses a fixed share of RAM; loading checks what is actually free now, which other apps can shrink.
-    let needed = AppMemory.neededToLoad(bytes: installed.bytes)
+    let needed = AppMemory.neededToLoad(bytes: installed.residentBytes ?? installed.bytes)
     let available = AppMemory.available
     guard needed <= available else {
       throw LocalEngineError.insufficientMemory(ref.display, needed: needed, available: available)
@@ -121,6 +122,8 @@ actor LocalEngine {
       try LocalModelStore.verifyFiles(of: ref)
       verified.insert(ref)
     }
+    await FlashEmbeddings.registerIfNeeded()
+    FlashEmbeddings.loadingDirectory = LocalModelStore.directory(for: ref)
     let loaded = try await loadModelContainer(
       from: LocalModelStore.directory(for: ref), using: TransformersTokenizerLoader())
     container = loaded
@@ -276,15 +279,19 @@ actor LocalEngine {
   // which is where the next turn's prompt stops matching. At least one token is always left for the generator.
   static func reuseBoundary(of tokens: [Int], tokenizer: any Tokenizer) -> Int {
     let last = max(0, tokens.count - 1)
-    let marker = tokenizer.encode(text: assistantMarker, addSpecialTokens: false)
-    guard !marker.isEmpty, tokens.count > marker.count else { return last }
-    var index = tokens.count - marker.count
-    while index >= 0 {
-      if tokens[index ..< index + marker.count].elementsEqual(marker) {
-        return min(index + marker.count, last)
+    var best: Int?
+    for text in assistantMarkers {
+      let marker = tokenizer.encode(text: text, addSpecialTokens: false)
+      guard !marker.isEmpty, tokens.count > marker.count else { continue }
+      var index = tokens.count - marker.count
+      while index >= 0 {
+        if tokens[index ..< index + marker.count].elementsEqual(marker) {
+          best = max(best ?? 0, index + marker.count)
+          break
+        }
+        index -= 1
       }
-      index -= 1
     }
-    return last
+    return min(best ?? last, last)
   }
 }

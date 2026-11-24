@@ -78,8 +78,15 @@ enum OllamaRegistry {
   // Kept beside the weights: the model's own terms differ by family and travel with the copy on the phone.
   private static let licenseMediaType = "application/vnd.ollama.image.license"
   // The text model only reads these; the vision tower and video preprocessor are skipped to save the download.
-  private static let neededJSON: Set<String> = ["config.json", "tokenizer.json", "tokenizer_config.json"]
-  private static let skippedTensorPrefixes = ["model.visual.", "visual.", "vision_tower."]
+  private static let neededJSON: Set<String> = [
+    "config.json", "tokenizer.json", "tokenizer_config.json", "generation_config.json",
+  ]
+  // Towers the text model never runs (vision, audio) and Gemma 4's bundled draft model: skipping them saves about 1 GB
+  // of download on gemma4:e2b.
+  private static let skippedTensorPrefixes = [
+    "model.visual.", "visual.", "vision_tower.", "model.vision_tower.", "model.audio_tower.", "audio_tower.",
+    "model.embed_vision.", "model.embed_audio.", "draft.",
+  ]
 
   static func manifest(for ref: ModelReference) async throws -> OllamaManifest {
     let base = host.appending(path: "v2/\(ref.namespace)/\(ref.name)")

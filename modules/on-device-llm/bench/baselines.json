@@ -22,5 +22,11 @@
     "peakMemoryMB": 1758,
     "meanKL": 0.0096,
     "top1": 0.964
+  },
+  "gemma4:e2b-mlx-flash": {
+    "decodeTokPerSec": 134.0,
+    "peakMemoryMB": 1642,
+    "meanKL": 0.0,
+    "top1": 1.0
   }
 }

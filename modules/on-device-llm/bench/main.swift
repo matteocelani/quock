@@ -114,7 +114,10 @@ func measureQuality(
   let referenceDirectory = ProcessInfo.processInfo.environment["QUOCK_LLM_REFERENCE_DIR"].map {
     URL(fileURLWithPath: $0, isDirectory: true).appending(path: "\(ref.namespace)/\(ref.name)/\(ref.tag)")
   } ?? LocalModelStore.directory(for: ref)
+  await FlashEmbeddings.registerIfNeeded()
+  FlashEmbeddings.loadingDirectory = referenceDirectory
   let reference = try await loadModelContainer(from: referenceDirectory, using: TransformersTokenizerLoader())
+  FlashEmbeddings.loadingDirectory = LocalModelStore.directory(for: candidate)
   let other = try await loadModelContainer(from: LocalModelStore.directory(for: candidate), using: TransformersTokenizerLoader())
   var kls: [Double] = []
   var agree = 0
@@ -177,6 +180,8 @@ let functionalChecks = [
 
 func runFunctional(_ ref: ModelReference) async throws -> [String: Bool] {
   var outcome: [String: Bool] = [:]
+  // Reasoning is only demanded of builds that declare it: Ollama's gemma4:e2b-mlx does not, and answers directly.
+  let canThink = LocalModelStore.installed(ref)?.capabilities?.contains("thinking") ?? true
   for check in functionalChecks {
     let answer = Collector()
     let reasoning = Collector()
@@ -190,7 +195,7 @@ func runFunctional(_ ref: ModelReference) async throws -> [String: Bool] {
       }
     }
     let passed = check.expectAny.contains { answer.value.contains($0) }
-      && (!check.think || !reasoning.value.isEmpty) && stats.generatedTokens <= 1024
+      && (!check.think || !canThink || !reasoning.value.isEmpty) && stats.generatedTokens <= 1024
     outcome[check.name] = passed
     if !passed { emit("FUNCTIONAL FAIL \(check.name): \(answer.value.prefix(200))") }
   }
@@ -412,6 +417,22 @@ func run() async throws {
     report("argMax (greedy)", timeIt(iterations) { argMax(logits, axis: -1) })
     let sampler = TopPSampler(temperature: 0.7, topP: 0.8)
     report("TopPSampler end to end", timeIt(iterations) { sampler.sample(logits: logits) })
+
+  case "flashify":
+    // flashify <model>: copy as <tag>-flash with the per-layer embedding table moved to flash (FlashEmbedding).
+    let variant = try ModelReference("\(ref.name):\(ref.tag)-flash")
+    let target = LocalModelStore.directory(for: variant)
+    try? FileManager.default.removeItem(at: target)
+    try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try FileManager.default.copyItem(at: LocalModelStore.directory(for: ref), to: target)
+    let flashBytes = try FlashEmbeddings.prepare(in: target)
+    try LocalModelStore.recordFileHashes(in: target)
+    let marker = target.appending(path: "quock-installed.json")
+    var installed = try JSONSerialization.jsonObject(with: Data(contentsOf: marker)) as? [String: Any] ?? [:]
+    installed["reference"] = variant.display
+    installed["residentBytes"] = ((installed["bytes"] as? Int) ?? 0) - Int(flashBytes)
+    try JSONSerialization.data(withJSONObject: installed).write(to: marker, options: .atomic)
+    emit("flashify \(variant.display): \(flashBytes >> 20) MB moved to flash")
 
   case "headbench":
     // Here the "model" argument is unused; vocab and hidden come next.

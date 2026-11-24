@@ -17,20 +17,24 @@ enum InstallOptimizer {
     fullPrecisionFileTypes.contains((fileType ?? "").lowercased())
   }
 
-  static func optimize(directory: URL, isFullPrecision: Bool) throws {
+  // Returns the bytes left on flash (read per token, never resident).
+  @discardableResult
+  static func optimize(directory: URL, isFullPrecision: Bool) throws -> Int64 {
     if isFullPrecision {
       _ = try BodyQuantizer.quantize(
         directory: directory,
         plan: .init(bits: bodyBits, groupSize: bodyGroupSize, sensitive: [], sensitiveBits: bodyBits))
     }
     _ = try HeadQuantizer.quantizeEmbedding(in: directory, bits: headBits, groupSize: headGroupSize)
+    return try FlashEmbeddings.prepare(in: directory)
   }
 
-  // The bytes the model will occupy once optimized, from the manifest alone: decides before downloading whether it
-  // can run on this phone.
+  // The bytes the model will hold in memory once optimized, from the manifest alone: decides before downloading
+  // whether it can run on this phone. A per-layer embedding table stays on flash and counts for nothing here.
   static func estimatedBytes(of layers: [OllamaLayer], isFullPrecision: Bool) -> Int64 {
     layers.reduce(Int64(0)) { total, layer in
       let name = layer.name ?? ""
+      if name.hasSuffix("embed_tokens_per_layer.weight") { return total }
       if name.hasSuffix(HeadQuantizer.embeddingSuffix) {
         return total + scaled(layer.size, bits: headBits, groupSize: headGroupSize)
       }

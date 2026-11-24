@@ -279,7 +279,11 @@ final class InstallOptimizerTests: XCTestCase {
 // A word-level stand-in: "<|im_start|>assistant" encodes to [1, 2], which is all the boundary search needs.
 private struct StubTokenizer: MLXLMCommon.Tokenizer {
   func encode(text: String, addSpecialTokens: Bool) -> [Int] {
-    text == "<|im_start|>assistant" ? [1, 2] : []
+    switch text {
+    case "<|im_start|>assistant": [1, 2]
+    case "<|turn>model": [3, 4]
+    default: []
+    }
   }
   func decode(tokenIds: [Int], skipSpecialTokens: Bool) -> String { "" }
   func convertTokenToId(_ token: String) -> Int? { nil }
@@ -306,5 +310,80 @@ final class PrefixReuseBoundaryTests: XCTestCase {
   func testWithoutAMarkerTheWholePromptButTheLastTokenIsKept() {
     XCTAssertEqual(LocalEngine.reuseBoundary(of: [4, 5, 6, 7], tokenizer: StubTokenizer()), 3)
     XCTAssertEqual(LocalEngine.reuseBoundary(of: [], tokenizer: StubTokenizer()), 0)
+  }
+}
+
+extension PrefixReuseBoundaryTests {
+  func testGemmaTurnMarkerIsRecognized() {
+    XCTAssertEqual(LocalEngine.reuseBoundary(of: [9, 3, 4, 8, 8, 3, 4, 6], tokenizer: StubTokenizer()), 7)
+  }
+}
+
+final class ChatTemplateTests: XCTestCase {
+  func testMissingTemplateIsInstalledForGemma4() throws {
+    let dir = try temporaryDirectory()
+    try writeConfig(dir, ["model_type": "gemma4"])
+    try JSONSerialization.data(withJSONObject: ["bos_token": "<bos>"]).write(to: dir.appending(path: "tokenizer_config.json"))
+    try ChatTemplates.installIfMissing(in: dir)
+    let config = try JSONSerialization.jsonObject(with: Data(contentsOf: dir.appending(path: "tokenizer_config.json"))) as? [String: Any]
+    let template = try XCTUnwrap(config?["chat_template"] as? String)
+    XCTAssertTrue(template.contains("<|turn>model"))
+    XCTAssertTrue(template.contains("<|think|>"))
+  }
+
+  func testShippedTemplateIsNeverReplaced() throws {
+    let dir = try temporaryDirectory()
+    try writeConfig(dir, ["model_type": "gemma4"])
+    try JSONSerialization.data(withJSONObject: ["chat_template": "mine"]).write(to: dir.appending(path: "tokenizer_config.json"))
+    try ChatTemplates.installIfMissing(in: dir)
+    let config = try JSONSerialization.jsonObject(with: Data(contentsOf: dir.appending(path: "tokenizer_config.json"))) as? [String: Any]
+    XCTAssertEqual(config?["chat_template"] as? String, "mine")
+  }
+
+  func testUnknownFamiliesGetNoTemplate() {
+    XCTAssertNil(ChatTemplates.template(forModelType: "qwen3_5"))
+  }
+}
+
+final class FlashEmbeddingTests: XCTestCase {
+  func testRowsReadFromFlashMatchTheTableAndTheCheckpointKeepsAPlaceholder() throws {
+    let dir = try temporaryDirectory()
+    try writeConfig(dir, ["model_type": "gemma4"])
+    let table = MLXRandom.normal([64, 32]).asType(.bfloat16)
+    let key = "model.language_model.embed_tokens_per_layer.weight"
+    let file = dir.appending(path: "model-00007.safetensors")
+    try save(arrays: [key: table], url: file)
+
+    let movedBytes = try FlashEmbeddings.prepare(in: dir)
+
+    XCTAssertGreaterThan(movedBytes, Int64(64 * 32 * 2 - 1))
+    XCTAssertEqual(try loadArrays(url: file)[key]?.shape, [1, 32], "the loader sees a one-row placeholder")
+    let config = try readConfig(dir)
+    let spec = try XCTUnwrap(config[FlashEmbeddings.configKey] as? [String: Any])
+    let flash = try FlashEmbedding(
+      file: dir.appending(path: FlashEmbeddings.rowsFile), offset: spec["offset"] as! Int, rows: spec["rows"] as! Int,
+      dims: spec["dims"] as! Int)
+    let ids = MLXArray([Int32(0), 5, 63, 5]).reshaped(1, 4)
+    let rows = flash(ids)
+    XCTAssertEqual(rows.shape, [1, 4, 32])
+    XCTAssertTrue(allClose(rows[0], table[MLXArray([Int32(0), 5, 63, 5])]).item(Bool.self), "bytes must be identical")
+  }
+
+  func testNonBF16OrAbsentTablesAreLeftAlone() throws {
+    let dir = try temporaryDirectory()
+    try writeConfig(dir, ["model_type": "qwen3_5"])
+    try save(arrays: ["model.embed_tokens.weight": MLXArray.zeros([4, 8], dtype: .bfloat16)], url: dir.appending(path: "model-1.safetensors"))
+    XCTAssertEqual(try FlashEmbeddings.prepare(in: dir), 0)
+    XCTAssertNil(try readConfig(dir)[FlashEmbeddings.configKey])
+  }
+}
+
+extension InstallOptimizerTests {
+  func testPerLayerEmbeddingTableIsNotResident() {
+    let layers = [
+      OllamaLayer(mediaType: "t", digest: "p", size: 4_000_000, name: "model.language_model.embed_tokens_per_layer.weight"),
+      OllamaLayer(mediaType: "t", digest: "b", size: 1000, name: "model.language_model.layers.0.mlp.up_proj.weight"),
+    ]
+    XCTAssertEqual(InstallOptimizer.estimatedBytes(of: layers, isFullPrecision: false), 1000)
   }
 }

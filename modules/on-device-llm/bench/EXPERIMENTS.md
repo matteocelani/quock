@@ -70,3 +70,12 @@ Temperature + top-p costs 11.5% of decode on 0.8b (397 → 351 tok/s) and 7.2% o
 measured ABAB. Per step (`bench samplerbench`, above a ~0.19 ms sync floor): full-vocabulary argSort ~0.15 ms,
 categorical ~0.12 ms, logSoftmax ~0.05 ms. An exact sort-free sampler needs a custom Metal kernel (estimated 1–1.5
 weeks) for an estimated 2–4% on the iPhone, where decode is bandwidth-bound; deferred behind larger wins.
+
+## Gemma 4 E2B with the per-layer embedding table on flash (shipped)
+
+gemma4:e2b-mlx (Ollama nvfp4 body) carries a 4.48 GiB BF16 `embed_tokens_per_layer` table; each token reads one
+17.5 KiB row of it. `FlashEmbedding` keeps the table in its downloaded file and reads rows with `pread` (F_NOCACHE),
+the ds4 "Engram" pattern. Mac M4 Max: peak memory 6117 → 1642 MB, decode 169 → 135 tok/s (the row read needs the
+sampled token, which breaks GPU pipelining; expected 3–10% on the bandwidth-bound iPhone), KL 0 and top-1 100% vs
+the in-RAM table, all functional checks pass. Ollama's MLX build ships no chat template (Ollama renders prompts in
+Go), so the app installs a Gemma 4 template; the e2b-mlx build declares no thinking capability.
