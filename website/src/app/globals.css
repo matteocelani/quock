@@ -183,17 +183,9 @@
   }
 
   /* Entrance order: each step arrives a beat after the one before it. */
-  .enter-1 {
-    --delay: 60ms;
-  }
-
-  .enter-2 {
-    --delay: 220ms;
-  }
-
-  .enter-3 {
-    --delay: 420ms;
-  }
+  .enter-1 { --delay: 60ms; }
+  .enter-2 { --delay: 220ms; }
+  .enter-3 { --delay: 420ms; }
 
   /* A highlighter stroke under the lower half of a word: the one accent a headline gets. */
   .marker {
