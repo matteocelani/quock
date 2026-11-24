@@ -34,6 +34,7 @@ import {
   useHasVisionCapability,
 } from "@/modules/models/hooks/useModelCapabilities";
 import { useChatModel } from "@/modules/models/hooks/useChatModel";
+import { usePrepareOnDeviceModel } from "@/modules/models/hooks/usePrepareOnDeviceModel";
 import { useSendMessage } from "@/modules/chat/hooks/useSendMessage";
 import { useUIStore } from "@/lib/stores/ui.store";
 import { useChatComposerModes } from "@/modules/chat/hooks/useChatComposerModes";
@@ -106,6 +107,7 @@ export function Composer({
   const isStreaming = useIsStreaming(chatId);
   const { send, abort } = useSendMessage(chatId);
   const { model } = useChatModel(chatId);
+  usePrepareOnDeviceModel(model?.name);
   const hasVision = useHasVisionCapability(model?.name);
   const hasWebSearch = useHasToolsCapability(model?.name);
   // Web search is the inline globe toggle, persisted per-chat (DB-backed via useChatComposerModes) so each chat keeps its own setting across switches and restarts. Think is no longer a composer control — it lives in the + hub and useSendMessage decides whether to send it. Capability is an EFFECTIVE gate (the persisted preference is kept; it's just inert under a model without tools).

@@ -1,4 +1,7 @@
-import { isOnDeviceModelName } from "@/lib/onDevice/onDeviceLLM";
+import {
+  isOnDeviceModelName,
+  prepareOnDeviceModel,
+} from "@/lib/onDevice/onDeviceLLM";
 
 describe("isOnDeviceModelName", () => {
   it("recognises Ollama's MLX builds by their tag", () => {
@@ -14,5 +17,13 @@ describe("isOnDeviceModelName", () => {
     expect(isOnDeviceModelName("qwen3.5:0.8b-nvfp4")).toBe(false);
     expect(isOnDeviceModelName("qwen3.5:0.8b-mlx-bf16-cloud")).toBe(false);
     expect(isOnDeviceModelName("mlx-model")).toBe(false);
+  });
+});
+
+describe("prepareOnDeviceModel", () => {
+  it("resolves false where the native module is absent", async () => {
+    await expect(prepareOnDeviceModel("qwen3.5:2b-mlx-bf16")).resolves.toBe(
+      false,
+    );
   });
 });

@@ -451,6 +451,25 @@ func run() async throws {
       variant.display, seconds, Memory.peakMemory >> 20, Memory.cacheMemory >> 20, AppMemory.footprint >> 20,
       Int(flashBytes >> 20)))
 
+  case "firstturn":
+    // firstturn <model> [prepare]: time to the first token of a process's first message, cold or after prepare().
+    let prepareSeconds: Double
+    if args.first == "prepare" {
+      let start = Date()
+      try await LocalEngine.shared.prepare(ref)
+      prepareSeconds = Date().timeIntervalSince(start)
+    } else {
+      prepareSeconds = 0
+    }
+    let start = Date()
+    var firstToken: Double?
+    let stats = try await LocalEngine.shared.generate(
+      ref, turns: [LocalTurn(role: "user", content: "Ciao! Spiegami in due frasi cos'è un buco nero.")], think: false,
+      maxTokens: 32, temperatureOverride: 0
+    ) { _ in if firstToken == nil { firstToken = Date().timeIntervalSince(start) } }
+    emit(String(format: "FIRSTTURN %@ prepare=%.3fs load=%.3fs firstToken=%.3fs (from send)", ref.display, prepareSeconds,
+      stats.loadSeconds, firstToken ?? 0))
+
   case "verify":
     // verify <model> [runs] [rehash]: time the per-session file check that runs before the first load; `rehash`
     // first re-records the digests in the current format.

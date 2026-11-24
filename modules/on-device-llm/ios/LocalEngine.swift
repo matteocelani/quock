@@ -102,6 +102,10 @@ actor LocalEngine {
   private var snapshots: [PromptSnapshot] = []
   // The idle-time prefill of that history (prefillFollowUp); the next call waits for it instead of racing it.
   private var followUp: Task<Void, Never>?
+  // Replies in flight: preparing another model meanwhile would hold two in memory.
+  private var activeGenerations = 0
+  // Models already run once since they loaded: the first run also builds every GPU kernel it uses.
+  private var warmed = Set<ModelReference>()
   // Prompt tokens prefilled per model call before the snapshot point.
   private static let prefillChunk = 512
   // Where each family's assistant turn starts: ChatML (Qwen) and Gemma 4.
@@ -112,6 +116,7 @@ actor LocalEngine {
     container = nil
     loadedRef = nil
     snapshots = []
+    warmed = []
     Memory.clearCache()
     guard let installed = LocalModelStore.installed(ref) else { throw LocalEngineError.notInstalled(ref.display) }
     // Offering uses a fixed share of RAM; loading checks what is actually free now, which other apps can shrink.
@@ -135,12 +140,37 @@ actor LocalEngine {
     return (loaded, Date().timeIntervalSince(start))
   }
 
+  // Loads a model and runs it once on a throwaway prompt, so the user's first message pays neither the load nor the GPU
+  // kernel setup: on the iPhone, qwen3.5:2b's first reply waited 1.2 s to load and 1.1 s to its first token, against
+  // 0.3 s once warm. Called when a chat with an on-device model opens; never while a reply is being generated.
+  // Returns whether the model is ready.
+  @discardableResult
+  func prepare(_ ref: ModelReference) async throws -> Bool {
+    guard ForegroundGate.shared.isActive, activeGenerations == 0 else { return false }
+    if loadedRef == ref, warmed.contains(ref) { return true }
+    let (container, _) = try await load(ref)
+    guard ForegroundGate.shared.isActive else { return false }
+    try await container.perform { context in
+      let input = UserInput(chat: [.user("Ciao")], additionalContext: ["enable_thinking": false])
+      let tokens = try await context.processor.prepare(input: input).text.tokens.flattened().asArray(Int.self)
+      let cache = try context.model.newCache(parameters: GenerateParameters(maxKVSize: Self.maxKVTokens))
+      // A prompt-shaped pass and a single-token one: prefill and decode run different kernels.
+      let logits = context.model(MLXArray(tokens)[.newAxis], cache: cache)
+      let next = argMax(logits[0, -1], axis: -1)
+      eval(context.model(next.reshaped([1, 1]), cache: cache))
+    }
+    _ = MLXFailure.take()
+    warmed.insert(ref)
+    return true
+  }
+
   func unload() {
     followUp?.cancel()
     followUp = nil
     container = nil
     loadedRef = nil
     snapshots = []
+    warmed = []
     Memory.clearCache()
   }
 
@@ -155,6 +185,8 @@ actor LocalEngine {
   ) async throws -> LocalStats {
     await followUp?.value
     followUp = nil
+    activeGenerations += 1
+    defer { activeGenerations -= 1 }
     // Loading moves the weights to the GPU too, so it waits for the foreground like generation does.
     guard ForegroundGate.shared.isActive else {
       return LocalStats(
@@ -283,6 +315,7 @@ actor LocalEngine {
       return TurnOutcome(stats: stats, snapshot: nextSnapshot, reply: reply)
     }
     snapshots = outcome.snapshot.map { [$0] } ?? []
+    warmed.insert(ref)
     if let base = outcome.snapshot, outcome.stats.stopReason == "complete", !outcome.reply.isEmpty,
       !Task.isCancelled, ProcessInfo.processInfo.environment["QUOCK_LLM_NO_PREFIX_REUSE"] == nil
     {

@@ -48,6 +48,7 @@ interface OnDeviceLLMModule {
   catalog: (models: readonly string[]) => Promise<OnDeviceModelInfo[]>;
   pull: (model: string) => Promise<{ model: string; bytes: number }>;
   remove: (model: string) => Promise<void>;
+  prepare: (model: string) => Promise<boolean>;
   generate: (
     requestId: string,
     model: string,
@@ -105,6 +106,16 @@ export async function pullOnDeviceModel(
   } finally {
     subscription.remove();
   }
+}
+
+// Loads an installed model and runs it once, so the next message starts without the load or the GPU kernel setup.
+// Resolves false when nothing was done (not on this device, not installed, the app is in the background, or a reply
+// is being generated).
+export async function prepareOnDeviceModel(model: string): Promise<boolean> {
+  if (!native || !isOnDeviceModelName(model)) return false;
+  const isInstalled = native.listInstalled().some((m) => m.model === model);
+  if (!isInstalled) return false;
+  return native.prepare(model);
 }
 
 export async function removeOnDeviceModel(model: string): Promise<void> {

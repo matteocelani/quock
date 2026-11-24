@@ -74,6 +74,10 @@ public class OnDeviceLLMModule: Module {
       try LocalModelStore.remove(ref)
     }
 
+    AsyncFunction("prepare") { (model: String) -> Bool in
+      try await LocalEngine.shared.prepare(try ModelReference(model))
+    }
+
     AsyncFunction("unload") {
       await LocalEngine.shared.unload()
     }
