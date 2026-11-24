@@ -271,6 +271,7 @@ final class FileIntegrityTests: XCTestCase {
 
   func testResumeMarkersAreRemovedAndModelFilesKept() throws {
     let (ref, dir) = try installedDirectory()
+    try Data("resume".utf8).write(to: dir.appending(path: ".model-00001.safetensors.0123456789ab.resume"))
     FileManager.default.createFile(atPath: dir.appending(path: ".model-00001.safetensors.0123456789ab").path, contents: nil)
     FileManager.default.createFile(atPath: dir.appending(path: ".config.json.ba9876543210").path, contents: nil)
     try LocalModelStore.removeResumeMarkers(in: dir)

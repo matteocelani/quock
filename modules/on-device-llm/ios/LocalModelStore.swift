@@ -162,23 +162,42 @@ enum LocalModelStore {
     _ layer: OllamaLayer, of ref: ModelReference, to destination: URL,
     onWritten: @escaping @Sendable (Int64) -> Void
   ) async throws {
-    var attempt = 0
-    var resumeData: Data?
+    // Where a dropped transfer stopped, kept on disk so a pull retried later, even after the app was closed,
+    // continues the file instead of starting it over: Gemma 4's per-layer table alone is 4.5 GB.
+    let resumeFile = destination.deletingLastPathComponent()
+      .appending(path: ".\(destination.lastPathComponent).\(layer.digest.suffix(12)).resume")
+    var resumeData = try? Data(contentsOf: resumeFile)
+    var stalledAttempts = 0
     while true {
       try Task.checkCancellation()
+      let received = AttemptProgress()
+      let usedResume = resumeData != nil
       do {
-        _ = try await OllamaRegistry.download(
-          layer, of: ref, to: destination, resumeData: resumeData, onWritten: onWritten)
+        // A resumed task's count already includes the bytes it resumed from.
+        _ = try await OllamaRegistry.download(layer, of: ref, to: destination, resumeData: resumeData) { bytes in
+          received.mark()
+          onWritten(bytes)
+        }
+        try? FileManager.default.removeItem(at: resumeFile)
         return
       } catch {
-        attempt += 1
-        guard attempt < downloadAttempts, isTransient(error) else { throw error }
-        // A dropped connection hands back where it stopped; the next attempt continues from there with a Range request.
-        resumeData = (error as? URLError)?.downloadTaskResumeData
-        try await Task.sleep(nanoseconds: retryBaseDelay << UInt64(attempt - 1))
+        let saved = (error as? URLError)?.downloadTaskResumeData
+        resumeData = saved
+        if let saved {
+          try? saved.write(to: resumeFile, options: .atomic)
+        } else {
+          try? FileManager.default.removeItem(at: resumeFile)
+        }
+        // A resume record whose partial file iOS has since purged fails at once: start the file over, at no cost.
+        if usedResume, saved == nil, !isTransient(error), !(error is CancellationError) { continue }
+        // A large file on a slow link stalls many times in an hour; only attempts that received nothing count.
+        stalledAttempts = received.happened ? 1 : stalledAttempts + 1
+        guard stalledAttempts < downloadAttempts, isTransient(error) else { throw error }
+        try await Task.sleep(nanoseconds: retryBaseDelay << UInt64(stalledAttempts - 1))
       }
     }
   }
+
 
   private static func modelFiles(in directory: URL) throws -> [URL] {
     try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
@@ -197,7 +216,9 @@ enum LocalModelStore {
     let markers = try FileManager.default.contentsOfDirectory(
       at: directory, includingPropertiesForKeys: [.fileSizeKey]
     ).filter { url in
-      url.lastPathComponent.hasPrefix(".") && (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) == 0
+      let name = url.lastPathComponent
+      return name.hasPrefix(".")
+        && (name.hasSuffix(".resume") || (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) == 0)
     }
     for marker in markers { try FileManager.default.removeItem(at: marker) }
   }
@@ -290,6 +311,14 @@ enum LocalModelStoreError: LocalizedError {
 // Bytes received across the concurrent downloads, reported as they arrive rather than per finished file: Gemma 4
 // carries one 4.5 GB file, which would otherwise hold the bar still for minutes. A file restarted from zero after a
 // lost connection counts nothing new until it passes where it had got to, so the total never runs backwards.
+private final class AttemptProgress: @unchecked Sendable {
+  private let lock = NSLock()
+  private var received = false
+
+  func mark() { lock.withLock { received = true } }
+  var happened: Bool { lock.withLock { received } }
+}
+
 final class PullProgress: @unchecked Sendable {
   private let lock = NSLock()
   private let total: Int64
