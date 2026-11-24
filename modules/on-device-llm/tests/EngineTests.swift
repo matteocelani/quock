@@ -233,6 +233,16 @@ final class FileIntegrityTests: XCTestCase {
     try FileManager.default.removeItem(at: dir.appending(path: "config.json"))
     XCTAssertThrowsError(try LocalModelStore.verifyFiles(of: ref))
   }
+
+  func testResumeMarkersAreRemovedAndModelFilesKept() throws {
+    let (ref, dir) = try installedDirectory()
+    FileManager.default.createFile(atPath: dir.appending(path: ".model-00001.safetensors.0123456789ab").path, contents: nil)
+    FileManager.default.createFile(atPath: dir.appending(path: ".config.json.ba9876543210").path, contents: nil)
+    try LocalModelStore.removeResumeMarkers(in: dir)
+    let left = try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted()
+    XCTAssertEqual(left, ["config.json", "model-00001.safetensors", "quock-files.json"])
+    XCTAssertNoThrow(try LocalModelStore.verifyFiles(of: ref))
+  }
 }
 
 final class AppMemoryTests: XCTestCase {

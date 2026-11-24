@@ -124,6 +124,10 @@ enum LocalModelStore {
       }
     }
 
+    // The resume markers end here: the steps below rewrite the downloaded files, so a retry after an interrupted
+    // install must download again rather than treat rewritten files as fresh ones (and quantize them twice).
+    try removeResumeMarkers(in: directory)
+
     // Read before patching: an unquantized build has no quantization to derive.
     let isFullPrecision = try OllamaRegistry.quantization(ofTensorsIn: directory) == nil
     try patchConfiguration(in: directory)
@@ -169,6 +173,16 @@ enum LocalModelStore {
     try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
       .filter { !$0.lastPathComponent.hasPrefix(".") && !$0.lastPathComponent.hasPrefix("quock-") }
       .sorted { $0.lastPathComponent < $1.lastPathComponent }
+  }
+
+  // Markers are the empty ".<file>.<digest prefix>" files written as each layer finishes downloading.
+  static func removeResumeMarkers(in directory: URL) throws {
+    let markers = try FileManager.default.contentsOfDirectory(
+      at: directory, includingPropertiesForKeys: [.fileSizeKey]
+    ).filter { url in
+      url.lastPathComponent.hasPrefix(".") && (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) == 0
+    }
+    for marker in markers { try FileManager.default.removeItem(at: marker) }
   }
 
   static func recordFileHashes(in directory: URL) throws {
