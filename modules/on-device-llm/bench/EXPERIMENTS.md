@@ -79,3 +79,16 @@ the ds4 "Engram" pattern. Mac M4 Max: peak memory 6117 → 1642 MB, decode 169 �
 sampled token, which breaks GPU pipelining; expected 3–10% on the bandwidth-bound iPhone), KL 0 and top-1 100% vs
 the in-RAM table, all functional checks pass. Ollama's MLX build ships no chat template (Ollama renders prompts in
 Go), so the app installs a Gemma 4 template; the e2b-mlx build declares no thinking capability.
+
+## Gemma 4 E2B body: Ollama nvfp4 vs 6-bit from BF16 (shipped: 6-bit)
+
+Both with the per-layer table on flash and judged against gemma4:e2b-mlx-bf16 with the table in RAM:
+
+| Build | Mean KL | p99 | Top-1 | tok/s | Peak MB |
+|---|---|---|---|---|---|
+| gemma4:e2b-mlx (Ollama nvfp4 body) | 0.455 | 7.40 | 88.0% | 135 | 1642 |
+| gemma4:e2b-mlx-bf16 → body 6-bit g64 + head 8-bit at install | 0.025 | 0.51 | 97.2% | 122 | 1953 |
+
+The 6-bit install is 18× closer to full precision for 10% of decode speed and 310 MB more memory, and passes every
+functional check including reasoning (the BF16 build declares thinking; the nvfp4 one does not). Download is 8.9 GB
+instead of 6.6 GB. The app catalog now offers gemma4:e2b-mlx-bf16, which the installer turns into this build.

@@ -31,4 +31,6 @@ export const ON_DEVICE_CATALOG_STALE_TIME_MS = 60 * 60 * 1000;
 export const ON_DEVICE_CATALOG: readonly string[] = [
   "qwen3.5:0.8b-mlx-bf16",
   "qwen3.5:2b-mlx-bf16",
+  // Its 4.5 GB per-layer embedding table stays on flash, so this 5B-parameter model needs about 2 GB of memory.
+  "gemma4:e2b-mlx-bf16",
 ];
