@@ -28,9 +28,9 @@ src/app/                 Routes compose: metadata, the page frame and components
                          own no content; a sentence of glue around a link is fine. (home) is light, (pages) is dark;
                          sitemap, robots, manifest, llms.txt and the icons sit beside them.
 src/modules/<feature>/   Content and schema for one feature, with no UI:
-                         faq, changelog, guide, privacy, home, llms, and site (the 404 and footer copy).
+                         faq, changelog, guide, privacy, home, llms, and site (the 404, footer copy and WebSite schema).
                          content.ts(x) holds the copy (.tsx only when it carries rendered elements),
-                         schema.ts the JSON-LD; home/screens.ts the captures and model names.
+                         schema.ts the JSON-LD; home/screens.ts the captures, model names and picked model.
                          The newest changelog entry is the live version: nothing else repeats it.
 src/components/ui/       Primitives with no site knowledge: button, text-link, heading (Heading, Marker, Lead),
                          accordion, step-badge, icons.
@@ -41,14 +41,14 @@ src/components/home/     One file per home section; a section with parts gets a 
 src/components/<page>/   UI for one inner page, so its route stays thin: changelog/, guide/, privacy/, faq/.
                          The reading column is `max-w-reading` (40rem), not Tailwind's 65ch `max-w-prose`.
 src/lib/                 Shared by 2+ features: site.ts (facts, URLs, PATHS, PAGE_LABELS, theme colours),
-                         metadata.ts (title template, social metadata, share image, breadcrumbs, WebSite
-                         schema), utils.ts.
+                         metadata.ts (title template, social metadata, share image, author schema), utils.ts.
 public/                  Committed images made by `pnpm assets`: screens/, app-icon.png, og.png (share card).
 scripts/                 compose-assets.py: builds the committed images from docs/ and assets/.
 ```
 
 Placement rules, the same as the app:
 - **Who imports it decides where it lives.** Used by one file, it is a constant at the top of that file. Used by one feature, it goes in that feature's module or component folder. Used by two or more features, it goes in `lib/` (or `components/ui/` for a primitive). When something gets a second user, promote it in the same change.
+  - Two exceptions. Content stays in the module that owns it, and other features read it from there: the home page shows the guide's steps, the version is the changelog's newest entry, and llms.txt reads every module. Every glyph lives in `ui/icons`, whoever uses it, so the set stays consistent.
 - **Dependencies point one way:** `app → components → modules → lib`. `ui/` never imports `layout/`, `global/` or `home/`. Modules never import components, with one exception: they may reference `ui/icons` to tag their content.
 - **Feature folders are always folders**, as in the app (`modules/<feature>/`, `components/<feature>/`), even with one file. Inside one, a single item is a file and two or more make a subfolder. No empty folders, no stubs, no barrel `index.ts`.
 - **Each value has one home.**
@@ -64,8 +64,8 @@ Placement rules, the same as the app:
 | --- | --- |
 | New app release | A new entry at the top of `RELEASES` in `src/modules/changelog/content.ts`: it becomes the version everywhere and the changelog's "Updated" date, and a new minor line appears on its own (add a sentence to `LINE_SUMMARIES` if you want one). Update `sizeMb` in `src/lib/site.ts` if the store size changed. |
 | New or changed question | `src/modules/faq/content.ts`. The page, the FAQPage JSON-LD and llms.txt follow on their own. |
-| New screenshots | Replace `docs/screenshots/*.png`, then run `pnpm assets` |
-| New home section | One file in `components/home/`, built from a pattern in `design.md`, added to `(home)/page.tsx` |
+| New screenshots | Replace `docs/screenshots/*.png` and run `pnpm assets`. Then check that `MODELS`, `PICKED_MODEL` and `SCREEN_ALT` in `src/modules/home/screens.ts` still describe what the captures show. |
+| New home section | Its copy in `src/modules/home/content.tsx`, one file in `components/home/` built from a pattern in `design.md`, added to `(home)/page.tsx` |
 | New inner page | A path in `PATHS` and a label in `PAGE_LABELS` (llms.txt lists it on its own), `modules/<slug>/content.ts` for the copy, its UI in `components/<slug>/`, a thin `app/(pages)/<slug>/page.tsx` with `pageMetadata()` and `PageIntro`, a row in `sitemap.ts` and a footer link |
 
 ## Commands (run inside `website/`)

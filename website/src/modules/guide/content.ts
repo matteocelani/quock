@@ -16,7 +16,7 @@ export function stepAnchor(index: number): string {
   return `step-${index + 1}`;
 }
 
-export const GUIDE_INTRO = `Quock brings the open models on Ollama Cloud, from Gemma and Qwen to GPT-OSS, DeepSeek and Kimi, to your iPhone in about ${GUIDE_MINUTES} minutes.`;
+export const GUIDE_INTRO = `Quock brings the open models on Ollama Cloud, from Gemma and GPT-OSS to DeepSeek, Kimi and GLM, to your iPhone in about ${GUIDE_MINUTES} minutes.`;
 
 // One source for the home page's "How it works", this guide, its HowTo JSON-LD and llms.txt.
 export const GUIDE_STEPS: readonly GuideItem[] = [

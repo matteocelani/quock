@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { PATHS, SITE } from "@/lib/site";
-import { absoluteUrl } from "@/lib/utils";
+import { SITE } from "@/lib/site";
 
 interface SocialInput {
   title: string;
@@ -41,32 +40,9 @@ export function pageMetadata({ title, description, path }: SocialInput): Metadat
   return { title, ...socialMetadata({ title: TITLE_TEMPLATE.replace("%s", title), description, path }) };
 }
 
-// Search engines show Home > Page in place of the bare URL.
-export function breadcrumbJsonLd(name: string, path: string): Record<string, unknown> {
-  return {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: SITE.name, item: absoluteUrl(PATHS.home) },
-      { "@type": "ListItem", position: 2, name, item: absoluteUrl(path) },
-    ],
-  };
-}
-
 export const AUTHOR_JSON_LD = {
   "@type": "Person",
   name: SITE.author,
   url: SITE.authorUrl,
   sameAs: [SITE.authorXUrl],
 } as const;
-
-// Rendered once in the root layout, so every page carries it.
-export const WEBSITE_JSON_LD = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  name: SITE.name,
-  url: SITE.url,
-  description: SITE.description,
-  inLanguage: "en",
-  publisher: AUTHOR_JSON_LD,
-};

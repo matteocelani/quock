@@ -3,7 +3,8 @@ import type { PropsWithChildren, ReactNode } from "react";
 import "@/app/globals.css";
 import { JsonLd } from "@/components/global/json-ld";
 import { SEO_KEYWORDS } from "@/modules/home/content";
-import { TITLE_TEMPLATE, WEBSITE_JSON_LD, socialMetadata } from "@/lib/metadata";
+import { WEBSITE_JSON_LD } from "@/modules/site/schema";
+import { TITLE_TEMPLATE, socialMetadata } from "@/lib/metadata";
 import { IS_INDEXABLE, PATHS, SITE, THEME_COLOR } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
   authors: [{ name: SITE.author, url: SITE.authorUrl }],
   creator: SITE.author,
   keywords: [...SEO_KEYWORDS],
-  category: "productivity",
+  category: SITE.category.toLowerCase(),
   robots: { index: IS_INDEXABLE, follow: IS_INDEXABLE },
   itunes: { appId: SITE.appStoreId },
   formatDetection: { telephone: false },

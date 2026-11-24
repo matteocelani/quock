@@ -1,14 +1,17 @@
 import type { ComponentType, ReactNode, SVGProps } from "react";
 import {
+  CameraIcon,
   CodeIcon,
   DocumentIcon,
   GlobeIcon,
   HandIcon,
+  ImageIcon,
   ModelsIcon,
   MoonIcon,
   NotesIcon,
   PinIcon,
   SearchIcon,
+  SparkIcon,
   StreamIcon,
   ThinkIcon,
 } from "@/components/ui/icons";
@@ -191,24 +194,36 @@ export const SEO_KEYWORDS = [
 
 // Sample content inside the bento mocks: what each mock shows, kept beside the tiles that hold them.
 export const MOCK_COPY = {
+  attachActions: [
+    { label: "Camera", icon: CameraIcon },
+    { label: "Photo", icon: ImageIcon },
+    { label: "File", icon: DocumentIcon },
+  ],
+  pdfTag: "PDF",
   pdfName: "lease-agreement.pdf",
   pdfNote: "Text read on this iPhone",
   notification: "Your answer is ready.",
+  notificationTime: "now",
   memorySection: "Chat",
   memoryLabel: "Memory",
   memoryNote: "A few facts, kept on this iPhone",
   dataFlowTitle: "Where your data goes",
-  continueDone: "The quickest route is the coastal road, then the ferry from Anacortes. Leave before nine and you",
-  continuePending: " will avoid the queue at",
+  dataFlowColumns: { where: "Place", what: "What", when: "When" },
+  continueText: "The quickest route is the coastal road, then the ferry from Anacortes. Leave before nine and you\u2026",
+  continueAction: "Continue",
   continueStatus: "Interrupted",
   excerptMarked: "Setting it up algebraically, where x is the ball\u2019s price",
   excerptRest: ", the bat costs x + $1.00 and together they cost $1.10.",
+  excerptActions: [
+    { label: "Deep dive", icon: SparkIcon },
+    { label: "Web search", icon: GlobeIcon },
+  ],
 } as const;
 
 // The phone itself, then the recipients of docs/PRIVACY.md section 4, drawn as the bento's data table.
 export const DATA_FLOW = [
-  { where: "Your iPhone", what: "Chats, memory, settings", when: "Always" },
-  { where: "Ollama Cloud", what: "The chat you send, with memory while it is on", when: "On send" },
-  { where: "Apple", what: "The telemetry iOS collects for every app", when: "Per your settings" },
-  { where: "Quock's author", what: "Nothing", when: "Never" },
+  { where: "Your iPhone", what: "Chats, memory, settings", when: "Always", isNothing: false },
+  { where: "Ollama Cloud", what: "The chat you send, with memory while it is on", when: "On send", isNothing: false },
+  { where: "Apple", what: "The telemetry iOS collects for every app", when: "Per your settings", isNothing: false },
+  { where: "Quock's author", what: "Nothing", when: "Never", isNothing: true },
 ] as const;

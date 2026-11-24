@@ -22,7 +22,9 @@ export function HowItWorks(): ReactNode {
         {GUIDE_STEPS.map((step, index) => (
           <li key={step.title} className="reveal bg-panel rounded-tile p-6">
             <StepBadge step={index + 1} />
-            <h3 className="mt-5 text-lg leading-snug font-bold tracking-title">{step.title}</h3>
+            <Heading as="h3" size="item" className="mt-5">
+              {step.title}
+            </Heading>
             <p className="text-muted-foreground mt-1.5 text-ui leading-relaxed text-pretty">{step.body}</p>
           </li>
         ))}

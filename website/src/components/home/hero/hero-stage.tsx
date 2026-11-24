@@ -15,7 +15,7 @@ import { handleRovingKeys } from "@/components/home/roving-keys";
 import { Caption } from "@/components/home/typography";
 import { LATEST_RELEASE } from "@/modules/changelog/content";
 import { HERO } from "@/modules/home/content";
-import { MODELS, type ScreenName } from "@/modules/home/screens";
+import { MODELS, PICKED_MODEL, type ScreenName } from "@/modules/home/screens";
 import { SITE } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -38,8 +38,6 @@ const PANEL_ID = "hero-screen";
 const tabId = (index: number): string => `hero-tab-${index}`;
 
 type ModelName = (typeof MODELS)[number]["name"];
-// The capture shows glm-5.2 as the picked model, so the panel starts there too.
-const INITIAL_MODEL: ModelName = MODELS[1].name;
 
 // The app's per-chat tools, as the attach sheet shows them; memory is a global setting, not one of them.
 const TOOLS = [
@@ -81,7 +79,7 @@ function ToolCheck({ isOn, label, onToggle }: ToolCheckProps): ReactNode {
 // Every control on the stage changes what the phone shows, so the hero proves the app instead of describing it.
 export function HeroStage(): ReactNode {
   const [screen, setScreen] = useState<ScreenName>("home");
-  const [model, setModel] = useState<ModelName>(INITIAL_MODEL);
+  const [model, setModel] = useState<ModelName>(PICKED_MODEL);
   const [tools, setTools] = useState<Record<ToolId, boolean>>({ search: true, thinking: false });
   const activeIndex = SCREENS.indexOf(screen);
 
@@ -116,7 +114,7 @@ export function HeroStage(): ReactNode {
 
         {/* Picking a model opens the picker capture, so the list reads as the app's own. */}
         <div className="glass text-foreground absolute top-12 -left-2 hidden w-80 rounded-2xl p-2 lg:block xl:-left-6">
-          <p id="hero-models" className="text-muted-foreground px-3 pt-2 pb-1 text-xs font-bold">
+          <p id="hero-models" className="text-muted-foreground px-3 pt-2 pb-1 text-mock font-bold">
             Choose a model
           </p>
           <ul role="radiogroup" aria-labelledby="hero-models">
@@ -156,7 +154,7 @@ export function HeroStage(): ReactNode {
           </ul>
         </div>
 
-        {/* Each switch jumps to the capture it affects, the way the attach sheet sets tools per chat. */}
+        {/* Each check jumps to the capture it affects, the way the attach sheet sets tools per chat. */}
         <div className="glass text-foreground absolute top-24 -right-2 hidden w-64 rounded-2xl p-4 lg:block xl:-right-6">
           <div className="flex items-center justify-between">
             <span className="text-ui font-bold">{SITE.name}</span>
@@ -165,7 +163,7 @@ export function HeroStage(): ReactNode {
             </span>
           </div>
           <div className="bg-foreground/10 my-3 h-px" />
-          <p className="text-muted-foreground mb-1 text-xs font-bold">Tools</p>
+          <p className="text-muted-foreground mb-1 text-mock font-bold">Tools</p>
           <ul className="space-y-1">
             {TOOLS.map((tool) => (
               <li key={tool.id}>
@@ -174,7 +172,7 @@ export function HeroStage(): ReactNode {
             ))}
           </ul>
           <div className="bg-foreground/10 my-3 h-px" />
-          <p className="text-muted-foreground text-xs font-bold">Version {LATEST_RELEASE.version}</p>
+          <p className="text-muted-foreground text-mock font-bold">Version {LATEST_RELEASE.version}</p>
         </div>
       </div>
 
@@ -194,7 +192,7 @@ export function HeroStage(): ReactNode {
                 onClick={() => setScreen(tabScreen)}
                 onKeyDown={(event) => handleRovingKeys(event, index, TABS.length, (next) => setScreen(TABS[next].screen))}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-mock font-bold transition-colors duration-200 sm:px-3.5 sm:text-sm",
+                  "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-mock font-bold transition-colors duration-200 sm:px-3.5 sm:text-ui",
                   isActive ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >

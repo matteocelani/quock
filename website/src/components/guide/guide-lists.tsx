@@ -27,7 +27,9 @@ export function GuideTips(): ReactNode {
     <ul className="mt-6 divide-y">
       {GUIDE_TIPS.map((tip) => (
         <li key={tip.title} className="py-5">
-          <h3 className="tracking-title text-lg font-bold">{tip.title}</h3>
+          <Heading as="h3" size="item">
+            {tip.title}
+          </Heading>
           <p className="text-muted-foreground text-body mt-1 leading-relaxed text-pretty">{tip.body}</p>
         </li>
       ))}

@@ -10,7 +10,7 @@ export function Eyebrow({ className, ...props }: ComponentProps<"p">): ReactNode
 export function Caption({ className, ...props }: ComponentProps<"p">): ReactNode {
   return (
     <p
-      className={cn("text-faint-foreground inline-flex items-center gap-1.5 text-sm font-bold", className)}
+      className={cn("text-faint-foreground inline-flex items-center gap-1.5 text-ui font-bold", className)}
       {...props}
     />
   );

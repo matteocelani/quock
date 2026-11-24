@@ -11,8 +11,8 @@ import { cn } from "@/lib/utils";
 
 const TAB_DURATION_MS = 6000;
 
-// Autoplay rides a CSS animation, so reduced motion turns it off. Hover pauses it; any tap, click, key or
-// focus inside the section stops it for good, touch browsers included (WCAG 2.2.2).
+// Autoplay rides a CSS animation, so reduced motion turns it off. Hover pauses it; a tap, click, key or focus
+// in the section stops it for good (WCAG 2.2.2). Click, not pointerdown, so a scroll swipe does not stop it.
 export function TabbedShowcase({ id, eyebrow, title, shimmerWord, lead, tabs, wallpaper, footnote }: Showcase): ReactNode {
   const [active, setActive] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
@@ -30,7 +30,7 @@ export function TabbedShowcase({ id, eyebrow, title, shimmerWord, lead, tabs, wa
       className="px-5 pt-32 sm:px-8 sm:pt-44"
       onPointerEnter={(event) => event.pointerType === "mouse" && setIsHovered(true)}
       onPointerLeave={(event) => event.pointerType === "mouse" && setIsHovered(false)}
-      onPointerDown={stop}
+      onClick={stop}
       onFocus={stop}
       onKeyDown={stop}
     >

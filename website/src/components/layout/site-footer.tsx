@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ComponentType, ReactNode, SVGProps } from "react";
+import { ButtonLink } from "@/components/ui/button";
 import { DownloadIcon, GithubIcon, ShieldIcon, XIcon } from "@/components/ui/icons";
 import { LEGAL_NOTE } from "@/modules/site/content";
 import { PAGE_LABELS, PATHS, SITE } from "@/lib/site";
@@ -27,22 +28,20 @@ const TEXT_LINKS = [
   { href: SITE.githubUrl, label: "Source" },
 ] as const;
 
+// Static export: the year is the build's, so a deploy keeps it current.
+const BUILD_YEAR = new Date().getFullYear();
+
 // The footer whispers: the legal line lives here in small type, so headlines never have to carry it.
 export function SiteFooter(): ReactNode {
   return (
-    <footer className="relative mt-24 overflow-hidden pt-10 sm:mt-28">
-      <div className="relative z-10 flex flex-col items-center gap-6 px-5 text-center">
+    <footer className="mt-24 pt-10 pb-14 sm:mt-28">
+      <div className="flex flex-col items-center gap-6 px-5 text-center">
         <ul className="flex gap-2.5">
           {ICON_LINKS.map(({ href, label, icon: Icon }) => (
             <li key={label}>
-              <Link
-                href={href}
-                aria-label={label}
-                className="bg-panel text-faint-foreground hover:text-foreground flex size-9 items-center justify-center rounded-xl transition-colors"
-                {...externalLinkProps(href)}
-              >
-                <Icon className="size-4.5" />
-              </Link>
+              <ButtonLink href={href} variant="secondary" size="icon" aria-label={label}>
+                <Icon />
+              </ButtonLink>
             </li>
           ))}
         </ul>
@@ -51,24 +50,16 @@ export function SiteFooter(): ReactNode {
             <Link
               key={label}
               href={href}
-              className="text-faint-foreground hover:text-foreground text-sm font-bold transition-colors"
+              className="text-faint-foreground hover:text-foreground text-ui font-bold transition-colors"
               {...externalLinkProps(href)}
             >
               {label}
             </Link>
           ))}
         </nav>
-        <p className="text-faint-foreground max-w-xl text-xs leading-relaxed font-medium">
-          {SITE.disclaimer} {LEGAL_NOTE} © 2026 {SITE.author}.
+        <p className="text-faint-foreground max-w-xl text-mock leading-relaxed font-medium">
+          {SITE.disclaimer} {LEGAL_NOTE} © {BUILD_YEAR} {SITE.author}.
         </p>
-      </div>
-      <div
-        aria-hidden="true"
-        className="pointer-events-none relative mt-10 flex justify-center select-none mask-b-from-35%"
-      >
-        <span className="text-foreground/7 text-wordmark leading-wordmark tracking-wordmark translate-y-1/8 font-bold">
-          {SITE.name}
-        </span>
       </div>
     </footer>
   );
