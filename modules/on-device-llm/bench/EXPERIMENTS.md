@@ -114,3 +114,18 @@ copy of the turn's cache while the reply is read. The next turn waits for it rat
 `bench reusecheck` now replays both resume points: mean KL vs cold 0.8b 1.67e-3 (control 1.69e-3), 2b 1.14e-3
 (1.24e-3), gemma4:e2b nvfp4 1.99e-3 (1.84e-3), gemma4:e2b 6-bit 1.24e-3 (2.70e-3): all within the noise of an
 ordinary chunked prefill.
+
+## iPhone 16 Pro Max (A18 Pro, 8 GB), 2026-11-24
+
+Release build, self-test (`-QuockLLMSelfTest`), models downloaded and optimized on the phone.
+
+| Model | Before today | Now | Peak memory |
+|---|---|---|---|
+| qwen3.5:0.8b | 40-44 tok/s (mxfp8 build) | 63 tok/s | 1.12 -> 0.77 GB |
+| qwen3.5:2b | 13.5 tok/s, killed by jetsam on long replies | 27-28 tok/s, 1,216-token story fine | 2.54 -> 1.75 GB |
+| gemma4:e2b | did not fit (6.4 GB) | 19 tok/s, reasoning answers 391 | 1.98 GB |
+
+Chat on 2b: turn 2 prefills 14 tokens instead of 139 (time to first token 0.21 s instead of 1.26 s), turn 3 17
+instead of 143 (0.40 s instead of 0.93 s). Gemma's flash table costs relatively less on the phone than on the Mac:
+Mac/iPhone decode ratio 6.4 for Gemma against 7.9 for qwen 2b. Background downloads survived two app kills
+mid-transfer: each relaunch adopted the running 4.5 GB transfer and staged files instead of starting over.

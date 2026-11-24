@@ -236,7 +236,7 @@ func run() async throws {
         emit("pull \(completed >> 20)/\(total >> 20) MB")
       }
     }
-    emit("pulled \(installed.reference) \(installed.bytes >> 20) MB in \(String(format: "%.1f", Date().timeIntervalSince(start)))s")
+    emit("pulled \(installed.reference) \(installed.bytes >> 20) MB in \(String(format: "%.1f", Date().timeIntervalSince(start)))s, MLX active \(Memory.activeMemory >> 20) MB, cache \(Memory.cacheMemory >> 20) MB, footprint \(AppMemory.footprint >> 20) MB")
 
   case "speed":
     let tokens = args.first.flatMap(Int.init) ?? 256
@@ -448,8 +448,8 @@ func run() async throws {
     let start = Date()
     let flashBytes = try InstallOptimizer.optimize(directory: target, isFullPrecision: true)
     let seconds = Date().timeIntervalSince(start)
-    emit(String(format: "optimize %@: %.1f s, MLX peak %d MB, cache after %d MB, footprint %d MB, flash %d MB",
-      variant.display, seconds, Memory.peakMemory >> 20, Memory.cacheMemory >> 20, AppMemory.footprint >> 20,
+    emit(String(format: "optimize %@: %.1f s, MLX peak %d MB, active after %d MB, cache after %d MB, footprint %d MB, flash %d MB",
+      variant.display, seconds, Memory.peakMemory >> 20, Memory.activeMemory >> 20, Memory.cacheMemory >> 20, AppMemory.footprint >> 20,
       Int(flashBytes >> 20)))
 
   case "firstturn":
