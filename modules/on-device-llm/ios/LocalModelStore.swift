@@ -114,6 +114,13 @@ enum LocalModelStore {
       throw LocalModelStoreError.insufficientSpace(needed: remaining + installScratchBytes, free: free)
     }
 
+    // Every file is handed to the system at once, so the transfer goes on while the app is suspended or the phone is
+    // locked; the group below only waits for them and hashes them, a few at a time.
+    await BackgroundDownloads.shared.start(jobs.map { layer, destination in
+      OllamaRegistry.blobRequest(
+        layer, of: ref, resumeData: try? Data(contentsOf: resumeFile(for: layer, destination: destination)))
+    })
+
     try await withThrowingTaskGroup(of: Int64.self) { group in
       var iterator = jobs.makeIterator()
       func enqueue() {
@@ -158,14 +165,18 @@ enum LocalModelStore {
     return model
   }
 
+  private static func resumeFile(for layer: OllamaLayer, destination: URL) -> URL {
+    destination.deletingLastPathComponent()
+      .appending(path: ".\(destination.lastPathComponent).\(layer.digest.suffix(12)).resume")
+  }
+
   private static func downloadWithRetry(
     _ layer: OllamaLayer, of ref: ModelReference, to destination: URL,
     onWritten: @escaping @Sendable (Int64) -> Void
   ) async throws {
     // Where a dropped transfer stopped, kept on disk so a pull retried later, even after the app was closed,
     // continues the file instead of starting it over: Gemma 4's per-layer table alone is 4.5 GB.
-    let resumeFile = destination.deletingLastPathComponent()
-      .appending(path: ".\(destination.lastPathComponent).\(layer.digest.suffix(12)).resume")
+    let resumeFile = resumeFile(for: layer, destination: destination)
     var resumeData = try? Data(contentsOf: resumeFile)
     var stalledAttempts = 0
     while true {

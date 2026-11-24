@@ -145,6 +145,15 @@ enum OllamaRegistry {
     return manifest
   }
 
+  // The blob as the background downloader keys it: by digest, so a transfer from an earlier launch is recognised.
+  static func blobRequest(_ layer: OllamaLayer, of ref: ModelReference, resumeData: Data? = nil)
+    -> BackgroundDownloads.Request
+  {
+    .init(
+      key: layer.digest, url: host.appending(path: "v2/\(ref.namespace)/\(ref.name)/blobs/\(layer.digest)"),
+      resumeData: resumeData)
+  }
+
   // Downloads one blob, checks it against its digest, and writes it to `destination`, returning the sha256 of what
   // was written (a rewritten tensor no longer matches the registry digest, so it gets its own). The registry answers
   // with a redirect to a signed CDN URL, which URLSession follows; `resumeData` continues an interrupted transfer.
@@ -152,17 +161,10 @@ enum OllamaRegistry {
     _ layer: OllamaLayer, of ref: ModelReference, to destination: URL, resumeData: Data? = nil,
     onWritten: (@Sendable (Int64) -> Void)? = nil
   ) async throws -> String {
-    let url = host.appending(path: "v2/\(ref.namespace)/\(ref.name)/blobs/\(layer.digest)")
-    let delegate = onWritten.map(DownloadProgressDelegate.init)
-    let (temporary, response) =
-      if let resumeData {
-        try await URLSession.shared.download(resumeFrom: resumeData, delegate: delegate)
-      } else {
-        try await URLSession.shared.download(from: url, delegate: delegate)
-      }
+    let request = blobRequest(layer, of: ref, resumeData: resumeData)
+    await BackgroundDownloads.shared.start([request])
+    let temporary = try await BackgroundDownloads.shared.collect(request, onWritten: onWritten ?? { _ in })
     defer { try? FileManager.default.removeItem(at: temporary) }
-    let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-    guard status == 200 || status == 206 else { throw OllamaRegistryError.http(status, layer.name ?? layer.digest) }
     guard try sha256(of: temporary) == layer.digest else {
       throw OllamaRegistryError.digestMismatch(layer.digest)
     }
@@ -278,26 +280,5 @@ enum OllamaRegistry {
       result[module] = entry
     }
     return result
-  }
-}
-
-// Reports the bytes a download has received so far. The async download API never calls the download delegate's
-// didWriteData, so the task itself is observed from the moment the session creates it.
-private final class DownloadProgressDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
-  private let onWritten: @Sendable (Int64) -> Void
-  private var observation: NSKeyValueObservation?
-
-  init(_ onWritten: @escaping @Sendable (Int64) -> Void) {
-    self.onWritten = onWritten
-  }
-
-  func urlSession(_ session: URLSession, didCreateTask task: URLSessionTask) {
-    observation = task.observe(\.countOfBytesReceived, options: [.new]) { [onWritten] task, _ in
-      onWritten(task.countOfBytesReceived)
-    }
-  }
-
-  deinit {
-    observation?.invalidate()
   }
 }

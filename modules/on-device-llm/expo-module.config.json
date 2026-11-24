@@ -1,6 +1,13 @@
 {
-  "platforms": ["ios"],
+  "platforms": [
+    "ios"
+  ],
   "apple": {
-    "modules": ["OnDeviceLLMModule"]
+    "modules": [
+      "OnDeviceLLMModule"
+    ],
+    "appDelegateSubscribers": [
+      "OnDeviceLLMAppDelegate"
+    ]
   }
 }

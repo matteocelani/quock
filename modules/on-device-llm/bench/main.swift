@@ -117,9 +117,9 @@ func measureQuality(
   } ?? LocalModelStore.directory(for: ref)
   await FlashEmbeddings.registerIfNeeded()
   FlashEmbeddings.loadingDirectory = referenceDirectory
-  let reference = try await loadModelContainer(from: referenceDirectory, using: TransformersTokenizerLoader())
+  let reference = try await LLMModelFactory.shared.loadContainer(from: referenceDirectory, using: TransformersTokenizerLoader())
   FlashEmbeddings.loadingDirectory = LocalModelStore.directory(for: candidate)
-  let other = try await loadModelContainer(from: LocalModelStore.directory(for: candidate), using: TransformersTokenizerLoader())
+  let other = try await LLMModelFactory.shared.loadContainer(from: LocalModelStore.directory(for: candidate), using: TransformersTokenizerLoader())
   var kls: [Double] = []
   var agree = 0
   var positions = 0
@@ -335,7 +335,7 @@ func run() async throws {
     ]
     await FlashEmbeddings.registerIfNeeded()
     FlashEmbeddings.loadingDirectory = LocalModelStore.directory(for: ref)
-    let container = try await loadModelContainer(from: LocalModelStore.directory(for: ref), using: TransformersTokenizerLoader())
+    let container = try await LLMModelFactory.shared.loadContainer(from: LocalModelStore.directory(for: ref), using: TransformersTokenizerLoader())
     let parameters = GenerateParameters(maxKVSize: 8192)
     var reuseKL: [Double] = []
     var controlKL: [Double] = []

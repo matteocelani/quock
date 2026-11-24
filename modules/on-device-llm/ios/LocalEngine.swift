@@ -133,7 +133,9 @@ actor LocalEngine {
     }
     await FlashEmbeddings.registerIfNeeded()
     FlashEmbeddings.loadingDirectory = LocalModelStore.directory(for: ref)
-    let loaded = try await loadModelContainer(
+    // The text-only factory by name: the generic loader picks whichever factory is linked first, and a multimodal one
+    // would claim qwen3.5 (its config carries a vision tower) with a model this engine does not drive.
+    let loaded = try await LLMModelFactory.shared.loadContainer(
       from: LocalModelStore.directory(for: ref), using: TransformersTokenizerLoader())
     container = loaded
     loadedRef = ref

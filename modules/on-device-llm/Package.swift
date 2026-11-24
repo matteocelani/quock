@@ -24,7 +24,9 @@ let package = Package(
       name: "OnDeviceLLMCore",
       dependencies: mlx,
       path: "ios",
-      exclude: ["OnDeviceLLMModule.swift", "SpikeSelfTest.swift", "OnDeviceLLM.podspec"],
+      exclude: [
+        "OnDeviceLLMModule.swift", "OnDeviceLLMAppDelegate.swift", "SpikeSelfTest.swift", "OnDeviceLLM.podspec",
+      ],
       // The bench reaches the engine's internal API in Release too, so it measures the code the app ships.
       swiftSettings: [.swiftLanguageMode(.v5), .unsafeFlags(["-enable-testing"])]
     ),
