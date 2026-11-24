@@ -8,7 +8,6 @@ interface ScreenStackProps {
   labelledBy: string;
   screens: readonly ScreenName[];
   active: ScreenName;
-  sizes: string;
   className?: string;
   isPriority?: boolean;
 }
@@ -20,7 +19,6 @@ export function ScreenStack({
   labelledBy,
   screens,
   active,
-  sizes,
   className,
   isPriority = false,
 }: ScreenStackProps): ReactNode {
@@ -43,14 +41,13 @@ export function ScreenStack({
             alt={isActive ? SCREEN_ALT[screen] : ""}
             width={SHOT_WIDTH}
             height={SHOT_HEIGHT}
-            sizes={sizes}
             preload={isEager}
             loading={isEager ? "eager" : "lazy"}
             draggable={false}
             aria-hidden={!isActive}
             className={cn(
               "absolute inset-0 h-full w-full drop-shadow-2xl transition-[opacity,scale,translate,filter] duration-500 ease-glide select-none",
-              isActive ? "scale-100 opacity-100 blur-none" : "scale-98 opacity-0 blur-sm",
+              isActive ? "scale-100 opacity-100 blur-[0px]" : "scale-98 opacity-0 blur-sm",
             )}
           />
         );

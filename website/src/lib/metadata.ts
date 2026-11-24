@@ -10,11 +10,13 @@ interface SocialInput {
 // One separator for <title>, og:title and twitter:title, so they can never drift apart.
 export const TITLE_TEMPLATE = `%s · ${SITE.name}`;
 
-// The one share card (public/og.png, made by `pnpm assets`), used by every page.
+// The one share card, used by every page. `pnpm assets` draws it from these values and the hero headline.
 export const SHARE_IMAGE = {
   url: "/og.png",
   width: 1200,
   height: 630,
+  lines: ["Chat with Ollama Cloud on iPhone.", "Independent, free and open source."],
+  screens: ["home", "chat"],
   alt: "Quock's home screen and a chat on an iPhone, beside the app's headline.",
 } as const;
 

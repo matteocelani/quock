@@ -8,8 +8,8 @@ import { absoluteUrl } from "@/lib/utils";
 
 const SCHEMA_SCREENS: readonly ScreenName[] = ["home", "open_model", "chat", "compose", "history"];
 
-// The facts search engines and assistants quote about the app. No aggregateRating: the store lists no ratings
-// yet, and a rating is only ever quoted from the App Store lookup API, never estimated.
+// The facts search engines and assistants quote about the app. No aggregateRating until the App Store lookup API
+// shows real ratings, so Google gives no app rich result yet; the facts still reach search and assistants.
 export const APP_JSON_LD = {
   "@context": "https://schema.org",
   "@type": "MobileApplication",

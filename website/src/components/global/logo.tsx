@@ -9,14 +9,17 @@ interface LogoProps {
   className?: string;
 }
 
+// The largest the icon is drawn, in CSS pixels; `pnpm assets` writes the file at twice that for 2x screens.
+const APP_ICON = { src: "/app-icon.png", size: 72 } as const;
+
 // The real app icon, so the site and the Home Screen look like the same product.
 export function AppIcon({ className }: LogoProps): ReactNode {
   return (
     <Image
-      src="/app-icon.png"
+      src={APP_ICON.src}
       alt=""
-      width={72}
-      height={72}
+      width={APP_ICON.size}
+      height={APP_ICON.size}
       className={cn("rounded-icon ring-border size-9 ring-1", className)}
       preload
     />

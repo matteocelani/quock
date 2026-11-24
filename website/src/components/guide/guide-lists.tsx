@@ -3,7 +3,7 @@ import { Heading } from "@/components/ui/heading";
 import { StepBadge } from "@/components/ui/step-badge";
 import { GUIDE_CHATS, GUIDE_STEPS, GUIDE_TIPS, GUIDE_TIPS_TITLE, stepAnchor } from "@/modules/guide/content";
 
-// Each step is an anchor target, because the HowTo JSON-LD links search results straight to it.
+// Each step is an anchor, so a link (or the HowTo JSON-LD's step url) can open the guide at that step.
 export function GuideSteps(): ReactNode {
   return (
     <ol className="mt-12 space-y-10">

@@ -1,3 +1,6 @@
+import { GUIDE_TITLE } from "@/modules/guide/content";
+import { SITE } from "@/lib/site";
+
 export const NOT_FOUND = {
   metaTitle: "Page not found",
   title: "Not",
@@ -9,17 +12,14 @@ export const NOT_FOUND = {
 export const SEO_KEYWORDS = [
   "Ollama Cloud client",
   "Ollama Cloud iPhone app",
-  "how to use Ollama Cloud on iPhone",
+  GUIDE_TITLE,
   "iPhone LLM client",
   "LLM chat app",
   "open models",
   "AI chat iPhone",
   "private AI chat",
-  "Quock",
+  SITE.name,
 ] as const;
-
-// The two lines under the headline on the share card (public/og.png); `pnpm assets` reads them from here.
-export const SHARE_CARD_LINES = ["Chat with Ollama Cloud on iPhone.", "Independent, free and open source."] as const;
 
 // Trademark notes that sit beside the disclaimer in the footer.
 export const LEGAL_NOTE =

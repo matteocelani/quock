@@ -33,10 +33,8 @@ BLURRED_HEADER = {
 
 FONT_BOLD = Path("/Library/Fonts/SF-Pro-Display-Bold.otf")
 FONT_REGULAR = Path("/Library/Fonts/SF-Pro-Display-Regular.otf")
-# Share-card-only paint: the wash at its foot, the hairline round the icon and the phones' shadow tint.
+# The share card's one paint of its own: the blue air at its foot, like the App Store screenshots.
 OG_WASH = (232, 240, 252)
-OG_ICON_OUTLINE = (220, 220, 225)
-OG_PHONE_SHADOW = (20, 30, 60)
 
 
 def read_source(path: str, pattern: str) -> re.Match[str]:
@@ -73,14 +71,23 @@ def light_token(name: str) -> tuple[int, int, int]:
 
 SHOT_WIDTH = int(read_source("modules/home/screens.ts", r"SHOT_WIDTH = (\d+)").group(1))
 SHOT_HEIGHT = int(read_source("modules/home/screens.ts", r"SHOT_HEIGHT = (\d+)").group(1))
-OG_SIZE = tuple(map(int, read_source("lib/metadata.ts", r"SHARE_IMAGE = \{.*?width: (\d+),\s*height: (\d+)").groups()))
-OG_LINES = read_source("modules/site/content.ts", r'SHARE_CARD_LINES = \["([^"]+)", "([^"]+)"\]').groups()
+SHARE = read_source("lib/metadata.ts", r"SHARE_IMAGE = \{(.*?)\} as const").group(1)
+OG_PATH = re.search(r'url: "/([^"]+)"', SHARE).group(1)
+OG_SIZE = (int(re.search(r"width: (\d+)", SHARE).group(1)), int(re.search(r"height: (\d+)", SHARE).group(1)))
+OG_LINES = re.search(r'lines: \["([^"]+)", "([^"]+)"\]', SHARE).groups()
+OG_SCREENS = re.search(r'screens: \["(\w+)", "(\w+)"\]', SHARE).groups()
+SCREEN_DIR, SCREEN_EXT = read_source("modules/home/screens.ts", r"`/(\w+)/\$\{screen\}-\$\{SHOT_WIDTH\}\.(\w+)`").groups()
+APP_ICON = read_source("components/global/logo.tsx", r'APP_ICON = \{ src: "/([^"]+)", size: (\d+) \}')
+APP_ICON_PATH, APP_ICON_SIZE = APP_ICON.group(1), 2 * int(APP_ICON.group(2))
 BRAND = read_source("lib/site.ts", r'name: "([^"]+)"').group(1)
 ICON_SIZE = int(read_source("app/manifest.ts", r"ICON_SIZE = (\d+)").group(1))
 ICON_RADIUS = float(read_source("app/globals.css", r"--radius-icon:\s*([\d.]+)%").group(1)) / 100
 SCREEN_NAMES = re.findall(r'"(\w+)"', read_source("modules/home/screens.ts", r"type ScreenName = ([^;]+);").group(1))
 HEADLINE = read_source("modules/home/content.tsx", r'headline: \["([^"]+)", "([^"]+)"\]').groups()
 INK, MUTED, MARKER, PAGE = (light_token(name) for name in ("foreground", "muted-foreground", "marker", "background"))
+SHADE = tuple(map(int, read_source("app/globals.css", r"--shade:\s*(\d+) (\d+) (\d+);").groups()))
+# --border is ink at 9%; on the card's page tint that is this solid hairline.
+HAIRLINE = tuple(round(0.09 * i + 0.91 * p) for i, p in zip(INK, PAGE))
 
 
 def neutral_avatar(shot: Image.Image, is_blurred: bool) -> Image.Image:
@@ -134,7 +141,7 @@ def framed(name: str, is_blurred: bool, frame: Image.Image, mask: Image.Image) -
 
 
 def compose_screens(frame: Image.Image) -> dict[str, Image.Image]:
-    out_dir = PUBLIC / "screens"
+    out_dir = PUBLIC / SCREEN_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     devices = {}
     mask = screen_mask(frame)
@@ -147,7 +154,7 @@ def compose_screens(frame: Image.Image) -> dict[str, Image.Image]:
         if height != SHOT_HEIGHT:
             sys.exit(f"compose-assets: shots are now {SHOT_WIDTH}x{height}; set SHOT_HEIGHT in screens.ts to {height}")
         device.resize((SHOT_WIDTH, height), Image.LANCZOS).save(
-            out_dir / f"{name}-{SHOT_WIDTH}.webp", "WEBP", quality=84, method=6
+            out_dir / f"{name}-{SHOT_WIDTH}.{SCREEN_EXT}", "WEBP", quality=84, method=6
         )
     return devices
 
@@ -157,7 +164,7 @@ def compose_icons() -> None:
     icon.resize((ICON_SIZE, ICON_SIZE), Image.LANCZOS).save(APP / "icon.png", optimize=True)
     icon.resize((180, 180), Image.LANCZOS).save(APP / "apple-icon.png", optimize=True)
     # The header shows the real app icon, so the site and the Home Screen match.
-    icon.resize((144, 144), Image.LANCZOS).save(PUBLIC / "app-icon.png", optimize=True)
+    icon.resize((APP_ICON_SIZE, APP_ICON_SIZE), Image.LANCZOS).save(PUBLIC / APP_ICON_PATH, optimize=True)
     icon.convert("RGBA").save(APP / "favicon.ico", sizes=[(16, 16), (32, 32), (48, 48)])
 
 
@@ -177,7 +184,7 @@ def compose_og(devices: dict[str, Image.Image]) -> None:
     icon_mask = Image.new("L", (64, 64), 0)
     ImageDraw.Draw(icon_mask).rounded_rectangle((0, 0, 63, 63), radius=round(64 * ICON_RADIUS), fill=255)
     card.paste(icon, (72, 64), icon_mask)
-    draw.rounded_rectangle((72, 64, 135, 127), radius=round(64 * ICON_RADIUS), outline=OG_ICON_OUTLINE, width=1)
+    draw.rounded_rectangle((72, 64, 135, 127), radius=round(64 * ICON_RADIUS), outline=HAIRLINE, width=1)
     draw.text((152, 96), BRAND, font=brand, fill=INK, anchor="lm")
 
     draw.text((68, 250), HEADLINE[0], font=bold, fill=INK, anchor="ls")
@@ -190,17 +197,17 @@ def compose_og(devices: dict[str, Image.Image]) -> None:
 
     # Blur clamps at the image edge, so the shadow gets a margin or it renders as a hard box.
     pad = 96
-    for name, x, y in (("home", 640, 70), ("chat", 890, 120)):
+    for name, x, y in zip(OG_SCREENS, (640, 890), (70, 120)):
         device = devices[name]
         height = 650
         phone = device.resize((round(device.width * height / device.height), height), Image.LANCZOS)
         shadow = Image.new("L", (phone.width + 2 * pad, phone.height + 2 * pad), 0)
         shadow.paste(phone.split()[3].point(lambda a: 60 if a > 128 else 0), (pad, pad))
         shadow = shadow.filter(ImageFilter.GaussianBlur(36))
-        card.paste(OG_PHONE_SHADOW, (x - pad, y + 28 - pad), shadow)
+        card.paste(SHADE, (x - pad, y + 28 - pad), shadow)
         card.paste(phone, (x, y), phone)
 
-    card.save(PUBLIC / "og.png", optimize=True)
+    card.save(PUBLIC / OG_PATH, optimize=True)
 
 
 def main() -> int:

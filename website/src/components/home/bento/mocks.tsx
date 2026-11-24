@@ -29,10 +29,10 @@ export function AttachMock(): ReactNode {
         </div>
         <div className="mt-3 space-y-1.5">
           {["w-full", "w-11/12", "w-4/5", "w-full", "w-2/3"].map((width, index) => (
-            <span key={index} className={cn("block h-1.5 rounded-full", width, index === 2 ? "bg-marker" : "bg-foreground/10")} />
+            <span key={index} className={cn("bg-foreground/10 block h-1.5 rounded-full", width)} />
           ))}
         </div>
-        <p className="text-faint-foreground mt-3 text-tag font-bold">{MOCK_COPY.pdfNote}</p>
+        <p className="text-faint-foreground mt-3 text-tag font-semibold">{MOCK_COPY.pdfNote}</p>
       </div>
     </div>
   );
@@ -65,7 +65,7 @@ export function MemoryMock(): ReactNode {
         <div className="flex items-center gap-3">
           <SparkIcon className="text-muted-foreground size-5" />
           <div>
-            <p className="text-ui font-semibold">{MOCK_COPY.memoryLabel}</p>
+            <p className="text-mock font-bold">{MOCK_COPY.memoryLabel}</p>
             <p className="text-muted-foreground text-mock font-semibold">{MOCK_COPY.memoryNote}</p>
           </div>
         </div>
@@ -99,8 +99,8 @@ export function DataFlowMock(): ReactNode {
           {DATA_FLOW.map((row, index) => (
             <tr key={row.where} className={cn(index % 2 === 1 && "bg-foreground/3", row.isNothing && "text-faint-foreground")}>
               <td className="px-4 py-2 font-semibold">{row.where}</td>
-              <td className="px-4 py-2">{row.what}</td>
-              <td className="hidden px-4 py-2 sm:table-cell">{row.when}</td>
+              <td className="px-4 py-2 font-semibold">{row.what}</td>
+              <td className="hidden px-4 py-2 font-semibold sm:table-cell">{row.when}</td>
             </tr>
           ))}
         </tbody>
@@ -135,7 +135,7 @@ export function MenuMock(): ReactNode {
           <span className="bg-marker text-foreground rounded px-0.5">{MOCK_COPY.excerptMarked}</span>
           {MOCK_COPY.excerptRest}
         </p>
-        <ul className="bg-panel text-foreground mt-3 w-40 rounded-xl p-1.5 text-mock font-semibold">
+        <ul className="bg-panel text-foreground mt-3 w-40 rounded-xl p-1.5 text-mock font-bold">
           {MOCK_COPY.excerptActions.map(({ label, icon: Icon }, index) => (
             <li key={label} className={cn("flex items-center gap-2.5 rounded-lg px-2.5 py-1.5", index === 0 && "bg-foreground/5")}>
               <Icon className="text-faint-foreground size-4" />

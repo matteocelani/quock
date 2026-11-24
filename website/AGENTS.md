@@ -29,7 +29,7 @@ src/app/                 Routes compose: metadata, the page frame and components
                          sitemap, robots, manifest, llms.txt and the icons sit beside them.
 src/modules/<feature>/   Content and schema for one feature, with no UI:
                          faq, changelog, guide, privacy, home, llms, and site (site-wide copy: the 404, footer
-                         notes, keywords, share-card lines; the WebSite and breadcrumb schema).
+                         notes, keywords; the WebSite and breadcrumb schema).
                          content.ts(x) holds the copy (.tsx only when it carries rendered elements),
                          schema.ts the JSON-LD; home/screens.ts the captures, model names and picked model.
                          The newest changelog entry is the live version: nothing else repeats it.
@@ -43,7 +43,8 @@ src/components/home/     One file per home section; a section with parts gets a 
 src/components/<page>/   UI for one inner page, so its route stays thin: changelog/, guide/, privacy/, faq/.
 src/lib/                 Shared by 2+ features: site.ts (facts, URLs, PATHS, PAGE_LABELS, LINK_LABELS, theme
                          colours, which the build checks against globals.css),
-                         metadata.ts (title template, social metadata, share image, author schema), utils.ts.
+                         metadata.ts (title template, social metadata, the share card, author schema),
+                         theme.ts (the @theme names cn() must know, checked by the build), utils.ts.
 public/                  Committed images made by `pnpm assets`: screens/, app-icon.png, og.png (share card).
 scripts/                 compose-assets.py: builds the committed images from docs/ and assets/.
 ```
@@ -66,9 +67,9 @@ Placement rules, the same as the app:
 | --- | --- |
 | New app release | A new entry at the top of `RELEASES` in `src/modules/changelog/content.ts`: it becomes the version everywhere and the changelog's "Updated" date, and a new minor line appears on its own (add a sentence to `LINE_SUMMARIES` if you want one). Update `sizeMb` in `src/lib/site.ts` if the store size changed. |
 | New or changed question | `src/modules/faq/content.ts`. The page, the FAQPage JSON-LD and llms.txt follow on their own. |
-| New screenshots | Replace `docs/screenshots/*.png` and run `pnpm assets`. Then check that `MODELS`, `PICKED_MODEL` and `SCREEN_ALT` in `src/modules/home/screens.ts` still describe what the captures show. |
+| New screenshots | Replace `docs/screenshots/*.png` and run `pnpm assets`. Then check that `MODELS`, `PICKED_MODEL` and `SCREEN_ALT` in `src/modules/home/screens.ts` still describe what the captures show, and that `BLURRED_HEADER` and the avatar position in `scripts/compose-assets.py` still match them, so the avatar stays masked. |
 | New home section | Its copy in `src/modules/home/content.tsx`, one file in `components/home/` built from a pattern in `design.md`, added to `(home)/page.tsx` |
-| New inner page | The feature name is the folder; the URL can be a longer search phrase (the guide lives at `/ollama-cloud-on-iphone/`). A path in `PATHS` and a label in `PAGE_LABELS` (llms.txt lists it on its own), `modules/<slug>/content.ts` for the copy, its UI in `components/<slug>/`, a thin `app/(pages)/<slug>/page.tsx` with `pageMetadata()` and `PageIntro`, a row in `sitemap.ts` and a footer link |
+| New inner page | Folders take the feature name; the URL can be a longer search phrase (the guide's folders are `guide/`, its route `/ollama-cloud-on-iphone/`). A path in `PATHS` and a label in `PAGE_LABELS` (llms.txt lists it on its own), `modules/<feature>/content.ts` for the copy, its UI in `components/<feature>/`, a thin `app/(pages)/<url-slug>/page.tsx` with `pageMetadata()` and `PageIntro`, a row in `sitemap.ts` and a footer link |
 
 ## Commands (run inside `website/`)
 
