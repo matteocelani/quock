@@ -90,6 +90,8 @@ actor LocalEngine {
   private static let bufferCacheLimit = 32 << 20
   // Caps the KV cache: a long chat would otherwise grow it until iOS kills the app. Older turns rotate out first.
   private static let maxKVTokens = 8192
+  // Free memory above the generation floor that the idle prefill (one more copy of the cache) needs to start.
+  private static let followUpMemoryMargin: UInt64 = 256 << 20
   // A phone-sized model asked to reason can reason forever: qwen3.5:0.8b spent 1,500 tokens (37 s) on 17 × 23 without
   // answering. Past this budget the reasoning block is closed and the model must answer.
   private static let thinkingBudgetTokens = 768
@@ -104,6 +106,9 @@ actor LocalEngine {
   private var followUp: Task<Void, Never>?
   // Replies in flight: preparing another model meanwhile would hold two in memory.
   private var activeGenerations = 0
+  // Bumped whenever the loaded model changes or is released. A reply that finishes under a different epoch belongs to
+  // a model that is gone, and must leave nothing behind (a cache of the old model, a prefill holding its weights).
+  private var epoch = 0
   // Models already run once since they loaded: the first run also builds every GPU kernel it uses.
   private var warmed = Set<ModelReference>()
   // Prompt tokens prefilled per model call before the snapshot point.
@@ -114,6 +119,7 @@ actor LocalEngine {
   func load(_ ref: ModelReference) async throws -> (ModelContainer, Double) {
     if let container, loadedRef == ref { return (container, 0) }
     await stopFollowUp()
+    epoch += 1
     container = nil
     loadedRef = nil
     snapshots = []
@@ -177,6 +183,7 @@ actor LocalEngine {
 
   func unload() async {
     await stopFollowUp()
+    epoch += 1
     container = nil
     loadedRef = nil
     snapshots = []
@@ -205,6 +212,7 @@ actor LocalEngine {
     }
     _ = MLXFailure.take()
     let (container, loadSeconds) = try await load(ref)
+    let startEpoch = epoch
     Memory.peakMemory = 0
     let chat: [Chat.Message] = turns.map { turn in
       switch turn.role {
@@ -324,10 +332,15 @@ actor LocalEngine {
       stats.firstTokenSeconds = firstToken ?? 0
       return TurnOutcome(stats: stats, snapshot: nextSnapshot, reply: reply)
     }
+    // The model may have been unloaded or replaced while this reply ran (the call holds the container, so the reply
+    // itself finishes): its cache and warm-up state are then of no use to whatever is loaded now.
+    guard epoch == startEpoch, loadedRef == ref else { return outcome.stats }
     snapshots = outcome.snapshot.map { [$0] } ?? []
     warmed.insert(ref)
     if let base = outcome.snapshot, outcome.stats.stopReason == "complete", !outcome.reply.isEmpty,
-      !Task.isCancelled, ProcessInfo.processInfo.environment["QUOCK_LLM_NO_PREFIX_REUSE"] == nil
+      !Task.isCancelled, ProcessInfo.processInfo.environment["QUOCK_LLM_NO_PREFIX_REUSE"] == nil,
+      // The extended copy of the cache is optional; it is not worth running a phone short of memory.
+      AppMemory.available > AppMemory.generationFloorBytes + Self.followUpMemoryMargin
     {
       let history = chat + [.assistant(outcome.reply)]
       let templateContext = input.additionalContext
@@ -345,6 +358,7 @@ actor LocalEngine {
     _ ref: ModelReference, _ container: ModelContainer, _ history: [Chat.Message],
     _ templateContext: [String: any Sendable]?, _ base: PromptSnapshot
   ) async {
+    let startEpoch = epoch
     let extended: PromptSnapshot?? = try? await container.perform { context in
       var renderings: [[Int]] = []
       for placeholder in ["?", "Ok."] {
@@ -367,7 +381,11 @@ actor LocalEngine {
       guard MLXFailure.take() == nil, !cache.contains(where: { $0.evictedTokenCount > 0 }) else { return nil }
       return PromptSnapshot(ref: ref, tokens: tokens, cache: cache)
     }
-    if let extended = extended ?? nil, loadedRef == ref, !Task.isCancelled { snapshots.append(extended) }
+    // The extended state covers everything the base one does and more, so it replaces it: keeping both held two copies
+    // of a long chat's cache between turns. If the next prompt does not extend it, the next turn simply prefills.
+    if let extended = extended ?? nil, loadedRef == ref, epoch == startEpoch, !Task.isCancelled {
+      snapshots = [extended]
+    }
   }
 
   // Where this turn's snapshot ends: just after the last assistant marker (the start of the reply being generated),

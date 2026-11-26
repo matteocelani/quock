@@ -20,7 +20,7 @@ enum SpikeSelfTest {
           log("installed copy verified")
         } catch {
           log("installed copy failed verification (\(error.localizedDescription)); removing and pulling again")
-          try LocalModelStore.remove(ref)
+          try await LocalModelStore.remove(ref)
         }
       }
       let pullStart = Date()
@@ -97,13 +97,13 @@ enum SpikeSelfTest {
       log("DONE")
       if ProcessInfo.processInfo.arguments.contains("-QuockLLMCleanup") {
         await LocalEngine.shared.unload()
-        try? LocalModelStore.remove(ref)
+        try? await LocalModelStore.remove(ref)
         log("removed \(model) after the test")
       }
     } catch {
       // A model refused for memory would otherwise keep several GB on the test phone for nothing.
       if case LocalEngineError.insufficientMemory = error, let ref = try? ModelReference(model) {
-        try? LocalModelStore.remove(ref)
+        try? await LocalModelStore.remove(ref)
         log("removed \(model) after the memory refusal")
       }
       log("FAILED: \(error.localizedDescription) | \(error) | available=\(AppMemory.available >> 20)MB footprint=\(AppMemory.footprint >> 20)MB")

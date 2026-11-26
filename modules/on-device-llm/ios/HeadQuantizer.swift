@@ -26,14 +26,17 @@ enum HeadQuantizer {
       guard let weight = arrays[key], [DType.bfloat16, .float16, .float32].contains(weight.dtype) else { return nil }
       let (packed, scales, biases) = quantized(
         weight, groupSize: groupSize, bits: bits, mode: .affine, stream: .cpu)
-      var output = [key: packed, base + ".scales": scales]
-      if let biases { output[base + ".biases"] = biases }
+      // Whatever else shares the file is carried over unchanged.
+      var output = arrays
+      output[key] = packed
+      output[base + ".scales"] = scales
+      output[base + ".biases"] = biases
       eval(Array(output.values))
 
       let temporary = file.deletingLastPathComponent().appending(path: ".requantized-\(file.lastPathComponent)")
       try save(arrays: output, url: temporary, stream: .cpu)
       let before = weight.nbytes
-      let after = output.values.reduce(0) { $0 + $1.nbytes }
+      let after = packed.nbytes + scales.nbytes + (biases?.nbytes ?? 0)
       _ = try FileManager.default.replaceItemAt(file, withItemAt: temporary)
 
       let modulePath = Self.modulePath(forCheckpointKey: base)

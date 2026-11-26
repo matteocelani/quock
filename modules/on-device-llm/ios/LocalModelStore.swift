@@ -17,6 +17,8 @@ enum LocalModelStore {
   private static let markerName = "quock-installed.json"
   // sha256 of every file as written to disk, checked before the weights are first loaded in a session.
   static let fileHashesName = "quock-files.json"
+  // The digests a pull queued, so removing the model can stop its transfers.
+  static let pullRecordName = "quock-pull.json"
   static let mlxFormat = "mlx"
   private static let concurrentDownloads = 4
   // A phone drops connections all the time (Wi-Fi handoff, sleep, a flaky CDN edge); one lost file must not end a pull.
@@ -57,8 +59,15 @@ enum LocalModelStore {
     }
   }
 
-  static func remove(_ ref: ModelReference) throws {
+  // Also stops the model's downloads in the system's transfer daemon, which would otherwise keep fetching gigabytes
+  // for a model that no longer exists, and drops what they staged.
+  static func remove(_ ref: ModelReference) async throws {
     let directory = directory(for: ref)
+    if let data = try? Data(contentsOf: directory.appending(path: pullRecordName)),
+      let digests = try? JSONDecoder().decode([String].self, from: data)
+    {
+      await BackgroundDownloads.shared.cancel(keys: Set(digests))
+    }
     if FileManager.default.fileExists(atPath: directory.path) {
       try FileManager.default.removeItem(at: directory)
     }
@@ -81,6 +90,7 @@ enum LocalModelStore {
     var excluded = root
     try? excluded.setResourceValues(values)
 
+    try? JSONEncoder().encode(layers.map(\.digest)).write(to: directory.appending(path: pullRecordName))
     let total = layers.reduce(Int64(0)) { $0 + $1.size }
     let counter = PullProgress(total: total, report: progress)
     progress(0, total)
@@ -140,19 +150,26 @@ enum LocalModelStore {
       }
     }
 
-    // The resume markers end here: the steps below rewrite the downloaded files, so a retry after an interrupted
-    // install must download again rather than treat rewritten files as fresh ones (and quantize them twice).
-    try removeResumeMarkers(in: directory)
-
-    // Read before patching: an unquantized build has no quantization to derive.
-    let isFullPrecision = try OllamaRegistry.quantization(ofTensorsIn: directory) == nil
-    try patchConfiguration(in: directory)
-    try ChatTemplates.installIfMissing(in: directory)
-    // The macOS benchmark keeps its full-precision reference this way; the app always optimizes.
-    var flashBytes: Int64 = 0
-    if ProcessInfo.processInfo.environment["QUOCK_LLM_KEEP_HEAD"] == nil {
-      flashBytes = try InstallOptimizer.optimize(directory: directory, isFullPrecision: isFullPrecision)
+    // An install state file means an earlier run got past patching and rewrote some files: the config and template are
+    // already done (patching again would read half-converted tensors), and each optimization step resumes where it
+    // stopped. The download markers stay until the install is complete, so a kill never costs a re-download.
+    // The macOS benchmark keeps its full-precision reference by skipping the optimization; the app always optimizes.
+    let optimizes = ProcessInfo.processInfo.environment["QUOCK_LLM_KEEP_HEAD"] == nil
+    var state = optimizes ? InstallOptimizer.State.load(in: directory) : nil
+    if state == nil {
+      // Read before patching: an unquantized build has no quantization to derive.
+      let isFullPrecision = try OllamaRegistry.quantization(ofTensorsIn: directory) == nil
+      try patchConfiguration(in: directory)
+      try ChatTemplates.installIfMissing(in: directory)
+      if optimizes { state = InstallOptimizer.State.begin(in: directory, isFullPrecision: isFullPrecision) }
     }
+    var flashBytes: Int64 = 0
+    if var running = state {
+      flashBytes = try InstallOptimizer.optimize(
+        directory: directory, isFullPrecision: running.isFullPrecision, state: &running)
+    }
+    try removeResumeMarkers(in: directory)
+    InstallOptimizer.State.clear(in: directory)
     try recordFileHashes(in: directory)
     // What is on disk now, not what was downloaded: the memory checks need the size of the weights that load.
     let installedBytes = try modelFiles(in: directory).reduce(Int64(0)) { total, file in

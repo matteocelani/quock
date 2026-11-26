@@ -19,9 +19,47 @@ enum InstallOptimizer {
     fullPrecisionFileTypes.contains((fileType ?? "").lowercased())
   }
 
-  // Returns the bytes left on flash (read per token, never resident).
+  // What an install has finished so far, kept on disk: a process killed mid-install (the user closes the app, iOS
+  // reclaims it) resumes from here instead of downloading 9 GB again or quantizing a finished file a second time.
+  struct State: Codable {
+    static let fileName = "quock-optimize.json"
+    var isFullPrecision: Bool
+    var bodyDone: Set<String> = []
+    var headDone = false
+    var flashDone = false
+    var flashBytes: Int64 = 0
+
+    @discardableResult
+    static func begin(in directory: URL, isFullPrecision: Bool) -> State {
+      let state = State(isFullPrecision: isFullPrecision)
+      state.save(in: directory)
+      return state
+    }
+
+    static func load(in directory: URL) -> State? {
+      (try? Data(contentsOf: directory.appending(path: fileName))).flatMap { try? JSONDecoder().decode(State.self, from: $0) }
+    }
+
+    func save(in directory: URL) {
+      try? JSONEncoder().encode(self).write(to: directory.appending(path: Self.fileName), options: .atomic)
+    }
+
+    static func clear(in directory: URL) {
+      try? FileManager.default.removeItem(at: directory.appending(path: fileName))
+    }
+  }
+
+  // Runs the whole install on a directory that is not tracked, as the benchmark does with copies of a model.
   @discardableResult
   static func optimize(directory: URL, isFullPrecision: Bool) throws -> Int64 {
+    var state = State.begin(in: directory, isFullPrecision: isFullPrecision)
+    defer { State.clear(in: directory) }
+    return try optimize(directory: directory, isFullPrecision: isFullPrecision, state: &state)
+  }
+
+  // Returns the bytes left on flash (read per token, never resident). Each finished step is recorded in `state`.
+  @discardableResult
+  static func optimize(directory: URL, isFullPrecision: Bool, state: inout State) throws -> Int64 {
     // Each tensor is quantized and written once, so recycled buffers buy nothing; uncapped, MLX's cache kept 1.8 GB
     // after a 2B install on the iPhone, close to the app's limit for a larger model and held until the next load.
     let previousLimit = Memory.cacheLimit
@@ -31,12 +69,28 @@ enum InstallOptimizer {
       Memory.clearCache()
     }
     if isFullPrecision {
+      var progress = state
+      defer { state = progress }
       _ = try BodyQuantizer.quantize(
         directory: directory,
-        plan: .init(bits: bodyBits, groupSize: bodyGroupSize, sensitive: [], sensitiveBits: bodyBits))
+        plan: .init(bits: bodyBits, groupSize: bodyGroupSize, sensitive: [], sensitiveBits: bodyBits),
+        skipping: state.bodyDone,
+        onFileDone: { name in
+          progress.bodyDone.insert(name)
+          progress.save(in: directory)
+        })
     }
-    _ = try HeadQuantizer.quantizeEmbedding(in: directory, bits: headBits, groupSize: headGroupSize)
-    return try FlashEmbeddings.prepare(in: directory)
+    if !state.headDone {
+      _ = try HeadQuantizer.quantizeEmbedding(in: directory, bits: headBits, groupSize: headGroupSize)
+      state.headDone = true
+      state.save(in: directory)
+    }
+    if !state.flashDone {
+      state.flashBytes = try FlashEmbeddings.prepare(in: directory)
+      state.flashDone = true
+      state.save(in: directory)
+    }
+    return state.flashBytes
   }
 
   // The bytes the model will hold in memory once optimized, from the manifest alone: decides before downloading

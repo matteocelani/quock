@@ -68,10 +68,12 @@ public class OnDeviceLLMModule: Module {
       return ["model": installed.reference, "bytes": installed.bytes]
     }
 
-    AsyncFunction("remove") { (model: String) in
+    AsyncFunction("remove") { [weak self] (model: String) in
       let ref = try ModelReference(model)
+      // A reply in flight holds the model and its files; stop it before they go.
+      await self?.jobs.cancelAll()
       await LocalEngine.shared.unload()
-      try LocalModelStore.remove(ref)
+      try await LocalModelStore.remove(ref)
     }
 
     AsyncFunction("prepare") { (model: String) -> Bool in

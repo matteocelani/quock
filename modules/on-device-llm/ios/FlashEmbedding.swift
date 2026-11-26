@@ -81,6 +81,12 @@ enum FlashEmbeddings {
   // the checkpoint, and records where the rows start. Returns the bytes now left on flash.
   @discardableResult
   static func prepare(in directory: URL) throws -> Int64 {
+    // Already prepared (an interrupted install resumes here): the placeholder in the checkpoint must not be mistaken
+    // for the table and moved over the real one.
+    let rowsURL = directory.appending(path: rowsFile)
+    if FileManager.default.fileExists(atPath: rowsURL.path) {
+      return Int64((try? rowsURL.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
+    }
     let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
       .filter { $0.pathExtension == "safetensors" && !$0.lastPathComponent.hasPrefix(".") }
     for file in files {
@@ -90,8 +96,6 @@ enum FlashEmbeddings {
         let shape = entry["shape"] as? [Int], shape.count == 2,
         let offsets = entry["data_offsets"] as? [Int], offsets.count == 2
       else { continue }
-      let rowsURL = directory.appending(path: rowsFile)
-      try? FileManager.default.removeItem(at: rowsURL)
       try FileManager.default.moveItem(at: file, to: rowsURL)
       try save(arrays: [key: MLXArray.zeros([1, shape[1]], dtype: .bfloat16)], url: file)
 

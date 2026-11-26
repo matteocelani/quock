@@ -165,6 +165,20 @@ final class HeadQuantizerTests: XCTestCase {
   }
 
 
+  func testTensorsSharingTheEmbeddingsFileSurviveTheRewrite() throws {
+    let dir = try temporaryDirectory()
+    try writeConfig(dir, ["quantization": ["group_size": 32, "bits": 8, "mode": "mxfp8"]])
+    let file = dir.appending(path: "model-00001.safetensors")
+    let other = MLXRandom.normal([8, 64]).asType(.bfloat16)
+    try save(
+      arrays: ["model.language_model.embed_tokens.weight": MLXRandom.normal([128, 128]).asType(.bfloat16), "other.weight": other],
+      url: file)
+    _ = try HeadQuantizer.quantizeEmbedding(in: dir, bits: 8, groupSize: 64)
+    let arrays = try loadArrays(url: file)
+    XCTAssertEqual(try XCTUnwrap(arrays["other.weight"]).shape, [8, 64], "a neighbour in the same file must not be dropped")
+    XCTAssertNotNil(arrays["model.language_model.embed_tokens.scales"])
+  }
+
   func testModulePathMapsHuggingFaceLayout() {
     XCTAssertEqual(
       HeadQuantizer.modulePath(forCheckpointKey: "model.language_model.layers.3.mlp.down_proj"),
@@ -196,6 +210,78 @@ final class BodyQuantizerTests: XCTestCase {
     XCTAssertNil(quantization["language_model.model.layers.0.mlp.up_proj"], "default-width layers need no entry")
     XCTAssertNotNil(try loadArrays(url: dir.appending(path: "model-1.safetensors"))[up.replacingOccurrences(of: ".weight", with: ".scales")])
     XCTAssertEqual(try loadArrays(url: dir.appending(path: "model-3.safetensors"))[norm]?.dtype, .bfloat16)
+  }
+
+  func testSeveralTensorsInOneFileAreAllConvertedOrCarried() throws {
+    let dir = try temporaryDirectory()
+    try writeConfig(dir, ["model_type": "qwen3_5"])
+    let up = "model.language_model.layers.0.mlp.up_proj.weight"
+    let down = "model.language_model.layers.0.mlp.down_proj.weight"
+    let norm = "model.language_model.layers.0.input_layernorm.weight"
+    let file = dir.appending(path: "model-1.safetensors")
+    try save(
+      arrays: [
+        up: MLXRandom.normal([128, 256]).asType(.bfloat16), down: MLXRandom.normal([128, 256]).asType(.bfloat16),
+        norm: MLXArray.ones([256]).asType(.bfloat16),
+      ], url: file)
+    let outcome = try BodyQuantizer.quantize(directory: dir, plan: .init(bits: 6, groupSize: 64, sensitive: [], sensitiveBits: 6))
+    XCTAssertEqual(outcome.tensors, 2)
+    let arrays = try loadArrays(url: file)
+    XCTAssertEqual(try XCTUnwrap(arrays[up]).dtype, .uint32)
+    XCTAssertEqual(try XCTUnwrap(arrays[down]).dtype, .uint32)
+    XCTAssertNotNil(arrays[up.replacingOccurrences(of: ".weight", with: ".scales")])
+    XCTAssertNotNil(arrays[down.replacingOccurrences(of: ".weight", with: ".scales")])
+    XCTAssertEqual(try XCTUnwrap(arrays[norm]).dtype, .bfloat16, "the norm sharing the file is carried unchanged")
+  }
+
+  func testFilesNamedAsDoneAreSkippedAndReported() throws {
+    let dir = try temporaryDirectory()
+    try writeConfig(dir, ["model_type": "qwen3_5"])
+    let up = "model.language_model.layers.0.mlp.up_proj.weight"
+    let down = "model.language_model.layers.0.mlp.down_proj.weight"
+    try save(arrays: [up: MLXRandom.normal([128, 256]).asType(.bfloat16)], url: dir.appending(path: "model-1.safetensors"))
+    try save(arrays: [down: MLXRandom.normal([128, 256]).asType(.bfloat16)], url: dir.appending(path: "model-2.safetensors"))
+    var finished: [String] = []
+    _ = try BodyQuantizer.quantize(
+      directory: dir, plan: .init(bits: 6, groupSize: 64, sensitive: [], sensitiveBits: 6),
+      skipping: ["model-1.safetensors"], onFileDone: { finished.append($0) })
+    XCTAssertEqual(finished, ["model-2.safetensors"])
+    XCTAssertEqual(try loadArrays(url: dir.appending(path: "model-1.safetensors"))[up]?.dtype, .bfloat16, "skipped, untouched")
+    XCTAssertEqual(try loadArrays(url: dir.appending(path: "model-2.safetensors"))[down]?.dtype, .uint32)
+  }
+}
+
+final class InstallResumeTests: XCTestCase {
+  func testAKilledInstallResumesWithoutQuantizingTwiceOrRedownloading() throws {
+    let dir = try temporaryDirectory()
+    try writeConfig(dir, ["model_type": "qwen3_5"])
+    let up = "model.language_model.layers.0.mlp.up_proj.weight"
+    let down = "model.language_model.layers.0.mlp.down_proj.weight"
+    try save(arrays: [up: MLXRandom.normal([128, 256]).asType(.bfloat16)], url: dir.appending(path: "model-1.safetensors"))
+    try save(arrays: [down: MLXRandom.normal([128, 256]).asType(.bfloat16)], url: dir.appending(path: "model-2.safetensors"))
+    FileManager.default.createFile(atPath: dir.appending(path: ".model-1.safetensors.0123456789ab").path, contents: nil)
+    // First launch: the process dies right after the first file was rewritten.
+    struct Killed: Error {}
+    var state = InstallOptimizer.State.begin(in: dir, isFullPrecision: true)
+    XCTAssertThrowsError(
+      try BodyQuantizer.quantize(
+        directory: dir, plan: .init(bits: 6, groupSize: 64, sensitive: [], sensitiveBits: 6), skipping: [],
+        onFileDone: { name in
+          state.bodyDone.insert(name)
+          state.save(in: dir)
+          throw Killed()
+        }))
+    // Second launch: state is read back, the finished file is not requantized, the other one is.
+    var resumed = try XCTUnwrap(InstallOptimizer.State.load(in: dir))
+    XCTAssertTrue(resumed.isFullPrecision)
+    XCTAssertEqual(resumed.bodyDone.count, 1)
+    let firstBefore = try Data(contentsOf: dir.appending(path: resumed.bodyDone.first!))
+    _ = try InstallOptimizer.optimize(directory: dir, isFullPrecision: true, state: &resumed)
+    XCTAssertEqual(try Data(contentsOf: dir.appending(path: resumed.bodyDone.sorted().first!)), firstBefore)
+    XCTAssertEqual(try loadArrays(url: dir.appending(path: "model-2.safetensors"))[down]?.dtype, .uint32)
+    XCTAssertNotNil(InstallOptimizer.State.load(in: dir), "kept until the caller declares the install finished")
+    InstallOptimizer.State.clear(in: dir)
+    XCTAssertNil(InstallOptimizer.State.load(in: dir))
   }
 }
 
