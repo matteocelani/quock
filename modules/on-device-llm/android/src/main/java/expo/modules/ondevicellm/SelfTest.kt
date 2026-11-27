@@ -18,6 +18,7 @@ internal object SelfTest {
     if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
     // A harness must never stop the app from starting, so an unreadable request is simply ignored.
     var keep = false
+    var prefill = false
     val model = try {
       val request = File(context.filesDir, "selftest.txt")
       if (!request.exists()) return
@@ -26,6 +27,7 @@ internal object SelfTest {
       // Optional extra lines: `threads=N` to override the thread count, `keep` to leave the model installed.
       lines.drop(1).forEach { line ->
         if (line == "keep") keep = true
+        if (line == "prefill") prefill = true
         if (line.startsWith("threads=")) DeviceMemory.threadsOverride = line.removePrefix("threads=").toIntOrNull()
       }
       lines.first()
@@ -58,6 +60,15 @@ internal object SelfTest {
           val r = stats.result
           Log.i(TAG, "turn ${index + 1} prompt=${r.promptTokens} prefilled=${r.prefilledTokens} reused=${r.reusedTokens} ttft=${"%.2f".format(r.firstTokenSeconds)}s tok/s=${"%.1f".format(if (r.generateSeconds > 0) r.generatedTokens / r.generateSeconds else 0.0)} stop=${stats.stopReason}")
           Log.i(TAG, "answer: ${answer.toString().take(300).replace('\n', ' ')}")
+        }
+        if (prefill) {
+          // About 1,500 tokens of prose, answered with a single token: the time is the prompt being read.
+          val long = "Il gatto dorme sul divano mentre fuori piove e il vento muove le foglie. ".repeat(110)
+          repeat(2) { run ->
+            val stats = engine.generate("selftest-prefill", ref, listOf(LocalTurn("user", long + "Riassumi in una parola. #$run")), false, 1) { }
+            val r = stats.result
+            Log.i(TAG, "prefill run ${run + 1} prompt=${r.promptTokens} prefilled=${r.prefilledTokens} ttft=${"%.2f".format(r.firstTokenSeconds)}s prefill tok/s=${"%.1f".format(if (r.promptSeconds > 0) r.prefilledTokens / r.promptSeconds else 0.0)}")
+          }
         }
         engine.unload()
         val first = System.nanoTime()
