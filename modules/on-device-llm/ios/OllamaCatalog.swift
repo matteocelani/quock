@@ -1,5 +1,8 @@
 import Foundation
 import MLXLLM
+#if os(iOS)
+  import UIKit
+#endif
 
 struct CatalogEntry: Sendable {
   let model: String
@@ -13,7 +16,16 @@ struct CatalogEntry: Sendable {
 // the registry for existence, size and an architecture this engine loads, then kept only if this phone can hold it.
 enum OllamaCatalog {
   // A model needs its weights plus the KV cache and runtime beside them; past this share of RAM iOS kills the app.
-  private static let memoryShare = 0.35
+  // That ceiling was measured on an iPhone. An iPad and a Mac have more headroom per GB, and loading still checks
+  // what the process may actually use (`AppMemory.available`), so the share only decides what is worth offering.
+  private static var memoryShare: Double {
+    #if os(iOS)
+      if ProcessInfo.processInfo.isiOSAppOnMac || UIDevice.current.userInterfaceIdiom == .pad { return 0.5 }
+      return 0.35
+    #else
+      return 0.5
+    #endif
+  }
   private static let kvAllowanceBytes: Int64 = 256 << 20
   private static let concurrentRequests = 4
 
