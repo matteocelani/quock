@@ -27,4 +27,13 @@ module.exports = {
     "!src/**/index.ts",
   ],
   testMatch: ["**/?(*.)+(test).[jt]s?(x)"],
+  // Native build output: the Android build downloads llama.cpp into `.cxx`, whose own web-UI tests are not ours.
+  testPathIgnorePatterns: [
+    "/node_modules/",
+    "/\\.cxx/",
+    "/\\.build/",
+    "/android/build/",
+    "/ios/build/",
+    "/ios/Pods/",
+  ],
 };

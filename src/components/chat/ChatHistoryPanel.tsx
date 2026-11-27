@@ -39,6 +39,8 @@ export interface ChatHistoryPanelProps {
   onNewChat: () => void;
   // Excluded from `deleteEmpty()` so the currently-open empty chat is not removed under the Composer's feet.
   currentChatId?: ChatId;
+  // A permanent column beside the chat: the orbs are not over it, so it needs no room reserved for them.
+  embedded?: boolean;
 }
 
 export function ChatHistoryPanel({
@@ -47,6 +49,7 @@ export function ChatHistoryPanel({
   onSelectChat,
   onNewChat,
   currentChatId,
+  embedded = false,
 }: ChatHistoryPanelProps): React.ReactElement {
   const chatsQuery = useChats();
   const deleteChat = useDeleteChat();
@@ -186,7 +189,10 @@ export function ChatHistoryPanel({
       className="flex-1 bg-background"
       // Starts below the floating orbs, not under them: they stay anchored while this page slides in, so the same inset
       // the message list uses to clear them applies here — otherwise the title and the search field sit beneath glass.
-      style={{ paddingTop: insets.top + componentLayout.floatingHeader.height }}
+      style={{
+        paddingTop:
+          insets.top + (embedded ? 12 : componentLayout.floatingHeader.height),
+      }}
     >
       <SheetHeader title="Chats" />
       <View

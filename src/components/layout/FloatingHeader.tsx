@@ -26,11 +26,14 @@ export interface FloatingHeaderProps {
   // The open chat, or null while one is being created: the orbs outlive the screen under them, so the badge falls back
   // to the global default — which is the model that chat is about to be born with anyway.
   chatId: ChatId | null;
+  // False where the chats list is a permanent column: there is nothing for the menu to open.
+  showMenu?: boolean;
 }
 
 export function FloatingHeader({
   chatId,
   drawerProgress,
+  showMenu = true,
 }: FloatingHeaderProps): React.ReactElement {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
@@ -83,6 +86,7 @@ export function FloatingHeader({
         intensity={componentLayout.scrollEdgeBlur.intensity}
       />
       <View className="flex-row items-center justify-between">
+        {showMenu ? (
         <GlassOrb
           variant="regular"
           interactive
@@ -119,6 +123,15 @@ export function FloatingHeader({
             />
           </View>
         </GlassOrb>
+        ) : (
+          // Keeps the model badge centred between the two ends.
+          <View
+            style={{
+              width: componentLayout.floatingHeader.orbHeight,
+              height: componentLayout.floatingHeader.orbHeight,
+            }}
+          />
+        )}
         <GlassOrb
           variant="regular"
           interactive

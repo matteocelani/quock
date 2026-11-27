@@ -3,13 +3,19 @@
 
 import { Slot, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect } from "react";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { AccountSheet } from "@/components/settings/AccountSheet";
 import { ChatHistoryPanel } from "@/components/chat/ChatHistoryPanel";
 import { FloatingHeader } from "@/components/layout/FloatingHeader";
 import { ModelPickerSheet } from "@/components/models/ModelPickerSheet";
 import { Drawer } from "@/components/ui/Drawer";
+import {
+  CONTENT_MAX_WIDTH,
+  SIDEBAR_WIDTH,
+  useWideLayout,
+} from "@/lib/hooks/useWideLayout";
+import { useThemeColors } from "@/lib/theme/ThemeContext";
 import { useUIStore } from "@/lib/stores/ui.store";
 import { asChatId, type ChatId } from "@/lib/types/ids";
 import {
@@ -19,6 +25,8 @@ import {
 
 export default function ChatSectionLayout(): React.ReactElement {
   const router = useRouter();
+  const isWide = useWideLayout();
+  const colors = useThemeColors();
   // Null on `/c`, the route that creates a chat and redirects: the orbs stay up through that moment rather than
   // blinking out of existence mid-animation.
   const { chatId: rawChatId } = useGlobalSearchParams<{ chatId?: string }>();
@@ -71,6 +79,56 @@ export default function ChatSectionLayout(): React.ReactElement {
     router.replace("/c");
     closeChatHistory();
   }, [router, closeChatHistory]);
+  const sheets = (
+    <>
+      {/* These two belong to the header, not to the screen: on `/c` the screen does not exist yet, and a sheet mounted
+          there would leave the orbs raising a flag nobody renders — then fire it late on the next chat. */}
+      <ModelPickerSheet
+        visible={modelPickerOpen}
+        onClose={closeModelPicker}
+        chatId={chatId}
+      />
+      <AccountSheet
+        visible={accountOpen}
+        onClose={closeAccount}
+        onChangeModel={switchToModelPickerFromAccount}
+      />
+    </>
+  );
+  // Wide windows (iPad, Mac): the chats list is a column that stays, and the conversation reads in a centred column.
+  if (isWide) {
+    return (
+      <View className="flex-1 flex-row bg-background">
+        <View
+          style={{
+            width: SIDEBAR_WIDTH,
+            borderRightWidth: StyleSheet.hairlineWidth,
+            borderRightColor: colors.border,
+          }}
+        >
+          <ChatHistoryPanel
+            embedded
+            isOpen
+            onClose={closeChatHistory}
+            onSelectChat={handleSelectChat}
+            onNewChat={handleNewChat}
+            {...(chatId !== null ? { currentChatId: chatId } : {})}
+          />
+        </View>
+        <View className="flex-1 items-center">
+          <View style={{ flex: 1, width: "100%", maxWidth: CONTENT_MAX_WIDTH }}>
+            <Slot />
+            <FloatingHeader
+              chatId={chatId}
+              drawerProgress={drawerProgress}
+              showMenu={false}
+            />
+          </View>
+        </View>
+        {sheets}
+      </View>
+    );
+  }
   return (
     <View className="flex-1 bg-background">
       <Drawer
@@ -92,18 +150,7 @@ export default function ChatSectionLayout(): React.ReactElement {
       {/* Outside the drawer on purpose: the orbs stay anchored while the page slides out from under them, which is what
           turns a panel that merely appears into one the screen makes room for. */}
       <FloatingHeader chatId={chatId} drawerProgress={drawerProgress} />
-      {/* These two belong to the header, not to the screen: on `/c` the screen does not exist yet, and a sheet mounted
-          there would leave the orbs raising a flag nobody renders — then fire it late on the next chat. */}
-      <ModelPickerSheet
-        visible={modelPickerOpen}
-        onClose={closeModelPicker}
-        chatId={chatId}
-      />
-      <AccountSheet
-        visible={accountOpen}
-        onClose={closeAccount}
-        onChangeModel={switchToModelPickerFromAccount}
-      />
+      {sheets}
     </View>
   );
 }

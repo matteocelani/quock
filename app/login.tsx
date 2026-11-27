@@ -1,5 +1,6 @@
 // Sign-in screen. Entrance is staggered logo → title → button → legal.
 
+import { FORM_MAX_WIDTH } from "@/lib/hooks/useWideLayout";
 import * as Application from "expo-application";
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -174,7 +175,10 @@ export default function Login(): React.ReactElement {
   const isShowingSpinner = isLoading || isPerceivedLoading;
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top", "bottom"]}>
-      <View className="flex-1 px-6">
+      <View
+        className="flex-1 px-6"
+        style={{ width: "100%", maxWidth: FORM_MAX_WIDTH, alignSelf: "center" }}
+      >
         {error !== null && (
           <Animated.View
             style={errorAnimatedStyle}

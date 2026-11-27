@@ -7,6 +7,7 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  useWindowDimensions,
   View,
   type ViewStyle,
 } from "react-native";
@@ -24,6 +25,7 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SHEET_MAX_WIDTH } from "@/lib/hooks/useWideLayout";
 import { useTheme, useThemeColors } from "@/lib/theme/ThemeContext";
 import { sheetSpring } from "@/lib/design/motion";
 import { boxShadow, sheetPrimitive, timingsNamed } from "@/lib/design/tokens";
@@ -74,6 +76,13 @@ export function Sheet({
   const { resolved } = useTheme();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  // Full width minus the inset on a phone; a centred, capped card where the display is wide (iPad, Mac window).
+  const cardWidth = windowWidth - sheetPrimitive.insetMargin * 2;
+  const cardHorizontal: ViewStyle =
+    cardWidth > SHEET_MAX_WIDTH
+      ? { left: (windowWidth - SHEET_MAX_WIDTH) / 2, width: SHEET_MAX_WIDTH }
+      : { left: sheetPrimitive.insetMargin, right: sheetPrimitive.insetMargin };
   // `translateY` is the rest offset (0=open, offscreen=closed); `dragY` is the live finger offset added during a pan.
   const translateY = useSharedValue<number>(sheetPrimitive.offscreenTranslateY);
   const scrimOpacity = useSharedValue<number>(0);
@@ -194,8 +203,7 @@ export function Sheet({
           style={[
             {
               position: "absolute",
-              left: sheetPrimitive.insetMargin,
-              right: sheetPrimitive.insetMargin,
+              ...cardHorizontal,
               // 6pt off the bare display edge — the 58pt bottom radii exist to hug the device corner curve.
               bottom: sheetPrimitive.insetMargin,
               height: heightPercent as ViewStyle["height"],

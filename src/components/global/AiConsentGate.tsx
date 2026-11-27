@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Pressable } from "@/components/ui/Pressable";
 import QuockSvg from "@/assets/icons/Quock.svg";
 import { zLayer } from "@/lib/design/tokens";
+import { FORM_MAX_WIDTH } from "@/lib/hooks/useWideLayout";
 import { useThemeColors } from "@/lib/theme/ThemeContext";
 import {
   hasCurrentAiConsent,
@@ -41,7 +42,10 @@ export function AiConsentGate(): React.ReactElement | null {
           contentContainerStyle={{ flexGrow: 1 }}
         >
           {/* Content flows from the top; a flex spacer keeps the action anchored at the bottom. */}
-          <View className="flex-1 px-6 pt-8 pb-2">
+          <View
+            className="flex-1 px-6 pt-8 pb-2"
+            style={{ width: "100%", maxWidth: FORM_MAX_WIDTH, alignSelf: "center" }}
+          >
             <View className="items-center mb-9">
               <QuockSvg
                 width={CONSENT_LOGO_SIZE}

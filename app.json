@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.matteocelani.quock",
       "icon": {
         "light": "./assets/images/icon-light.png",
@@ -16,6 +16,13 @@
       },
       "infoPlist": {
         "UIBackgroundModes": [],
+        "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
+        "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ],
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Take photos to attach them to your conversations.",
         "NSPhotoLibraryUsageDescription": "Attach images from your library to your conversations."

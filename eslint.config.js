@@ -12,6 +12,11 @@ module.exports = [
       "node_modules/**",
       ".expo/**",
       "codegen/**",
+      // Native build output and fetched sources (llama.cpp, SwiftPM checkouts) are not ours to lint.
+      "**/.cxx/**",
+      "**/.build/**",
+      "android/**",
+      "ios/**",
     ],
   },
   {
