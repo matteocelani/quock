@@ -8,17 +8,23 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-// Device harness for debuggable builds only: a file `selftest.txt` in the app's files folder holding a model name makes
+// Device harness for debuggable builds only: a file `selftest.txt` in the app's private files folder (written with
+// `adb shell run-as <package>`, since the app cannot read files adb creates elsewhere) holding a model name makes
 // the app pull it, run a three-turn chat and log to logcat (tag QuockSelfTest) with no UI.
 internal object SelfTest {
   private const val TAG = "QuockSelfTest"
 
   fun runIfRequested(context: Context, store: ModelStore, engine: LocalEngine) {
     if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
-    val request = File(context.getExternalFilesDir(null), "selftest.txt")
-    if (!request.exists()) return
-    val model = request.readText().trim()
-    request.delete()
+    // A harness must never stop the app from starting, so an unreadable request is simply ignored.
+    val model = try {
+      val request = File(context.filesDir, "selftest.txt")
+      if (!request.exists()) return
+      request.readText().trim().also { request.delete() }
+    } catch (error: Exception) {
+      Log.w(TAG, "self-test request ignored: $error")
+      return
+    }
     CoroutineScope(Dispatchers.Default).launch {
       try {
         val ref = ModelRef.parse(model)
