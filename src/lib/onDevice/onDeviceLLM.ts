@@ -1,7 +1,12 @@
-// Runs Ollama's MLX builds on the phone itself. Optional on purpose: the native module ships for iOS devices only, so
-// Android, the simulator and Jest see `isOnDeviceSupported() === false` and every call degrades to a no-op.
+// Runs Ollama models on the phone itself: MLX builds through Apple's MLX on iPhone, iPad and Mac, GGUF builds through
+// llama.cpp on Android. Optional on purpose: the simulator and Jest have no native module and see
+// `isOnDeviceSupported() === false`, so every call degrades to a no-op.
 
 import { requireOptionalNativeModule } from "expo";
+import {
+  ON_DEVICE_CATALOG,
+  ON_DEVICE_CATALOG_ANDROID,
+} from "@/lib/onDevice/catalog";
 
 export interface OnDeviceModelInfo {
   model: string;
@@ -71,11 +76,15 @@ const native = requireOptionalNativeModule<OnDeviceLLMModule>("OnDeviceLLM");
 
 // Ollama names its MLX builds with a `-mlx` tag (`qwen3.5:0.8b-mlx`, or `-mlx-bf16` for full precision), and the cloud
 // never serves one, so the tag alone tells which engine a stored model name belongs to, even before the installed
-// list has loaded.
+// list has loaded. A GGUF build carries no such tag, so on Android the curated list is what names them.
 const ON_DEVICE_TAG = /:[^:]*-mlx(-bf16)?$/;
+const ANDROID_BUILDS: ReadonlySet<string> = new Set(ON_DEVICE_CATALOG_ANDROID);
 
 export function isOnDeviceModelName(name: string): boolean {
-  return ON_DEVICE_TAG.test(name);
+  return (
+    ON_DEVICE_TAG.test(name) ||
+    (ON_DEVICE_CATALOG === ON_DEVICE_CATALOG_ANDROID && ANDROID_BUILDS.has(name))
+  );
 }
 
 export function isOnDeviceSupported(): boolean {

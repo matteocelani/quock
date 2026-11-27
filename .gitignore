@@ -48,3 +48,5 @@ expo-env.d.ts
 /modules/on-device-llm/.build/
 /modules/on-device-llm/.swiftpm/
 *.profraw
+/modules/on-device-llm/android/.cxx/
+/modules/on-device-llm/android/build/

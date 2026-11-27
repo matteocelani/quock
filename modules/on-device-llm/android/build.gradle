@@ -1,0 +1,40 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+useDefaultAndroidSdkVersions()
+
+group = 'expo.modules.ondevicellm'
+version = '0.0.1'
+
+android {
+  namespace "expo.modules.ondevicellm"
+
+  defaultConfig {
+    // llama.cpp's CPU kernels are tuned for 64-bit ARM; 32-bit and x86 devices keep the cloud path.
+    ndk { abiFilters "arm64-v8a", "x86_64" }
+    externalNativeBuild {
+      cmake {
+        arguments "-DCMAKE_BUILD_TYPE=Release", "-DANDROID_STL=c++_shared", "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
+        if (System.getenv("QUOCK_LLAMA_DIR")) arguments "-DQUOCK_LLAMA_DIR=${System.getenv("QUOCK_LLAMA_DIR")}"
+      }
+    }
+  }
+
+  externalNativeBuild {
+    cmake {
+      path "src/main/cpp/CMakeLists.txt"
+      version "3.22.1"
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+  kotlinOptions { jvmTarget = "17" }
+
+}

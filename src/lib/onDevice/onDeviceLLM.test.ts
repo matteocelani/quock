@@ -27,3 +27,28 @@ describe("prepareOnDeviceModel", () => {
     );
   });
 });
+
+describe("isOnDeviceModelName on Android", () => {
+  afterEach(() => {
+    jest.dontMock("react-native");
+    jest.resetModules();
+  });
+
+  it("names GGUF builds by the curated list, since they carry no -mlx tag", () => {
+    jest.resetModules();
+    jest.doMock("react-native", () => {
+      const actual = jest.requireActual("react-native");
+      return Object.setPrototypeOf(
+        { Platform: { ...actual.Platform, OS: "android" } },
+        actual,
+      );
+    });
+    const { isOnDeviceModelName: isLocal } = jest.requireActual(
+      "@/lib/onDevice/onDeviceLLM",
+    );
+    expect(isLocal("qwen3.5:0.8b")).toBe(true);
+    expect(isLocal("gemma4:e2b")).toBe(true);
+    expect(isLocal("qwen3.5:397b")).toBe(false);
+    expect(isLocal("glm-5.2")).toBe(false);
+  });
+});

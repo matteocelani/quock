@@ -1,6 +1,7 @@
 {
   "platforms": [
-    "ios"
+    "ios",
+    "android"
   ],
   "apple": {
     "modules": [
@@ -8,6 +9,11 @@
     ],
     "appDelegateSubscribers": [
       "OnDeviceLLMAppDelegate"
+    ]
+  },
+  "android": {
+    "modules": [
+      "expo.modules.ondevicellm.OnDeviceLLMModule"
     ]
   }
 }

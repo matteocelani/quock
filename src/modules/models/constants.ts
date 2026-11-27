@@ -25,12 +25,5 @@ export const DEFAULT_MODEL_PRIORITY: readonly string[] = [
 ];
 // Ollama's MLX catalogue changes with new releases, not within a session.
 export const ON_DEVICE_CATALOG_STALE_TIME_MS = 60 * 60 * 1000;
-// Ollama MLX builds offered for download. Curated rather than scraped: one build per family and size, each measured
-// on the benchmark first. Full-precision builds on purpose: the app quantizes them at install to 6-bit with an 8-bit
-// head, which beat Ollama's mxfp8 builds on speed, memory and accuracy. Size and existence are verified live.
-export const ON_DEVICE_CATALOG: readonly string[] = [
-  "qwen3.5:0.8b-mlx-bf16",
-  "qwen3.5:2b-mlx-bf16",
-  // Its 4.5 GB per-layer embedding table stays on flash, so this 5B-parameter model needs about 2 GB of memory.
-  "gemma4:e2b-mlx-bf16",
-];
+// The builds offered for download live with the engine that runs them.
+export { ON_DEVICE_CATALOG } from "@/lib/onDevice/catalog";
