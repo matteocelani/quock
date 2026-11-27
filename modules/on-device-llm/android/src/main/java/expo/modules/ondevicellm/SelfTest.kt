@@ -17,10 +17,18 @@ internal object SelfTest {
   fun runIfRequested(context: Context, store: ModelStore, engine: LocalEngine) {
     if (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
     // A harness must never stop the app from starting, so an unreadable request is simply ignored.
+    var keep = false
     val model = try {
       val request = File(context.filesDir, "selftest.txt")
       if (!request.exists()) return
-      request.readText().trim().also { request.delete() }
+      val lines = request.readLines().map { it.trim() }.filter { it.isNotEmpty() }
+      request.delete()
+      // Optional extra lines: `threads=N` to override the thread count, `keep` to leave the model installed.
+      lines.drop(1).forEach { line ->
+        if (line == "keep") keep = true
+        if (line.startsWith("threads=")) DeviceMemory.threadsOverride = line.removePrefix("threads=").toIntOrNull()
+      }
+      lines.first()
     } catch (error: Exception) {
       Log.w(TAG, "self-test request ignored: $error")
       return
@@ -56,7 +64,7 @@ internal object SelfTest {
         engine.prepare(ref)
         Log.i(TAG, "reload ${(System.nanoTime() - first) / 1e9}s")
         engine.unload()
-        store.remove(ref)
+        if (!keep) store.remove(ref)
         Log.i(TAG, "DONE")
       } catch (error: Throwable) {
         Log.e(TAG, "FAILED: $error", error)
