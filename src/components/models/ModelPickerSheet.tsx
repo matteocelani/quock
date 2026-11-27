@@ -102,7 +102,7 @@ function ModelRow({
       label={formatModelName(model.name)}
       subtitle={
         model.isOnDevice
-          ? `On this iPhone · ${formatBytes(model.bytes ?? 0)}`
+          ? `On this device · ${formatBytes(model.bytes ?? 0)}`
           : model.description
       }
       chips={chips}
@@ -113,7 +113,7 @@ function ModelRow({
             icon={Trash2}
             onPress={onRemove}
             tone="muted"
-            accessibilityLabel={`Remove ${formatModelName(model.name)} from this iPhone`}
+            accessibilityLabel={`Remove ${formatModelName(model.name)} from this device`}
             testID={`model-remove-${model.name.replace(/:/g, "-")}`}
           />
         ) : undefined
@@ -284,7 +284,7 @@ export function ModelPickerSheet({
             title={`Remove ${pendingRemoval ? formatModelName(pendingRemoval.name) : ""}?`}
             message={
               pendingRemoval
-                ? `Frees ${formatBytes(pendingRemoval.bytes ?? 0)} on this iPhone. You can download it again at any time.`
+                ? `Frees ${formatBytes(pendingRemoval.bytes ?? 0)} on this device. You can download it again at any time.`
                 : undefined
             }
             confirmLabel="Remove"
@@ -301,7 +301,7 @@ export function ModelPickerSheet({
             title={`Download ${pendingDownload ? formatModelName(pendingDownload.model) : ""}?`}
             message={
               pendingDownload
-                ? `${formatBytes(pendingDownload.bytes)} will be downloaded from Ollama and stored on this iPhone. Wi-Fi is recommended.`
+                ? `${formatBytes(pendingDownload.bytes)} will be downloaded from Ollama and stored on this device. Wi-Fi is recommended.`
                 : undefined
             }
             confirmLabel="Download"
@@ -415,7 +415,7 @@ export function ModelPickerSheet({
           })
         )}
         {downloadable.length > 0 ? (
-          <Section label="Download to this iPhone" className="mt-6">
+          <Section label="Download to this device" className="mt-6">
             {downloadable.map((entry, index) => (
               <DownloadRow
                 key={entry.model}
